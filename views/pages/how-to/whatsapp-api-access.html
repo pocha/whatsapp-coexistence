@@ -1,5 +1,5 @@
 <!--#var title="How to Get WhatsApp Business API Access — WA Coexistence"-->
-<!--#var description="How to pass Meta App Review and get approved for WhatsApp Business API access, including the two required demo videos."-->
+<!--#var description="How to get WhatsApp Business API access for your own number: test numbers, going to production, and messaging limits — no Tech Provider status or App Review needed."-->
 <!--#include partial="head"-->
 <!--#include partial="header"-->
 
@@ -9,8 +9,10 @@
       <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Get WhatsApp Business API Access</h1>
 
       <p class="text-on-surface-variant font-body-md">
-        Getting WhatsApp Business API access means passing Meta's <strong>App
-        Review</strong>. There are two things you need in place first:
+        If you're using the API for your own business — not building a platform
+        other businesses will use — this is simpler than most guides make it
+        sound. No App Review, no demo videos, no Tech Provider status (see the
+        Meta App guide below for why). You just need two things first:
       </p>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-2">
@@ -20,51 +22,64 @@
         </a>
         <a href="/how-to/meta-app.html" class="card p-6 hover:shadow-md transition-all">
           <p class="section-title text-on-surface mb-2">2. A Meta App</p>
-          <p class="text-on-surface-variant font-body-md text-sm">Created on developers.facebook.com with the WhatsApp product and your App ID / Secret / Config ID.</p>
+          <p class="text-on-surface-variant font-body-md text-sm">Created on developers.facebook.com with the WhatsApp product and your App ID / Secret.</p>
         </a>
       </div>
 
       <p class="text-on-surface-variant font-body-md">
-        With both of those in place, here's how App Review itself works.
+        With both of those in place, here's what to do next.
       </p>
 
-      <h2 class="section-title text-on-surface mt-4">App Review requires two demo videos</h2>
+      <h2 class="section-title text-on-surface mt-4">1. Try it with a free test number</h2>
       <p class="text-on-surface-variant font-body-md">
-        Meta's reviewers need to see your app actually using the
-        <code>whatsapp_business_messaging</code> and
-        <code>whatsapp_business_management</code> permissions:
+        Once your app has the WhatsApp product added, its Quickstart page gives you
+        a free, temporary <strong>test number</strong> — no verification, no cost.
+        You can add up to <strong>5 recipient numbers</strong> to an "allowed
+        recipients" list (each one confirms via a code sent in WhatsApp), then send
+        them the pre-built <code>hello_world</code> template straight from the API
+        Setup screen to confirm everything's wired up.
       </p>
-      <ul class="flex flex-col gap-3 list-disc list-inside text-on-surface-variant font-body-md">
-        <li><strong>Video 1</strong> — a message created and sent from your app, arriving in the WhatsApp client on the recipient's phone.</li>
-        <li><strong>Video 2</strong> — your app creating a message template, and that template showing up in WhatsApp Manager.</li>
+      <p class="text-on-surface-variant font-body-md">
+        Full steps: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/get-started" target="_blank" rel="noopener">WhatsApp Cloud API — Get Started</a>.
+      </p>
+
+      <h2 class="section-title text-on-surface mt-4">2. Go to production with your real number</h2>
+      <p class="text-on-surface-variant font-body-md">
+        When you're ready to send/receive on your actual business number, add it
+        as a business phone number on the same WhatsApp app (instead of the
+        temporary test number) and generate a permanent access token for it via a
+        System User in Business Settings. This is still Standard Access — no
+        review needed, same as the test number.
+      </p>
+      <p class="text-on-surface-variant font-body-md">
+        Reference: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/business-phone-numbers/phone-numbers" target="_blank" rel="noopener">Business phone numbers — Meta for Developers</a>.
+      </p>
+
+      <h2 class="section-title text-on-surface mt-4">3. Know your messaging limits</h2>
+      <p class="text-on-surface-variant font-body-md">
+        Every new Business Portfolio starts at <strong>250 unique customers per
+        24-hour period</strong>, regardless of verification status — this is the
+        free tier and it applies to real (non-test) numbers too. To scale up:
+      </p>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li>Reach <strong>2,000</strong> by either verifying your business, or by sending 2,000 delivered messages outside customer-service windows with high-quality templates within 30 days.</li>
+        <li>Beyond 2,000, limits scale automatically (to 10,000 / 100,000 / unlimited) as long as you keep messaging quality high and use at least 50% of your current limit in the past 7 days.</li>
       </ul>
       <p class="text-on-surface-variant font-body-md">
-        A pure onboarding-only app can't produce these on its own, which is why this
-        project's <a class="text-primary font-bold hover:underline" href="/dashboard/">Dashboard</a>
-        ships small "test" buttons — send a message, create a template — solely to
-        record these two videos. They're not part of the coexistence flow itself;
-        the dashboard's own page explains how to use them for recording, and the
-        project <a class="text-primary font-bold hover:underline" href="https://github.com/pocha/whatsapp-coexistence#readme" target="_blank" rel="noopener">README</a>
-        has the exact click-by-click steps.
+        Full details: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/messaging-limits" target="_blank" rel="noopener">Messaging Limits — Meta for Developers</a>.
       </p>
 
-      <h2 class="section-title text-on-surface mt-4">Keep it simple</h2>
       <p class="text-on-surface-variant font-body-md">
-        Reviewers are checking that the flow (login → action → result) is real and
-        complete, not evaluating UI polish. Record both videos simply and unedited.
-      </p>
-
-      <h2 class="section-title text-on-surface mt-4">After approval</h2>
-      <p class="text-on-surface-variant font-body-md">
-        Once approved, you can turn the test buttons off — they hold your WABA
-        access token in memory to work, which is more exposure than the coexistence
-        flow itself needs. That flow discards the access token immediately after
-        subscribing to your WABA.
+        The above is everything a single business needs. Building a platform for
+        <em>other</em> businesses instead? That needs App Review and Tech Provider
+        status — see the
+        <a class="text-primary font-bold hover:underline" href="/how-to/meta-app.html">Meta App guide</a>
+        for the details and source.
       </p>
 
       <div class="card p-6 mt-4">
-        <p class="section-title text-on-surface mb-2">Ready to activate coexistence?</p>
-        <a class="text-primary font-bold hover:underline" href="/dashboard/">Open the Dashboard &rarr;</a>
+        <p class="section-title text-on-surface mb-2">Got WhatsApp Business API access?</p>
+        <a class="text-primary font-bold hover:underline" href="/dashboard/">Open the Dashboard to activate Coexistence &rarr;</a>
       </div>
     </div>
   </section>

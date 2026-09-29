@@ -23,19 +23,30 @@
 
   <!-- Getting Started -->
   <section class="px-gutter md:px-24 py-16" id="getting-started">
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-5xl mx-auto">
       <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-10">Getting Started</h2>
 
-      <div class="card p-6 mb-8 whatsapp-border">
-        <p class="label-strong text-primary mb-1">PRE-REQUISITE</p>
-        <p class="text-on-surface-variant font-body-md">
-          WhatsApp Business API access, and a working app already using it.
-          Don't have this yet? See the
-          <a class="text-primary font-bold hover:underline" href="#how-to">How-To Guides</a> below.
-        </p>
+      <div class="card p-6 mb-8 whatsapp-border grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <p class="label-strong text-primary mb-1">PRE-REQUISITE</p>
+          <p class="text-on-surface-variant font-body-md">
+            WhatsApp Business API access, and a working app already using it.
+            Don't have this yet? See the
+            <a class="text-primary font-bold hover:underline" href="#how-to">How-To Guides</a> below.
+          </p>
+        </div>
+        <div class="md:border-l md:border-outline-variant md:pl-6">
+          <p class="label-strong text-primary mb-1">WHY WE GATEKEEP OUTGOING MESSAGES</p>
+          <p class="text-on-surface-variant font-body-md">
+            It's the one place we stay involved, purely so we can protect your
+            number from getting banned — rate limiting and other anti-spam
+            checks are <em>(upcoming)</em>. Everything else — incoming
+            messages, your access token — never touches us.
+          </p>
+        </div>
       </div>
 
-      <div class="flex flex-col gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="card p-6">
           <p class="label-strong text-primary mb-2">STEP 1</p>
           <p class="section-title text-on-surface mb-2">Scan the QR code &amp; activate Coexistence</p>
@@ -49,18 +60,8 @@
         <div class="card p-6">
           <p class="label-strong text-primary mb-2">STEP 3</p>
           <p class="section-title text-on-surface mb-2">Send messages through the endpoint we provide</p>
-          <p class="text-on-surface-variant font-body-md">Update your app to send outgoing messages through our endpoint instead of directly. This is the only place we sit in the path — see why below.</p>
+          <p class="text-on-surface-variant font-body-md">Update your app to send outgoing messages through our endpoint instead of directly. This is the only place we sit in the path.</p>
         </div>
-      </div>
-
-      <div class="card p-6 mt-8">
-        <p class="text-on-surface-variant font-body-md">
-          <strong class="text-on-surface">Why we gatekeep outgoing messages:</strong>
-          it's the one place we stay involved, purely so we can protect your
-          number from getting banned — rate limiting and other anti-spam
-          checks are <em>(upcoming)</em>. Everything else — incoming messages,
-          your access token — never touches us.
-        </p>
       </div>
     </div>
   </section>
@@ -102,7 +103,7 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <a href="/how-to/whatsapp-api-access.html" class="card p-6 hover:shadow-md transition-all">
           <p class="section-title text-on-surface mb-2">How to Get WhatsApp Business API Access</p>
-          <p class="text-on-surface-variant font-body-md text-sm">App Review, Tech Provider approval, and the two demo videos Meta requires.</p>
+          <p class="text-on-surface-variant font-body-md text-sm">Test numbers, going to production, and messaging limits — no Tech Provider status needed for your own number.</p>
         </a>
         <a href="/how-to/business-portfolio.html" class="card p-6 hover:shadow-md transition-all">
           <p class="section-title text-on-surface mb-2">How to Create a Business Portfolio</p>
