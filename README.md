@@ -22,20 +22,28 @@ pick your personal profile if it shows up as an option — Business
 Verification (required for Tech Provider status) needs a real legal
 business behind the portfolio, not an individual account.
 
+You don't need a separate Facebook login for this. One Facebook account can
+own multiple Business Portfolios, so if `business.facebook.com` drops you
+into an unrelated existing portfolio (e.g. one made for a personal project),
+stay logged in and create a **new** portfolio for this business instead —
+use the portfolio switcher at the top-left of Meta Business Suite.
+
 1. Go to [business.facebook.com](https://business.facebook.com/) and create
-   a Business Portfolio if you don't already have one (or click **"Create a
+   a new Business Portfolio for this business (or click **"Create a
    business portfolio"** from the app-creation screen itself).
 2. Fill in your **legal business name**, business email, and business
    address — use the details that match your registration documents, since
    these get checked during verification.
-3. Once created, go to **Business Settings → Security Center → Business
-   verification** (or the prompt on the portfolio's home page) and start
-   verification. You'll need documents such as a business registration
-   certificate / tax ID, and Meta may verify by document upload, a phone
+3. Check **Business Settings → Security Center → Business verification**.
+   Meta only requires this once your usage needs it (e.g. requesting
+   Advanced Access permissions, or crossing certain messaging-volume tiers)
+   — it's common to see **"Your organisation does not need to be verified"**
+   at this stage. That's fine; it's not a blocker. If it does say
+   verification is needed, you'll be asked for documents such as a business
+   registration certificate / tax ID, verified by document upload, a phone
    call, or a domain check, depending on your business.
-4. Verification can take anywhere from a few minutes to several days.
-   You can create the Meta App and start local development before it
-   completes — you'll just need it finished before submitting for **App
+4. Either way, you can create the Meta App and start local development now.
+   If verification becomes required, Meta will prompt for it during **App
    Review** / Tech Provider approval.
 
 ### Create the app
@@ -48,17 +56,22 @@ business behind the portfolio, not an individual account.
    permissions automatically.
 3. On the **Business** step, select the Business Portfolio you created
    above (not your personal profile) and continue.
-4. Go to **App Settings → Basic** and note down the **App ID** and **App Secret**.
-5. Go to **WhatsApp → Configuration → Embedded Signup** and create a signup
+4. On the **Requirements** step you'll likely see **"No requirements
+   identified."** That's expected, not an error — Development Mode with
+   your own test assets doesn't need anything yet. The permission requests
+   and any Business Verification requirement only get triggered later, when
+   you submit for **App Review** to go live. Click Next.
+5. Go to **App Settings → Basic** and note down the **App ID** and **App Secret**.
+6. Go to **WhatsApp → Configuration → Embedded Signup** and create a signup
    configuration (this defines what the Embedded Signup popup shows the
    customer — business verification requirements, feature type, etc). Note
    the **Configuration ID**.
-6. Your app is in **Development Mode** by default, which is enough to record
+7. Your app is in **Development Mode** by default, which is enough to record
    the review videos in step 3. You only need to submit for **App Review**
    (Business Verification + `whatsapp_business_management` and
    `whatsapp_business_messaging` permissions) once you're ready to onboard
    real customers.
-7. Separately, apply for **Tech Provider** status: Meta grants this alongside
+8. Separately, apply for **Tech Provider** status: Meta grants this alongside
    or after App Review — there's no separate self-serve toggle. Submit the
    App Review request above and Meta's review covers both.
 
@@ -94,10 +107,41 @@ npm run dev     # TypeScript, auto-reload
 npm run build && npm start   # compiled, for a real deploy
 ```
 
-Open your public URL in a browser. In the App Dashboard, also set your
-webhook URL to `https://<your-domain>/webhook` with the same verify token,
-and subscribe to the `messages` field, so the "Incoming webhook events" panel
-can show activity.
+Open `https://<your-domain>/dashboard/` in a browser — that's the onboarding
+UI. In the App Dashboard, also set your webhook URL to
+`https://<your-domain>/webhook` with the same verify token, and subscribe to
+the `messages` field, so the "Incoming webhook events" panel can show
+activity.
+
+`public/` is served as-is, so everything in it is publicly reachable:
+
+| Path | Purpose |
+|---|---|
+| `/` | Landing page, linking to the rest |
+| `/dashboard/` | The onboarding + test-feature UI (steps 2–3 below) |
+| `/privacy.html` | Privacy Policy |
+| `/tos.html` | Terms of Service |
+| `/data-deletion.html` | Data Deletion instructions |
+
+Meta's app-creation flow asks for Privacy Policy, Terms of Service, and Data
+Deletion URLs — use `https://<your-domain>/privacy.html`,
+`https://<your-domain>/tos.html`, and `https://<your-domain>/data-deletion.html`.
+**Before publishing for real**, open those three files and replace the
+`[bracketed placeholders]` (business legal name, contact email) — they're
+marked with a `TODO` banner on the page itself as a reminder.
+
+### Optional: hosting the static pages on GitHub Pages
+
+`.github/workflows/deploy-pages.yml` deploys everything in `public/` to
+GitHub Pages on every push to `main`. One-time setup: **Settings → Pages →
+Source: GitHub Actions**.
+
+This works for the landing page and the three legal pages, since they're
+pure static HTML. It does **not** work for `/dashboard` — that page calls
+API endpoints (`/api/config`, `/api/onboarding/complete`, `/webhook`, …)
+that only exist when the Fastify server from step 2 is actually running, and
+GitHub Pages only serves static files. Keep pointing Meta's Embedded Signup
+redirect / your webhook config at your real server, not the Pages URL.
 
 ## 3. Record your App Review videos
 
@@ -143,7 +187,10 @@ are off — it's only held in memory for the length of that one request.
 
 ## How it works
 
-- `public/index.html` + `public/app.js` — loads the Facebook JS SDK, runs
+- `public/index.html` — landing page linking to the dashboard and legal pages.
+- `public/privacy.html`, `public/tos.html`, `public/data-deletion.html` —
+  the pages Meta's app-creation flow requires URLs for.
+- `public/dashboard/index.html` + `public/dashboard/app.js` — loads the Facebook JS SDK, runs
   `FB.login()` with your Embedded Signup config, and captures the resulting
   `code` + the new WABA/phone number ids from the `WA_EMBEDDED_SIGNUP`
   postMessage event.

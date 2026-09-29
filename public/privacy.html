@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Privacy Policy — WA Coexistence</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: -apple-system, Arial, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; color: #1a1a1a; line-height: 1.5; }
+    h1 { font-size: 22px; }
+    h2 { font-size: 16px; margin-top: 28px; }
+    a { color: #2563eb; }
+    .todo { background: #fff8e1; border: 1px solid #f0d78c; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <p><a href="/">&larr; Back</a></p>
+  <h1>Privacy Policy</h1>
+  <p><em>Last updated: <!-- TODO: set date --></em></p>
+
+  <p class="todo">TODO before publishing: replace the bracketed placeholders
+  below with your business's legal name, contact email, and address.</p>
+
+  <p>
+    [Your Business Legal Name] ("we", "us") operates the WA Coexistence
+    onboarding application (the "Service"), which lets a business connect
+    its WhatsApp Business Account to WhatsApp Coexistence via Meta's
+    Embedded Signup, and then hands ongoing message delivery to that
+    business's own systems.
+  </p>
+
+  <h2>What we collect</h2>
+  <p>
+    During onboarding, Meta's Embedded Signup flow gives us a short-lived
+    access token, your WhatsApp Business Account (WABA) ID, and phone number
+    ID. We use these only to call Meta's Graph API on your behalf to
+    subscribe this app to your WABA's events and, if you request it,
+    configure your own webhook URL to receive them directly ("webhook
+    override").
+  </p>
+
+  <h2>How we use it</h2>
+  <p>
+    The access token is used only to complete the onboarding API calls
+    described above. We do not read, store, or process your WhatsApp
+    message content. Once onboarding completes, message delivery goes
+    directly between Meta and either your own webhook (if overridden) or
+    this app's webhook, which only logs events in memory for testing and
+    does not persist them.
+  </p>
+
+  <h2>Data retention</h2>
+  <p>
+    Access tokens are held in memory only, for the duration of the
+    onboarding request (and, if test features are enabled, for the life of
+    the server process — see our
+    <a href="https://github.com/pocha/whatsapp-coexistence#readme">README</a>
+    for details). We do not write tokens or message content to a database
+    or disk.
+  </p>
+
+  <h2>Third parties</h2>
+  <p>
+    We share data only with Meta, as required to operate the WhatsApp
+    Business Platform integration itself.
+  </p>
+
+  <h2>Your rights</h2>
+  <p>
+    You can revoke this app's access at any time from Meta Business
+    Manager. See our <a href="/data-deletion.html">Data Deletion</a> page
+    for how to request deletion of any data we hold.
+  </p>
+
+  <h2>Contact</h2>
+  <p>Questions about this policy: [your-contact-email]</p>
+</body>
+</html>

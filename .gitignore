@@ -3,3 +3,4 @@ dist/
 .env
 *.log
 start-conversation.pdf
+.DS_Store
