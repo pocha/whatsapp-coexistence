@@ -1,5 +1,5 @@
 <!--#var title="How to Create an App on Facebook Developers Portal — WA Coexistence"-->
-<!--#var description="Step-by-step guide to creating a Meta App for WhatsApp, connecting it to a Business Portfolio, and getting your App ID, App Secret and Embedded Signup Configuration ID."-->
+<!--#var description="Step-by-step guide to creating a Meta App for WhatsApp and connecting it to a Business Portfolio, for your own WhatsApp Business API access."-->
 <!--#include partial="head"-->
 <!--#include partial="header"-->
 
@@ -15,13 +15,20 @@
       </p>
 
       <ol class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
-        <li>Go to <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com/apps</a> and create a new App.</li>
+        <li>
+          Go to <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com/apps</a>
+          and create a new App (Meta's general
+          <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/docs/development/create-an-app/" target="_blank" rel="noopener">Create an App</a>
+          doc covers this step for any app type, if you want more detail).
+        </li>
         <li>
           When asked what you want your app to do, choose the
           <strong>"Connect with customers through WhatsApp"</strong> use case (not
           "Create an app without a use case" or "Other") — this adds the WhatsApp
-          product and the <code>whatsapp_business_messaging</code> /
-          <code>whatsapp_business_management</code> permissions automatically.
+          product, described in Meta's
+          <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/whatsapp-business-accounts" target="_blank" rel="noopener">WhatsApp Business Accounts</a>
+          doc, along with the <code>whatsapp_business_messaging</code> /
+          <code>whatsapp_business_management</code> permissions, automatically.
         </li>
       </ol>
 
@@ -36,10 +43,9 @@
       <ol start="4" class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
         <li>
           On the <strong>Requirements</strong> step you'll likely see <strong>"No
-          requirements identified."</strong> That's expected, not an error —
-          Development Mode with your own test assets doesn't need anything yet. The
-          permission requests and any Business Verification requirement only get
-          triggered later, when you submit for App Review to go live. Click Next.
+          requirements identified."</strong> That's expected, not an error — using
+          the API for your own number (rather than building a platform for other
+          businesses) doesn't require anything extra here. Click Next.
         </li>
       </ol>
 
@@ -48,21 +54,38 @@
       <ol start="5" class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
         <li>Go to <strong>App Settings → Basic</strong> and note down the <strong>App ID</strong> and <strong>App Secret</strong>.</li>
         <li>
-          Go to <strong>WhatsApp → Configuration → Embedded Signup</strong> and
-          create a signup configuration (this defines what the Embedded Signup
-          popup shows you — business verification requirements, feature type, etc).
-          Note the <strong>Configuration ID</strong>.
-        </li>
-        <li>
-          Your app is in <strong>Development Mode</strong> by default, which is
-          enough to test locally. You only need to submit for App Review once
-          you're ready to connect your real WhatsApp Business number — see the next
-          guide.
+          That's it — your app is ready to use the WhatsApp API under
+          <strong>Standard Access</strong>, which is all a business needs to send
+          and receive messages on its own number.
         </li>
       </ol>
 
+      <div class="card p-6 whatsapp-border">
+        <p class="label-strong text-primary mb-1">DO YOU NEED APP REVIEW?</p>
+        <p class="text-on-surface-variant font-body-md">
+          <em>"If you are using the API for yourself as a Direct Developer, you do
+          not need Advanced access or app review. If you are building an app that
+          other businesses will be using, you must request Advanced access for any
+          permissions your app needs."</em>
+        </p>
+        <p class="text-on-surface-variant font-body-md text-sm mt-2">
+          (Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/app-review" target="_blank" rel="noopener">App Review — Meta for Developers</a>)
+        </p>
+      </div>
+
+      <p class="text-on-surface-variant font-body-md">
+        So: no App Review, no demo videos, no Tech Provider status needed to send
+        and receive on your own number — that whole process is a separate, optional
+        path only required if you're building a platform for <em>other</em>
+        businesses to use (see Meta's
+        <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/get-started-for-tech-providers" target="_blank" rel="noopener">Become a Tech Provider</a>
+        docs if that's you). See
+        <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-api-access.html">How to Get WhatsApp Business API Access</a>
+        for what to do next with your new app.
+      </p>
+
       <img src="/assets/6.create-app.png" alt="Final app-creation overview screen listing app name, use case, business portfolio and requirements" class="rounded-xl border border-outline-variant w-full"/>
-      <p class="text-on-surface-variant font-body-md text-sm text-center -mt-2">The final overview — confirm everything looks right, then finish creating the app.</p>
+      <p class="text-on-surface-variant font-body-md text-sm text-center -mt-2">The final overview — confirm everything looks right, then finish creating the app. (The app name shown here, "WA Coexistence", is ours — name yours whatever you like.)</p>
 
       <div class="card p-6 mt-4">
         <p class="section-title text-on-surface mb-2">See also</p>

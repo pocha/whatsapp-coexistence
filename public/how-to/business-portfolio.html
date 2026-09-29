@@ -32,12 +32,22 @@
       <a href="/#how-to" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to How-To Guides</a>
       <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Create a Meta Business Portfolio</h1>
 
+      <div class="card p-6 whatsapp-border">
+        <p class="label-strong text-primary mb-1">IS THIS MANDATORY?</p>
+        <p class="text-on-surface-variant font-body-md">
+          Yes — even if you only want the free test-number tier (250 messages/day,
+          no verification needed). Meta's own docs are explicit: <em>"You must have
+          a business portfolio to use the [WhatsApp Business] platform."</em> There's
+          no way to create a WhatsApp-enabled Meta App without connecting it to one.
+          (Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/about-the-platform" target="_blank" rel="noopener">About the WhatsApp Business Platform</a>.)
+        </p>
+      </div>
+
       <p class="text-on-surface-variant font-body-md">
-        The Meta App you'll create for WhatsApp Business API access needs to be
-        connected to a Business Portfolio. Don't use your personal Facebook profile
-        if it shows up as an option — Business Verification (required for full API
-        access) needs a real legal business behind the portfolio, not an individual
-        account.
+        Don't use your personal Facebook profile if it shows up as an option when
+        connecting a portfolio to your app — full Business Verification (needed
+        later if you outgrow the free tier) requires a real legal business behind
+        the portfolio, not an individual account.
       </p>
 
       <img src="/assets/0.business-portfolio.png" alt="Meta app-creation screen showing only a personal profile as a connectable business portfolio option" class="rounded-xl border border-outline-variant w-full"/>
@@ -66,12 +76,16 @@
           at this stage. That's fine; it's not a blocker. If it does say verification
           is needed, you'll be asked for documents such as a business registration
           certificate / tax ID, verified by document upload, a phone call, or a
-          domain check, depending on your business.
+          domain check, depending on your business — see Meta's
+          <a class="text-primary font-bold hover:underline" href="https://www.facebook.com/business/help/2058515294227817" target="_blank" rel="noopener">Verify Your Business in Meta Business Suite</a>
+          guide for the exact process.
         </li>
         <li>
-          Either way, you can create the Meta App and start local development now.
-          If verification becomes required, Meta will prompt for it during App
-          Review.
+          Either way, you can create the Meta App and start using the API's free
+          tier right away — see
+          <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-api-access.html">How to Get WhatsApp Business API Access</a>.
+          You'll only be prompted for verification later if you need to scale
+          past the 250-messages/day starter limit.
         </li>
       </ol>
 
