@@ -15,19 +15,50 @@ below.
 
 You need a Meta App with Tech Provider access before any of this works.
 
-1. Go to [developers.facebook.com/apps](https://developers.facebook.com/apps) and create a new App (type: **Business**).
-2. In the App Dashboard, add the **WhatsApp** product.
-3. Go to **App Settings → Basic** and note down the **App ID** and **App Secret**.
-4. Go to **WhatsApp → Configuration → Embedded Signup** and create a signup
+### Business Portfolio (do this first)
+
+The app-creation flow will ask you to connect a Business Portfolio. Don't
+pick your personal profile if it shows up as an option — Business
+Verification (required for Tech Provider status) needs a real legal
+business behind the portfolio, not an individual account.
+
+1. Go to [business.facebook.com](https://business.facebook.com/) and create
+   a Business Portfolio if you don't already have one (or click **"Create a
+   business portfolio"** from the app-creation screen itself).
+2. Fill in your **legal business name**, business email, and business
+   address — use the details that match your registration documents, since
+   these get checked during verification.
+3. Once created, go to **Business Settings → Security Center → Business
+   verification** (or the prompt on the portfolio's home page) and start
+   verification. You'll need documents such as a business registration
+   certificate / tax ID, and Meta may verify by document upload, a phone
+   call, or a domain check, depending on your business.
+4. Verification can take anywhere from a few minutes to several days.
+   You can create the Meta App and start local development before it
+   completes — you'll just need it finished before submitting for **App
+   Review** / Tech Provider approval.
+
+### Create the app
+
+1. Go to [developers.facebook.com/apps](https://developers.facebook.com/apps) and create a new App.
+2. When asked what you want your app to do, choose the **"Connect with
+   customers through WhatsApp"** use case (not "Create an app without a use
+   case" or "Other") — this adds the WhatsApp product and the
+   `whatsapp_business_messaging` / `whatsapp_business_management`
+   permissions automatically.
+3. On the **Business** step, select the Business Portfolio you created
+   above (not your personal profile) and continue.
+4. Go to **App Settings → Basic** and note down the **App ID** and **App Secret**.
+5. Go to **WhatsApp → Configuration → Embedded Signup** and create a signup
    configuration (this defines what the Embedded Signup popup shows the
    customer — business verification requirements, feature type, etc). Note
    the **Configuration ID**.
-5. Your app is in **Development Mode** by default, which is enough to record
+6. Your app is in **Development Mode** by default, which is enough to record
    the review videos in step 3. You only need to submit for **App Review**
    (Business Verification + `whatsapp_business_management` and
    `whatsapp_business_messaging` permissions) once you're ready to onboard
    real customers.
-6. Separately, apply for **Tech Provider** status: Meta grants this alongside
+7. Separately, apply for **Tech Provider** status: Meta grants this alongside
    or after App Review — there's no separate self-serve toggle. Submit the
    App Review request above and Meta's review covers both.
 
