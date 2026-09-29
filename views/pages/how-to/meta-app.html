@@ -1,4 +1,4 @@
-<!--#var title="How to Create an App on developers.facebook.com — WA Coexistence"-->
+<!--#var title="How to Create an App on Facebook Developers Portal — WA Coexistence"-->
 <!--#var description="Step-by-step guide to creating a Meta App for WhatsApp, connecting it to a Business Portfolio, and getting your App ID, App Secret and Embedded Signup Configuration ID."-->
 <!--#include partial="head"-->
 <!--#include partial="header"-->
@@ -6,8 +6,7 @@
   <section class="px-gutter md:px-24 py-12">
     <div class="max-w-3xl mx-auto flex flex-col gap-4">
       <a href="/#how-to" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to How-To Guides</a>
-      <p class="label-strong text-primary">STEP 2</p>
-      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Create an App on developers.facebook.com</h1>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Create an App on Facebook Developers Portal</h1>
 
       <p class="text-on-surface-variant font-body-md">
         Make sure you've already created a
@@ -24,7 +23,17 @@
           product and the <code>whatsapp_business_messaging</code> /
           <code>whatsapp_business_management</code> permissions automatically.
         </li>
+      </ol>
+
+      <img src="/assets/3.select-whatsapp.png" alt="Meta app-creation use-case list with 'Connect with customers through WhatsApp' highlighted" class="rounded-xl border border-outline-variant w-full"/>
+
+      <ol start="3" class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
         <li>On the <strong>Business</strong> step, select the Business Portfolio you created earlier (not your personal profile) and continue.</li>
+      </ol>
+
+      <img src="/assets/4.select-business-portfolio-while-creating-app.png" alt="Business step of app creation showing the dedicated business portfolio selected instead of a personal profile" class="rounded-xl border border-outline-variant w-full"/>
+
+      <ol start="4" class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
         <li>
           On the <strong>Requirements</strong> step you'll likely see <strong>"No
           requirements identified."</strong> That's expected, not an error —
@@ -32,23 +41,32 @@
           permission requests and any Business Verification requirement only get
           triggered later, when you submit for App Review to go live. Click Next.
         </li>
+      </ol>
+
+      <img src="/assets/5.no-business-requirement.png" alt="Requirements step showing 'No requirements identified. This may change if you add more to this app.'" class="rounded-xl border border-outline-variant w-full"/>
+
+      <ol start="5" class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
         <li>Go to <strong>App Settings → Basic</strong> and note down the <strong>App ID</strong> and <strong>App Secret</strong>.</li>
         <li>
           Go to <strong>WhatsApp → Configuration → Embedded Signup</strong> and
           create a signup configuration (this defines what the Embedded Signup
-          popup shows the customer — business verification requirements, feature
-          type, etc). Note the <strong>Configuration ID</strong>.
+          popup shows you — business verification requirements, feature type, etc).
+          Note the <strong>Configuration ID</strong>.
         </li>
         <li>
           Your app is in <strong>Development Mode</strong> by default, which is
           enough to test locally. You only need to submit for App Review once
-          you're ready to onboard real customers — see the next guide.
+          you're ready to connect your real WhatsApp Business number — see the next
+          guide.
         </li>
       </ol>
 
+      <img src="/assets/6.create-app.png" alt="Final app-creation overview screen listing app name, use case, business portfolio and requirements" class="rounded-xl border border-outline-variant w-full"/>
+      <p class="text-on-surface-variant font-body-md text-sm text-center -mt-2">The final overview — confirm everything looks right, then finish creating the app.</p>
+
       <div class="card p-6 mt-4">
-        <p class="section-title text-on-surface mb-2">Next</p>
-        <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-api-access.html">How to Get Access to the WhatsApp Business API &rarr;</a>
+        <p class="section-title text-on-surface mb-2">See also</p>
+        <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-api-access.html">How to Get WhatsApp Business API Access &rarr;</a>
       </div>
     </div>
   </section>

@@ -1,19 +1,31 @@
-<!--#var title="How to Get Access to the WhatsApp Business API — WA Coexistence"-->
-<!--#var description="How to pass Meta App Review and get approved as a WhatsApp Business API Tech Provider, including the two required demo videos."-->
+<!--#var title="How to Get WhatsApp Business API Access — WA Coexistence"-->
+<!--#var description="How to pass Meta App Review and get approved for WhatsApp Business API access, including the two required demo videos."-->
 <!--#include partial="head"-->
 <!--#include partial="header"-->
 
   <section class="px-gutter md:px-24 py-12">
     <div class="max-w-3xl mx-auto flex flex-col gap-4">
       <a href="/#how-to" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to How-To Guides</a>
-      <p class="label-strong text-primary">STEP 3</p>
-      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Get Access to the WhatsApp Business API</h1>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Get WhatsApp Business API Access</h1>
 
       <p class="text-on-surface-variant font-body-md">
-        Real (Advanced Access) use of the WhatsApp Business API — and Meta Tech
-        Provider status — requires passing <strong>App Review</strong>. There's no
-        separate self-serve toggle for Tech Provider status: submit the App Review
-        request below and Meta's review covers both.
+        Getting WhatsApp Business API access means passing Meta's <strong>App
+        Review</strong>. There are two things you need in place first:
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-2">
+        <a href="/how-to/business-portfolio.html" class="card p-6 hover:shadow-md transition-all">
+          <p class="section-title text-on-surface mb-2">1. A Business Portfolio</p>
+          <p class="text-on-surface-variant font-body-md text-sm">The verified (or verification-eligible) Meta Business Portfolio your app connects to.</p>
+        </a>
+        <a href="/how-to/meta-app.html" class="card p-6 hover:shadow-md transition-all">
+          <p class="section-title text-on-surface mb-2">2. A Meta App</p>
+          <p class="text-on-surface-variant font-body-md text-sm">Created on developers.facebook.com with the WhatsApp product and your App ID / Secret / Config ID.</p>
+        </a>
+      </div>
+
+      <p class="text-on-surface-variant font-body-md">
+        With both of those in place, here's how App Review itself works.
       </p>
 
       <h2 class="section-title text-on-surface mt-4">App Review requires two demo videos</h2>
@@ -28,9 +40,9 @@
       </ul>
       <p class="text-on-surface-variant font-body-md">
         A pure onboarding-only app can't produce these on its own, which is why this
-        project's <a class="text-primary font-bold hover:underline" href="/dashboard/">Onboarding Dashboard</a>
+        project's <a class="text-primary font-bold hover:underline" href="/dashboard/">Dashboard</a>
         ships small "test" buttons — send a message, create a template — solely to
-        record these two videos. They're not part of the onboarding product itself;
+        record these two videos. They're not part of the coexistence flow itself;
         the dashboard's own page explains how to use them for recording, and the
         project <a class="text-primary font-bold hover:underline" href="https://github.com/pocha/whatsapp-coexistence#readme" target="_blank" rel="noopener">README</a>
         has the exact click-by-click steps.
@@ -44,15 +56,15 @@
 
       <h2 class="section-title text-on-surface mt-4">After approval</h2>
       <p class="text-on-surface-variant font-body-md">
-        Once approved, you can turn the test buttons off — they hold WABA access
-        tokens in memory to work, which is more exposure than the real onboarding
-        flow needs. The onboarding flow itself discards the access token immediately
-        after subscribing to the customer's WABA.
+        Once approved, you can turn the test buttons off — they hold your WABA
+        access token in memory to work, which is more exposure than the coexistence
+        flow itself needs. That flow discards the access token immediately after
+        subscribing to your WABA.
       </p>
 
       <div class="card p-6 mt-4">
-        <p class="section-title text-on-surface mb-2">Ready to onboard a customer?</p>
-        <a class="text-primary font-bold hover:underline" href="/dashboard/">Open the Onboarding Dashboard &rarr;</a>
+        <p class="section-title text-on-surface mb-2">Ready to activate coexistence?</p>
+        <a class="text-primary font-bold hover:underline" href="/dashboard/">Open the Dashboard &rarr;</a>
       </div>
     </div>
   </section>

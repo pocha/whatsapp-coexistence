@@ -1,83 +1,129 @@
-<!--#var title="WA Coexistence — WhatsApp Coexistence Onboarding"-->
-<!--#var description="Self-hosted, open-source onboarding app for WhatsApp Coexistence. Run Meta's Embedded Signup, hand messaging off to your customer's own server, and stay out of the message path."-->
+<!--#var title="WA Coexistence — Minimal WhatsApp Co-existence App"-->
+<!--#var description="Got WhatsApp API but also want to use WhatsApp Business on the same number? This minimal, open-source app helps you achieve that — no token storage, low latency, self-hosted."-->
 <!--#include partial="head"-->
 <!--#include partial="header"-->
 
   <!-- Hero -->
-  <section class="px-gutter md:px-24 py-16 md:py-24 bg-surface-container-low text-center">
-    <div class="max-w-3xl mx-auto flex flex-col items-center gap-6">
-      <img src="/assets/logo.png" alt="WA Coexistence logo" class="w-24 h-24"/>
-      <h1 class="font-headline-lg text-headline-lg text-on-surface">WhatsApp Coexistence, made simple</h1>
-      <p class="text-on-surface-variant font-body-md text-lg">
-        Connect your customers' WhatsApp Business number via Meta's official Embedded
-        Signup flow, then hand messaging off to their own server — this app doesn't
-        stay in the message path. Open source, self-hosted, built for Meta Tech Providers.
-      </p>
-      <div class="flex flex-wrap gap-4 justify-center">
-        <a href="/dashboard/" class="inline-flex items-center gap-2 rounded-xl bg-primary-container text-on-primary-container px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Open Onboarding Dashboard</a>
-        <a href="https://github.com/pocha/whatsapp-coexistence" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">View on GitHub</a>
+  <section class="px-gutter md:px-24 py-16 md:py-24 bg-surface-container-low">
+    <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-10 md:gap-16">
+      <img src="/assets/logo.png" alt="WA Coexistence logo" class="w-56 h-56 md:w-72 md:h-72 flex-shrink-0"/>
+      <div class="flex flex-col gap-6 text-center md:text-left items-center md:items-start">
+        <h1 class="font-headline-lg text-headline-lg text-on-surface">Minimal WhatsApp Co-existence App</h1>
+        <p class="text-on-surface-variant font-body-md text-lg">
+          Got WhatsApp API but also want to use WhatsApp Business on the same
+          number? This app helps you achieve that.
+        </p>
+        <div class="flex flex-wrap gap-4 justify-center md:justify-start">
+          <a href="/dashboard/" class="inline-flex items-center gap-2 rounded-xl bg-primary-container text-on-primary-container px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Open Dashboard</a>
+          <a href="https://github.com/pocha/whatsapp-coexistence" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">View on GitHub</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Getting Started -->
+  <section class="px-gutter md:px-24 py-16" id="getting-started">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-10">Getting Started</h2>
+
+      <div class="card p-6 mb-8 whatsapp-border">
+        <p class="label-strong text-primary mb-1">PRE-REQUISITE</p>
+        <p class="text-on-surface-variant font-body-md">
+          WhatsApp Business API access, and a working app already using it.
+          Don't have this yet? See the
+          <a class="text-primary font-bold hover:underline" href="#how-to">How-To Guides</a> below.
+        </p>
+      </div>
+
+      <div class="flex flex-col gap-6">
+        <div class="card p-6">
+          <p class="label-strong text-primary mb-2">STEP 1</p>
+          <p class="section-title text-on-surface mb-2">Scan the QR code &amp; activate Coexistence</p>
+          <p class="text-on-surface-variant font-body-md">Open the <a class="text-primary font-bold hover:underline" href="/dashboard/">Dashboard</a> and scan the QR code to link WhatsApp Business on the same number your API already uses.</p>
+        </div>
+        <div class="card p-6">
+          <p class="label-strong text-primary mb-2">STEP 2</p>
+          <p class="section-title text-on-surface mb-2">Point us at your incoming-message endpoint</p>
+          <p class="text-on-surface-variant font-body-md">Give us your app's incoming-message API endpoint as the override target. Incoming messages then go <strong>directly</strong> from WhatsApp to your app — we're never in that path.</p>
+        </div>
+        <div class="card p-6">
+          <p class="label-strong text-primary mb-2">STEP 3</p>
+          <p class="section-title text-on-surface mb-2">Send messages through the endpoint we provide</p>
+          <p class="text-on-surface-variant font-body-md">Update your app to send outgoing messages through our endpoint instead of directly. This is the only place we sit in the path — see why below.</p>
+        </div>
+      </div>
+
+      <div class="card p-6 mt-8">
+        <p class="text-on-surface-variant font-body-md">
+          <strong class="text-on-surface">Why we gatekeep outgoing messages:</strong>
+          it's the one place we stay involved, purely so we can protect your
+          number from getting banned — rate limiting and other anti-spam
+          checks are <em>(upcoming)</em>. Everything else — incoming messages,
+          your access token — never touches us.
+        </p>
       </div>
     </div>
   </section>
 
   <!-- Features -->
-  <section class="px-gutter md:px-24 py-16" id="features">
+  <section class="px-gutter md:px-24 py-16 bg-surface-container-low" id="features">
     <div class="max-w-5xl mx-auto">
       <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-10">Features</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="card p-6">
-          <p class="section-title text-on-surface mb-2">🔒 Privacy First — no token storage</p>
-          <p class="text-on-surface-variant font-body-md">WABA access tokens issued during Embedded Signup live in memory only, for as long as onboarding takes. Nothing is written to a database or disk, so there's nothing durable to leak.</p>
+          <p class="section-title text-on-surface mb-2">🔒 No token storage</p>
+          <p class="text-on-surface-variant font-body-md">Your WABA access token lives in memory only, for as long as setup takes. Nothing is written to a database or disk, so there's nothing durable to leak.</p>
         </div>
         <div class="card p-6">
-          <p class="section-title text-on-surface mb-2">✅ Embedded Signup, done right</p>
-          <p class="text-on-surface-variant font-body-md">Runs Meta's own Embedded Signup popup so your customer connects their WhatsApp Business number in a few clicks — no manual WABA setup on your end.</p>
+          <p class="section-title text-on-surface mb-2">⚡ Low latency</p>
+          <p class="text-on-surface-variant font-body-md">Incoming messages go directly from WhatsApp to your app — we're never in that path, so there's no extra hop slowing you down.</p>
         </div>
         <div class="card p-6">
-          <p class="section-title text-on-surface mb-2">🔀 Webhook Override</p>
-          <p class="text-on-surface-variant font-body-md">Once onboarding completes, message delivery can be routed straight to your customer's own webhook — this app gets out of the way instead of sitting in the middle of every message.</p>
-        </div>
-        <div class="card p-6">
-          <p class="section-title text-on-surface mb-2">📖 Open Source</p>
+          <p class="section-title text-on-surface mb-2">📖 Open source</p>
           <p class="text-on-surface-variant font-body-md">Every line is on GitHub and self-hostable. Nothing is a black box — read the code, fork it, run your own copy.</p>
+        </div>
+        <div class="card p-6 opacity-80">
+          <p class="section-title text-on-surface mb-2">🚦 Rate limiting for outgoing <span class="label-muted">(upcoming)</span></p>
+          <p class="text-on-surface-variant font-body-md">Automatic rate limits on outgoing messages, so a misbehaving integration doesn't get your number banned.</p>
+        </div>
+        <div class="card p-6 opacity-80">
+          <p class="section-title text-on-surface mb-2">📬 Per-recipient serialization <span class="label-muted">(upcoming)</span></p>
+          <p class="text-on-surface-variant font-body-md">Messages to the same recipient get serialized, so retries or bugs on your end can't look like spam to WhatsApp.</p>
         </div>
       </div>
     </div>
   </section>
 
   <!-- How-To -->
-  <section class="px-gutter md:px-24 py-16 bg-surface-container-low" id="how-to">
+  <section class="px-gutter md:px-24 py-16" id="how-to">
     <div class="max-w-5xl mx-auto">
       <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-2">How-To Guides</h2>
-      <p class="text-on-surface-variant font-body-md text-center mb-10">Everything you need to get set up as a Meta Tech Provider, step by step.</p>
+      <p class="text-on-surface-variant font-body-md text-center mb-10">Don't have WhatsApp Business API access yet? Start here.</p>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <a href="/how-to/whatsapp-api-access.html" class="card p-6 hover:shadow-md transition-all">
+          <p class="section-title text-on-surface mb-2">How to Get WhatsApp Business API Access</p>
+          <p class="text-on-surface-variant font-body-md text-sm">App Review, Tech Provider approval, and the two demo videos Meta requires.</p>
+        </a>
         <a href="/how-to/business-portfolio.html" class="card p-6 hover:shadow-md transition-all">
-          <p class="label-strong text-primary mb-2">STEP 1</p>
-          <p class="section-title text-on-surface mb-2">Create a Business Portfolio</p>
+          <p class="section-title text-on-surface mb-2">How to Create a Business Portfolio</p>
           <p class="text-on-surface-variant font-body-md text-sm">Set up and verify the Meta Business Portfolio your app will be connected to.</p>
         </a>
         <a href="/how-to/meta-app.html" class="card p-6 hover:shadow-md transition-all">
-          <p class="label-strong text-primary mb-2">STEP 2</p>
-          <p class="section-title text-on-surface mb-2">Create an App on developers.facebook.com</p>
-          <p class="text-on-surface-variant font-body-md text-sm">Walk through the Meta App Dashboard to add the WhatsApp product and get your credentials.</p>
-        </a>
-        <a href="/how-to/whatsapp-api-access.html" class="card p-6 hover:shadow-md transition-all">
-          <p class="label-strong text-primary mb-2">STEP 3</p>
-          <p class="section-title text-on-surface mb-2">Get Access to the WhatsApp Business API</p>
-          <p class="text-on-surface-variant font-body-md text-sm">Submit App Review and become an approved Meta Tech Provider.</p>
+          <p class="section-title text-on-surface mb-2">How to Create an App on Facebook Developers Portal</p>
+          <p class="text-on-surface-variant font-body-md text-sm">Walk through developers.facebook.com to add the WhatsApp product and get your credentials.</p>
         </a>
       </div>
     </div>
   </section>
 
   <!-- Contact -->
-  <section class="px-gutter md:px-24 py-16" id="contact">
+  <section class="px-gutter md:px-24 py-16 bg-surface-container-low" id="contact">
     <div class="max-w-4xl mx-auto">
       <div class="text-center mb-10">
         <h2 class="font-headline-lg text-headline-lg text-on-surface">Contact</h2>
         <p class="text-on-surface-variant font-body-md">Built and operated by Shristi Health &amp; Power Solutions Private Limited</p>
       </div>
-      <div class="bg-surface-container-low rounded-xl border border-outline-variant p-6 md:p-8 flex flex-col md:flex-row gap-8">
+      <div class="bg-surface rounded-xl border border-outline-variant p-6 md:p-8 flex flex-col md:flex-row gap-8">
         <div class="flex-shrink-0 flex flex-col items-center gap-4 md:w-56">
           <img alt="Ashish Sharma" class="w-40 h-40 rounded-full object-cover border-2 border-primary" src="https://cdn.jsdelivr.net/gh/pocha/mudbot@main/public/assets/profile-pic-long-hair.jpg"/>
           <div class="text-center">
@@ -88,14 +134,14 @@
           </a>
         </div>
         <div class="flex-1 flex flex-col gap-4">
-          <div class="bg-surface rounded-xl p-4 flex items-start gap-3 border border-outline-variant">
+          <div class="bg-surface-container-low rounded-xl p-4 flex items-start gap-3 border border-outline-variant">
             <span class="material-symbols-outlined text-primary flex-shrink-0" style="font-variation-settings:'FILL' 1;">location_on</span>
             <div>
               <p class="font-label-md font-bold text-on-surface">Shristi Health &amp; Power Solutions Private Limited</p>
               <p class="text-on-surface-variant font-body-md text-sm">3rd Floor, Unit No. 3078–3084, Currency Tower, VIP Road, Vishal Nagar, Telibandha, Raipur, Chhattisgarh – 492006, India</p>
             </div>
           </div>
-          <div class="bg-surface rounded-xl p-4 flex items-start gap-3 border border-outline-variant">
+          <div class="bg-surface-container-low rounded-xl p-4 flex items-start gap-3 border border-outline-variant">
             <span class="material-symbols-outlined text-primary flex-shrink-0">mail</span>
             <p class="text-on-surface-variant font-body-md text-sm">developer@shristigroup.com</p>
           </div>
