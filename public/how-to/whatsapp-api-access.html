@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Data Deletion — WA Coexistence</title>
-<meta name="description" content="How to request deletion of any data held by the WA Coexistence onboarding application."/>
+<title>How to Get Access to the WhatsApp Business API — WA Coexistence</title>
+<meta name="description" content="How to pass Meta App Review and get approved as a WhatsApp Business API Tech Provider, including the two required demo videos."/>
 <!-- Google Fonts -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <!-- Tailwind CSS, configured with the same theme as github.com/pocha/mudbot (Watobot) for visual consistency across our sites -->
@@ -29,28 +29,55 @@
 
   <section class="px-gutter md:px-24 py-12">
     <div class="max-w-3xl mx-auto flex flex-col gap-4">
-      <h1 class="font-headline-lg text-headline-lg text-on-surface">Data Deletion</h1>
+      <a href="/#how-to" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to How-To Guides</a>
+      <p class="label-strong text-primary">STEP 3</p>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Get Access to the WhatsApp Business API</h1>
 
       <p class="text-on-surface-variant font-body-md">
-        This app holds WhatsApp Business Account access tokens in memory only, for
-        the duration of onboarding (or, while test features are enabled, for the
-        life of the running server process) — see the project
-        <a class="text-primary font-bold hover:underline" href="https://github.com/pocha/whatsapp-coexistence#readme" target="_blank" rel="noopener">README</a>
-        for details. Nothing is written to a database or disk, so there is normally
-        nothing persisted to delete.
+        Real (Advanced Access) use of the WhatsApp Business API — and Meta Tech
+        Provider status — requires passing <strong>App Review</strong>. There's no
+        separate self-serve toggle for Tech Provider status: submit the App Review
+        request below and Meta's review covers both.
       </p>
 
+      <h2 class="section-title text-on-surface mt-4">App Review requires two demo videos</h2>
       <p class="text-on-surface-variant font-body-md">
-        If you'd like us to confirm deletion, or believe we hold data about you that
-        isn't covered above, email
-        <a class="text-primary font-bold hover:underline" href="mailto:developer@shristigroup.com">developer@shristigroup.com</a>
-        with your WhatsApp Business Account ID and we'll respond within 30 days.
+        Meta's reviewers need to see your app actually using the
+        <code>whatsapp_business_messaging</code> and
+        <code>whatsapp_business_management</code> permissions:
+      </p>
+      <ul class="flex flex-col gap-3 list-disc list-inside text-on-surface-variant font-body-md">
+        <li><strong>Video 1</strong> — a message created and sent from your app, arriving in the WhatsApp client on the recipient's phone.</li>
+        <li><strong>Video 2</strong> — your app creating a message template, and that template showing up in WhatsApp Manager.</li>
+      </ul>
+      <p class="text-on-surface-variant font-body-md">
+        A pure onboarding-only app can't produce these on its own, which is why this
+        project's <a class="text-primary font-bold hover:underline" href="/dashboard/">Onboarding Dashboard</a>
+        ships small "test" buttons — send a message, create a template — solely to
+        record these two videos. They're not part of the onboarding product itself;
+        the dashboard's own page explains how to use them for recording, and the
+        project <a class="text-primary font-bold hover:underline" href="https://github.com/pocha/whatsapp-coexistence#readme" target="_blank" rel="noopener">README</a>
+        has the exact click-by-click steps.
       </p>
 
+      <h2 class="section-title text-on-surface mt-4">Keep it simple</h2>
       <p class="text-on-surface-variant font-body-md">
-        You can also revoke this app's access to your account at any time from
-        <strong>Meta Business Manager → Business Settings → Integrations → Apps</strong>.
+        Reviewers are checking that the flow (login → action → result) is real and
+        complete, not evaluating UI polish. Record both videos simply and unedited.
       </p>
+
+      <h2 class="section-title text-on-surface mt-4">After approval</h2>
+      <p class="text-on-surface-variant font-body-md">
+        Once approved, you can turn the test buttons off — they hold WABA access
+        tokens in memory to work, which is more exposure than the real onboarding
+        flow needs. The onboarding flow itself discards the access token immediately
+        after subscribing to the customer's WABA.
+      </p>
+
+      <div class="card p-6 mt-4">
+        <p class="section-title text-on-surface mb-2">Ready to onboard a customer?</p>
+        <a class="text-primary font-bold hover:underline" href="/dashboard/">Open the Onboarding Dashboard &rarr;</a>
+      </div>
     </div>
   </section>
 

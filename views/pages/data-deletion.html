@@ -1,0 +1,33 @@
+<!--#var title="Data Deletion — WA Coexistence"-->
+<!--#var description="How to request deletion of any data held by the WA Coexistence onboarding application."-->
+<!--#include partial="head"-->
+<!--#include partial="header"-->
+
+  <section class="px-gutter md:px-24 py-12">
+    <div class="max-w-3xl mx-auto flex flex-col gap-4">
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">Data Deletion</h1>
+
+      <p class="text-on-surface-variant font-body-md">
+        This app holds WhatsApp Business Account access tokens in memory only, for
+        the duration of onboarding (or, while test features are enabled, for the
+        life of the running server process) — see the project
+        <a class="text-primary font-bold hover:underline" href="https://github.com/pocha/whatsapp-coexistence#readme" target="_blank" rel="noopener">README</a>
+        for details. Nothing is written to a database or disk, so there is normally
+        nothing persisted to delete.
+      </p>
+
+      <p class="text-on-surface-variant font-body-md">
+        If you'd like us to confirm deletion, or believe we hold data about you that
+        isn't covered above, email
+        <a class="text-primary font-bold hover:underline" href="mailto:developer@shristigroup.com">developer@shristigroup.com</a>
+        with your WhatsApp Business Account ID and we'll respond within 30 days.
+      </p>
+
+      <p class="text-on-surface-variant font-body-md">
+        You can also revoke this app's access to your account at any time from
+        <strong>Meta Business Manager → Business Settings → Integrations → Apps</strong>.
+      </p>
+    </div>
+  </section>
+
+<!--#include partial="footer"-->

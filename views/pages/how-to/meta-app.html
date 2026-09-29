@@ -1,0 +1,56 @@
+<!--#var title="How to Create an App on developers.facebook.com — WA Coexistence"-->
+<!--#var description="Step-by-step guide to creating a Meta App for WhatsApp, connecting it to a Business Portfolio, and getting your App ID, App Secret and Embedded Signup Configuration ID."-->
+<!--#include partial="head"-->
+<!--#include partial="header"-->
+
+  <section class="px-gutter md:px-24 py-12">
+    <div class="max-w-3xl mx-auto flex flex-col gap-4">
+      <a href="/#how-to" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to How-To Guides</a>
+      <p class="label-strong text-primary">STEP 2</p>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Create an App on developers.facebook.com</h1>
+
+      <p class="text-on-surface-variant font-body-md">
+        Make sure you've already created a
+        <a class="text-primary font-bold hover:underline" href="/how-to/business-portfolio.html">Business Portfolio</a>
+        before starting this.
+      </p>
+
+      <ol class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>Go to <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com/apps</a> and create a new App.</li>
+        <li>
+          When asked what you want your app to do, choose the
+          <strong>"Connect with customers through WhatsApp"</strong> use case (not
+          "Create an app without a use case" or "Other") — this adds the WhatsApp
+          product and the <code>whatsapp_business_messaging</code> /
+          <code>whatsapp_business_management</code> permissions automatically.
+        </li>
+        <li>On the <strong>Business</strong> step, select the Business Portfolio you created earlier (not your personal profile) and continue.</li>
+        <li>
+          On the <strong>Requirements</strong> step you'll likely see <strong>"No
+          requirements identified."</strong> That's expected, not an error —
+          Development Mode with your own test assets doesn't need anything yet. The
+          permission requests and any Business Verification requirement only get
+          triggered later, when you submit for App Review to go live. Click Next.
+        </li>
+        <li>Go to <strong>App Settings → Basic</strong> and note down the <strong>App ID</strong> and <strong>App Secret</strong>.</li>
+        <li>
+          Go to <strong>WhatsApp → Configuration → Embedded Signup</strong> and
+          create a signup configuration (this defines what the Embedded Signup
+          popup shows the customer — business verification requirements, feature
+          type, etc). Note the <strong>Configuration ID</strong>.
+        </li>
+        <li>
+          Your app is in <strong>Development Mode</strong> by default, which is
+          enough to test locally. You only need to submit for App Review once
+          you're ready to onboard real customers — see the next guide.
+        </li>
+      </ol>
+
+      <div class="card p-6 mt-4">
+        <p class="section-title text-on-surface mb-2">Next</p>
+        <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-api-access.html">How to Get Access to the WhatsApp Business API &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+<!--#include partial="footer"-->
