@@ -77,7 +77,7 @@ use the portfolio switcher at the top-left of Meta Business Suite.
 
 ## 2. Run the app
 
-Requires Node 18+.
+Requires Node 24+.
 
 ```bash
 npm install
