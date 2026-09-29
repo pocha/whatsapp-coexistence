@@ -117,31 +117,56 @@ activity.
 
 | Path | Purpose |
 |---|---|
-| `/` | Landing page, linking to the rest |
+| `/` | Landing page — features, how-to guides, contact |
 | `/dashboard/` | The onboarding + test-feature UI (steps 2–3 below) |
 | `/privacy.html` | Privacy Policy |
 | `/tos.html` | Terms of Service |
 | `/data-deletion.html` | Data Deletion instructions |
+| `/how-to/business-portfolio.html` | Guide: creating a Meta Business Portfolio |
+| `/how-to/meta-app.html` | Guide: creating the Meta App |
+| `/how-to/whatsapp-api-access.html` | Guide: App Review + Tech Provider approval |
 
 Meta's app-creation flow asks for Privacy Policy, Terms of Service, and Data
 Deletion URLs — use `https://<your-domain>/privacy.html`,
 `https://<your-domain>/tos.html`, and `https://<your-domain>/data-deletion.html`.
-**Before publishing for real**, open those three files and replace the
-`[bracketed placeholders]` (business legal name, contact email) — they're
-marked with a `TODO` banner on the page itself as a reminder.
+
+### Editing the marketing pages (build step)
+
+`/`, the legal pages, and the how-to guides aren't hand-written HTML —
+they're generated from templates so the header/footer/nav stay in one place:
+
+- `views/pages/*.html` — page content (`views/pages/how-to/*.html` for the guides)
+- `views/partials/head.html`, `header.html`, `footer.html` — shared chrome, pulled in with `<!--#include partial="name"-->`
+- `scripts/build-pages.js` — expands the templates into `public/`
+
+Run `npm run build:pages` after editing anything under `views/` (also runs
+automatically as part of `npm run dev` / `npm run build`). It's the same
+include/variable-substitution approach used by
+[watobot](https://github.com/pocha/mudbot/blob/main/scripts/build-pages.js) —
+no templating engine, no extra dependency.
+
+The styling also matches watobot: `views/partials/head.html` pulls Tailwind's
+CDN build plus watobot's own `theme.css`/`theme.js` straight from GitHub (via
+jsDelivr), so both sites look consistent without vendoring a copy of the CSS
+here.
+
+`public/dashboard/` (the actual onboarding tool) is **not** part of this
+build — it's hand-written HTML/JS, since it's a functional app page rather
+than marketing content.
 
 ### Optional: hosting the static pages on GitHub Pages
 
-`.github/workflows/deploy-pages.yml` deploys everything in `public/` to
-GitHub Pages on every push to `main`. One-time setup: **Settings → Pages →
-Source: GitHub Actions**.
+`.github/workflows/deploy-pages.yml` runs `npm run build:pages` and deploys
+`public/` to GitHub Pages on every push to `main`. One-time setup:
+**Settings → Pages → Source: GitHub Actions**.
 
-This works for the landing page and the three legal pages, since they're
-pure static HTML. It does **not** work for `/dashboard` — that page calls
-API endpoints (`/api/config`, `/api/onboarding/complete`, `/webhook`, …)
-that only exist when the Fastify server from step 2 is actually running, and
-GitHub Pages only serves static files. Keep pointing Meta's Embedded Signup
-redirect / your webhook config at your real server, not the Pages URL.
+This works for the landing page, the legal pages, and the how-to guides,
+since they're pure static HTML. It does **not** work for `/dashboard` — that
+page calls API endpoints (`/api/config`, `/api/onboarding/complete`,
+`/webhook`, …) that only exist when the Fastify server from step 2 is
+actually running, and GitHub Pages only serves static files. Keep pointing
+Meta's Embedded Signup redirect / your webhook config at your real server,
+not the Pages URL.
 
 ## 3. Record your App Review videos
 
@@ -187,9 +212,9 @@ are off — it's only held in memory for the length of that one request.
 
 ## How it works
 
-- `public/index.html` — landing page linking to the dashboard and legal pages.
-- `public/privacy.html`, `public/tos.html`, `public/data-deletion.html` —
-  the pages Meta's app-creation flow requires URLs for.
+- `views/pages/*.html` + `views/partials/*.html` — source templates for the
+  landing page, legal pages, and how-to guides; `npm run build:pages`
+  compiles them into `public/`.
 - `public/dashboard/index.html` + `public/dashboard/app.js` — loads the Facebook JS SDK, runs
   `FB.login()` with your Embedded Signup config, and captures the resulting
   `code` + the new WABA/phone number ids from the `WA_EMBEDDED_SIGNUP`

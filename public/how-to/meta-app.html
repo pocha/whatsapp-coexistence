@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Data Deletion — WA Coexistence</title>
-<meta name="description" content="How to request deletion of any data held by the WA Coexistence onboarding application."/>
+<title>How to Create an App on developers.facebook.com — WA Coexistence</title>
+<meta name="description" content="Step-by-step guide to creating a Meta App for WhatsApp, connecting it to a Business Portfolio, and getting your App ID, App Secret and Embedded Signup Configuration ID."/>
 <!-- Google Fonts -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <!-- Tailwind CSS, configured with the same theme as github.com/pocha/mudbot (Watobot) for visual consistency across our sites -->
@@ -29,28 +29,51 @@
 
   <section class="px-gutter md:px-24 py-12">
     <div class="max-w-3xl mx-auto flex flex-col gap-4">
-      <h1 class="font-headline-lg text-headline-lg text-on-surface">Data Deletion</h1>
+      <a href="/#how-to" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to How-To Guides</a>
+      <p class="label-strong text-primary">STEP 2</p>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Create an App on developers.facebook.com</h1>
 
       <p class="text-on-surface-variant font-body-md">
-        This app holds WhatsApp Business Account access tokens in memory only, for
-        the duration of onboarding (or, while test features are enabled, for the
-        life of the running server process) — see the project
-        <a class="text-primary font-bold hover:underline" href="https://github.com/pocha/whatsapp-coexistence#readme" target="_blank" rel="noopener">README</a>
-        for details. Nothing is written to a database or disk, so there is normally
-        nothing persisted to delete.
+        Make sure you've already created a
+        <a class="text-primary font-bold hover:underline" href="/how-to/business-portfolio.html">Business Portfolio</a>
+        before starting this.
       </p>
 
-      <p class="text-on-surface-variant font-body-md">
-        If you'd like us to confirm deletion, or believe we hold data about you that
-        isn't covered above, email
-        <a class="text-primary font-bold hover:underline" href="mailto:developer@shristigroup.com">developer@shristigroup.com</a>
-        with your WhatsApp Business Account ID and we'll respond within 30 days.
-      </p>
+      <ol class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>Go to <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/apps" target="_blank" rel="noopener">developers.facebook.com/apps</a> and create a new App.</li>
+        <li>
+          When asked what you want your app to do, choose the
+          <strong>"Connect with customers through WhatsApp"</strong> use case (not
+          "Create an app without a use case" or "Other") — this adds the WhatsApp
+          product and the <code>whatsapp_business_messaging</code> /
+          <code>whatsapp_business_management</code> permissions automatically.
+        </li>
+        <li>On the <strong>Business</strong> step, select the Business Portfolio you created earlier (not your personal profile) and continue.</li>
+        <li>
+          On the <strong>Requirements</strong> step you'll likely see <strong>"No
+          requirements identified."</strong> That's expected, not an error —
+          Development Mode with your own test assets doesn't need anything yet. The
+          permission requests and any Business Verification requirement only get
+          triggered later, when you submit for App Review to go live. Click Next.
+        </li>
+        <li>Go to <strong>App Settings → Basic</strong> and note down the <strong>App ID</strong> and <strong>App Secret</strong>.</li>
+        <li>
+          Go to <strong>WhatsApp → Configuration → Embedded Signup</strong> and
+          create a signup configuration (this defines what the Embedded Signup
+          popup shows the customer — business verification requirements, feature
+          type, etc). Note the <strong>Configuration ID</strong>.
+        </li>
+        <li>
+          Your app is in <strong>Development Mode</strong> by default, which is
+          enough to test locally. You only need to submit for App Review once
+          you're ready to onboard real customers — see the next guide.
+        </li>
+      </ol>
 
-      <p class="text-on-surface-variant font-body-md">
-        You can also revoke this app's access to your account at any time from
-        <strong>Meta Business Manager → Business Settings → Integrations → Apps</strong>.
-      </p>
+      <div class="card p-6 mt-4">
+        <p class="section-title text-on-surface mb-2">Next</p>
+        <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-api-access.html">How to Get Access to the WhatsApp Business API &rarr;</a>
+      </div>
     </div>
   </section>
 

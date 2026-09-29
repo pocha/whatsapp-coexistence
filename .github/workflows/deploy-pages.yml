@@ -3,7 +3,7 @@ name: Deploy public/ to GitHub Pages
 on:
   push:
     branches: [main]
-    paths: [public/**]
+    paths: [public/**, views/**, scripts/build-pages.js]
   workflow_dispatch:
 
 permissions:
@@ -23,6 +23,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run build:pages
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

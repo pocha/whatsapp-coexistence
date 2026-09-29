@@ -1,77 +1,103 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Privacy Policy — WA Coexistence</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    body { font-family: -apple-system, Arial, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; color: #1a1a1a; line-height: 1.5; }
-    h1 { font-size: 22px; }
-    h2 { font-size: 16px; margin-top: 28px; }
-    a { color: #2563eb; }
-    .todo { background: #fff8e1; border: 1px solid #f0d78c; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Privacy Policy — WA Coexistence</title>
+<meta name="description" content="Privacy Policy for the WA Coexistence onboarding application."/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS, configured with the same theme as github.com/pocha/mudbot (Watobot) for visual consistency across our sites -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdn.jsdelivr.net/gh/pocha/mudbot@main/public/assets/theme.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/pocha/mudbot@main/public/assets/theme.css"/>
 </head>
-<body>
-  <p><a href="/">&larr; Back</a></p>
-  <h1>Privacy Policy</h1>
-  <p><em>Last updated: <!-- TODO: set date --></em></p>
+<body class="bg-surface text-on-surface font-body-md min-h-screen flex flex-col">
+<nav class="bg-surface border-b border-outline-variant shadow-sm flex justify-between items-center w-full px-gutter py-2 sticky top-0 z-50">
+  <a href="/" class="flex items-center gap-3">
+    <img alt="WA Coexistence logo" class="w-10 h-10 rounded-sm" src="/assets/logo.png"/>
+    <span class="font-headline-md text-headline-md font-bold text-primary">WA Coexistence</span>
+  </a>
+  <div class="hidden md:flex items-center gap-8">
+    <a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="/#features">Features</a>
+    <a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="/#how-to">How-To Guides</a>
+    <a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="/#contact">Contact</a>
+    <a class="font-label-md text-label-md bg-primary-container text-on-primary-container px-6 py-2 rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all" href="/dashboard/">Open Dashboard</a>
+  </div>
+</nav>
+<main class="flex-1 w-full">
 
-  <p class="todo">TODO before publishing: replace the bracketed placeholders
-  below with your business's legal name, contact email, and address.</p>
+  <section class="px-gutter md:px-24 py-12">
+    <div class="max-w-3xl mx-auto flex flex-col gap-4">
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">Privacy Policy</h1>
+      <p class="text-on-surface-variant font-body-md text-sm">Last updated: 29 September 2026</p>
 
-  <p>
-    [Your Business Legal Name] ("we", "us") operates the WA Coexistence
-    onboarding application (the "Service"), which lets a business connect
-    its WhatsApp Business Account to WhatsApp Coexistence via Meta's
-    Embedded Signup, and then hands ongoing message delivery to that
-    business's own systems.
-  </p>
+      <p class="text-on-surface-variant font-body-md">
+        Shristi Health &amp; Power Solutions Private Limited ("we", "us") operates the
+        WA Coexistence onboarding application (the "Service"), which lets a business
+        connect its WhatsApp Business Account to WhatsApp Coexistence via Meta's
+        Embedded Signup, and then hands ongoing message delivery to that business's
+        own systems.
+      </p>
 
-  <h2>What we collect</h2>
-  <p>
-    During onboarding, Meta's Embedded Signup flow gives us a short-lived
-    access token, your WhatsApp Business Account (WABA) ID, and phone number
-    ID. We use these only to call Meta's Graph API on your behalf to
-    subscribe this app to your WABA's events and, if you request it,
-    configure your own webhook URL to receive them directly ("webhook
-    override").
-  </p>
+      <h2 class="section-title text-on-surface mt-4">What we collect</h2>
+      <p class="text-on-surface-variant font-body-md">
+        During onboarding, Meta's Embedded Signup flow gives us a short-lived access
+        token, your WhatsApp Business Account (WABA) ID, and phone number ID. We use
+        these only to call Meta's Graph API on your behalf to subscribe this app to
+        your WABA's events and, if you request it, configure your own webhook URL to
+        receive them directly ("webhook override").
+      </p>
 
-  <h2>How we use it</h2>
-  <p>
-    The access token is used only to complete the onboarding API calls
-    described above. We do not read, store, or process your WhatsApp
-    message content. Once onboarding completes, message delivery goes
-    directly between Meta and either your own webhook (if overridden) or
-    this app's webhook, which only logs events in memory for testing and
-    does not persist them.
-  </p>
+      <h2 class="section-title text-on-surface mt-4">How we use it</h2>
+      <p class="text-on-surface-variant font-body-md">
+        The access token is used only to complete the onboarding API calls described
+        above. We do not read, store, or process your WhatsApp message content. Once
+        onboarding completes, message delivery goes directly between Meta and either
+        your own webhook (if overridden) or this app's webhook, which only logs
+        events in memory for testing and does not persist them.
+      </p>
 
-  <h2>Data retention</h2>
-  <p>
-    Access tokens are held in memory only, for the duration of the
-    onboarding request (and, if test features are enabled, for the life of
-    the server process — see our
-    <a href="https://github.com/pocha/whatsapp-coexistence#readme">README</a>
-    for details). We do not write tokens or message content to a database
-    or disk.
-  </p>
+      <h2 class="section-title text-on-surface mt-4">Data retention</h2>
+      <p class="text-on-surface-variant font-body-md">
+        Access tokens are held in memory only, for the duration of the onboarding
+        request (and, if test features are enabled, for the life of the server
+        process — see our <a class="text-primary font-bold hover:underline" href="https://github.com/pocha/whatsapp-coexistence#readme" target="_blank" rel="noopener">README</a>
+        for details). We do not write tokens or message content to a database or disk.
+      </p>
 
-  <h2>Third parties</h2>
-  <p>
-    We share data only with Meta, as required to operate the WhatsApp
-    Business Platform integration itself.
-  </p>
+      <h2 class="section-title text-on-surface mt-4">Third parties</h2>
+      <p class="text-on-surface-variant font-body-md">
+        We share data only with Meta, as required to operate the WhatsApp Business
+        Platform integration itself.
+      </p>
 
-  <h2>Your rights</h2>
-  <p>
-    You can revoke this app's access at any time from Meta Business
-    Manager. See our <a href="/data-deletion.html">Data Deletion</a> page
-    for how to request deletion of any data we hold.
-  </p>
+      <h2 class="section-title text-on-surface mt-4">Your rights</h2>
+      <p class="text-on-surface-variant font-body-md">
+        You can revoke this app's access at any time from Meta Business Manager. See
+        our <a class="text-primary font-bold hover:underline" href="/data-deletion.html">Data Deletion</a> page for how to request deletion of any data we hold.
+      </p>
 
-  <h2>Contact</h2>
-  <p>Questions about this policy: [your-contact-email]</p>
+      <h2 class="section-title text-on-surface mt-4">Contact</h2>
+      <p class="text-on-surface-variant font-body-md">
+        Questions about this policy: <a class="text-primary font-bold hover:underline" href="mailto:developer@shristigroup.com">developer@shristigroup.com</a>
+      </p>
+    </div>
+  </section>
+
+  </main>
+
+  <footer class="w-full py-8 px-gutter flex flex-col md:flex-row justify-between items-center gap-stack-gap bg-surface-dim border-t border-outline-variant">
+    <div class="flex flex-col items-center md:items-start">
+      <span class="font-label-md text-label-md font-bold text-on-surface">Shristi Health &amp; Power Solutions Private Limited</span>
+      <p class="text-on-surface-variant font-body-md text-sm">&copy; 2026 Shristi Health &amp; Power Solutions Private Limited. All rights reserved.</p>
+    </div>
+    <div class="flex gap-6">
+      <a class="text-on-surface-variant hover:text-primary transition-opacity hover:opacity-80 underline font-body-md text-body-md" href="/privacy.html">Privacy Policy</a>
+      <a class="text-on-surface-variant hover:text-primary transition-opacity hover:opacity-80 underline font-body-md text-body-md" href="/tos.html">Terms of Service</a>
+      <a class="text-on-surface-variant hover:text-primary transition-opacity hover:opacity-80 underline font-body-md text-body-md" href="/data-deletion.html">Data Deletion</a>
+      <a class="text-on-surface-variant hover:text-primary transition-opacity hover:opacity-80 underline font-body-md text-body-md" href="https://github.com/pocha/whatsapp-coexistence" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </footer>
 </body>
 </html>
