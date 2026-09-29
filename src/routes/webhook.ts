@@ -1,6 +1,5 @@
 import { FastifyInstance } from 'fastify';
 import { config } from '../config';
-import { recordWebhookEvent, getWebhookLog } from '../lib/store';
 
 interface VerifyQuery {
   'hub.mode'?: string;
@@ -8,9 +7,12 @@ interface VerifyQuery {
   'hub.challenge'?: string;
 }
 
+// Meta requires an app-level webhook URL to be configured regardless of
+// whether any given WABA overrides it — this is that fallback. In the real
+// coexistence flow every onboarded WABA sets `override_callback_uri` (see
+// onboarding.ts), so Meta delivers incoming events straight to the
+// business's own server and this handler never sees them.
 export default async function webhookRoutes(app: FastifyInstance) {
-  // Meta's webhook verification handshake (run once when you register this
-  // URL as a webhook in the App Dashboard).
   app.get<{ Querystring: VerifyQuery }>('/webhook', async (request, reply) => {
     const mode = request.query['hub.mode'];
     const token = request.query['hub.verify_token'];
@@ -22,13 +24,5 @@ export default async function webhookRoutes(app: FastifyInstance) {
     return reply.code(403).send('Forbidden');
   });
 
-  // Receives message/status/coexistence events for any WABA that wasn't
-  // overridden to a customer's own webhook. Just logs them in memory so the
-  // demo UI can display "a message came in" during testing.
-  app.post('/webhook', async (request, reply) => {
-    recordWebhookEvent(request.body);
-    return reply.code(200).send('EVENT_RECEIVED');
-  });
-
-  app.get('/api/webhook/log', async () => getWebhookLog());
+  app.post('/webhook', async (_request, reply) => reply.code(200).send('EVENT_RECEIVED'));
 }

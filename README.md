@@ -107,24 +107,25 @@ npm run dev     # TypeScript, auto-reload
 npm run build && npm start   # compiled, for a real deploy
 ```
 
-Open `https://<your-domain>/dashboard/` in a browser — that's the onboarding
-UI. In the App Dashboard, also set your webhook URL to
-`https://<your-domain>/webhook` with the same verify token, and subscribe to
-the `messages` field, so the "Incoming webhook events" panel can show
-activity.
+Open `https://<your-domain>/dashboard/` in a browser to run onboarding. In
+the App Dashboard, also set your webhook URL to
+`https://<your-domain>/webhook` with the same verify token — this is Meta's
+required fallback for any WABA that doesn't set an override; in the normal
+flow every WABA does set one, so this URL rarely sees traffic.
 
 `public/` is served as-is, so everything in it is publicly reachable:
 
 | Path | Purpose |
 |---|---|
-| `/` | Landing page — features, how-to guides, contact |
-| `/dashboard/` | The onboarding + test-feature UI (steps 2–3 below) |
+| `/` | Landing page — features, pricing, how-to guides, contact |
+| `/dashboard/` | Run Embedded Signup onboarding |
+| `/dashboard/test.html` | Send-message / create-template buttons, for App Review recording only |
 | `/privacy.html` | Privacy Policy |
 | `/tos.html` | Terms of Service |
 | `/data-deletion.html` | Data Deletion instructions |
 | `/how-to/business-portfolio.html` | Guide: creating a Meta Business Portfolio |
 | `/how-to/meta-app.html` | Guide: creating the Meta App |
-| `/how-to/whatsapp-api-access.html` | Guide: App Review + Tech Provider approval |
+| `/how-to/whatsapp-api-access.html` | Guide: WhatsApp Business API access |
 
 Meta's app-creation flow asks for Privacy Policy, Terms of Service, and Data
 Deletion URLs — use `https://<your-domain>/privacy.html`,
@@ -145,14 +146,20 @@ include/variable-substitution approach used by
 [watobot](https://github.com/pocha/mudbot/blob/main/scripts/build-pages.js) —
 no templating engine, no extra dependency.
 
+The generated `public/*.html` files themselves aren't committed — they're
+build output, regenerated from `views/` every time (see `.gitignore`).
+`public/assets/` and `public/dashboard/{app,test}.js` are hand-authored and
+stay tracked as normal.
+
 The styling also matches watobot: `views/partials/head.html` pulls Tailwind's
 CDN build plus watobot's own `theme.css`/`theme.js` straight from GitHub (via
 jsDelivr), so both sites look consistent without vendoring a copy of the CSS
 here.
 
-`public/dashboard/` (the actual onboarding tool) is **not** part of this
-build — it's hand-written HTML/JS, since it's a functional app page rather
-than marketing content.
+`public/dashboard/` uses the same header/footer partials (`views/pages/dashboard.html`,
+`views/pages/dashboard-test.html`), but its JavaScript (`app.js`, `test.js`)
+is hand-written and served as-is — the build step only expands the HTML
+chrome, it doesn't touch application logic.
 
 ### Optional: hosting the static pages on GitHub Pages
 
@@ -173,21 +180,22 @@ not the Pages URL.
 Meta's App Review requires **two videos** before it approves the
 `whatsapp_business_messaging` and `whatsapp_business_management` permissions
 (and with them, Tech Provider status). A pure onboarding-only app can't
-produce these on its own — that's what the test panel on the page is for.
+produce these on its own — that's what `/dashboard/test.html` is for.
 
 **Video 1 — send a message, created and sent from your app**
-1. Click **Login with Facebook** and complete Embedded Signup for a test
-   business (use a test WABA/number — see Meta's WhatsApp test number docs
-   if you don't have one).
-2. Click **Complete onboarding** (leave the override URL blank so this app
+1. On `/dashboard/`, click **Login with Facebook** and complete Embedded
+   Signup for a test business (use a test WABA/number — see Meta's WhatsApp
+   test number docs if you don't have one).
+2. Click **Complete onboarding** (leave the endpoint field blank so this app
    keeps receiving events for the demo).
-3. In the "Send a test message" form, enter a recipient number and click
-   **Send message**. Show the message being created in your app and arriving
-   in the WhatsApp client on the recipient's phone.
+3. Go to `/dashboard/test.html`, enter the phone number ID and a recipient in
+   the "Send a test message" form, and click **Send message**. Show the
+   message being created in your app and arriving in the WhatsApp client on
+   the recipient's phone.
 
 **Video 2 — your app creating a message template**
-1. In the "Create a message template" form, fill in a name/category/body and
-   click **Create template**.
+1. On `/dashboard/test.html`, fill in the "Create a message template" form
+   and click **Create template**.
 2. Show the response, then show the new template listed in the Meta Business
    Manager (WhatsApp Manager → Message Templates) for that WABA.
 
@@ -212,20 +220,40 @@ are off — it's only held in memory for the length of that one request.
 
 ## How it works
 
-- `views/pages/*.html` + `views/partials/*.html` — source templates for the
-  landing page, legal pages, and how-to guides; `npm run build:pages`
-  compiles them into `public/`.
-- `public/dashboard/index.html` + `public/dashboard/app.js` — loads the Facebook JS SDK, runs
-  `FB.login()` with your Embedded Signup config, and captures the resulting
-  `code` + the new WABA/phone number ids from the `WA_EMBEDDED_SIGNUP`
-  postMessage event.
+**Onboarding (incoming path)**
+- `views/pages/*.html` + `views/partials/*.html` — source templates for every
+  page including `/dashboard/`; `npm run build:pages` compiles them into
+  `public/`.
+- `public/dashboard/app.js` — loads the Facebook JS SDK, runs `FB.login()`
+  with your Embedded Signup config, and captures the resulting `code` + the
+  new WABA/phone number ids from the `WA_EMBEDDED_SIGNUP` postMessage event.
 - `POST /api/onboarding/complete` — exchanges the `code` for an access token,
-  then calls `POST /{waba-id}/subscribed_apps`, optionally with
-  `override_callback_uri` set to the customer's own webhook.
-- `GET /webhook` / `POST /webhook` — Meta's webhook verification handshake
-  and event receiver, for WABAs that weren't overridden elsewhere.
+  then calls `POST /{waba-id}/subscribed_apps` with `override_callback_uri`
+  set to the endpoint the user entered in the Dashboard. From then on, Meta
+  delivers incoming messages **directly** to that URL — we're never in the
+  path, and nothing needs to be stored on our side for it.
+- `GET /webhook` / `POST /webhook` — Meta's required app-level webhook
+  verification handshake and fallback receiver, for the rare WABA that
+  didn't set an override.
+
+**Sending messages (outgoing path)**
+- `POST /api/relay/:phoneNumberId/messages` (`src/routes/relay.ts`) — a
+  stateless proxy in front of Meta's own `/{phone-number-id}/messages`
+  endpoint. The caller sends their own permanent WhatsApp access token via
+  `Authorization: Bearer <token>` on every call; we never store it, just
+  forward the request to Meta and return its response as-is. This is the one
+  place we sit in the message path — on purpose, so rate limiting and
+  per-recipient serialization (**upcoming**, not yet implemented) can be
+  added here to protect the number from bans. Until then it's a plain
+  passthrough.
+- Templates aren't something we manage: they're created and approved
+  directly against Meta's `/{waba-id}/message_templates` (see
+  `src/routes/test.ts` for how, or call Meta's API yourself), and referenced
+  by name/language in the relay body exactly as Meta's own API expects.
+
+**Testing / App Review**
 - `src/routes/test.ts` — the send-message / create-template demo endpoints
-  described above.
+  behind `/dashboard/test.html`, described above.
 
 ## Security notes
 
@@ -235,3 +263,7 @@ are off — it's only held in memory for the length of that one request.
   you're done with App Review.
 - Always run this over HTTPS in any real deployment — Meta requires it for
   the OAuth redirect and webhook anyway.
+- The relay (`/api/relay/:phoneNumberId/messages`) never stores the
+  `Authorization` token it's called with — logging it, even in error traces,
+  would defeat the point. There's no separate login/signup/API-key system by
+  design: the caller's own WhatsApp access token is the only credential.

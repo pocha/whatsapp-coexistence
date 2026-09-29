@@ -77,52 +77,25 @@ completeBtn.addEventListener('click', async () => {
   });
   const body = await res.json();
   document.getElementById('onboarding-result').textContent = JSON.stringify(body, null, 2);
-  document.getElementById('send-phone-number-id').value = signupPhoneNumberId || '';
-  document.getElementById('tpl-waba-id').value = signupWabaId || '';
-  document.getElementById('tpl-phone-number-id').value = signupPhoneNumberId || '';
-});
 
-document.getElementById('send-btn').addEventListener('click', async () => {
-  const body = {
-    phoneNumberId: document.getElementById('send-phone-number-id').value.trim(),
-    to: document.getElementById('send-to').value.trim(),
-    text: document.getElementById('send-text').value,
-  };
-  const res = await fetch('/api/test/send-message', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  document.getElementById('send-result').textContent = JSON.stringify(await res.json(), null, 2);
-});
+  if (res.ok) {
+    const pendingTasks = document.getElementById('pending-tasks');
+    const snippet = pendingTasks.querySelector('.snippet');
+    const noEndpointWarning = pendingTasks.querySelector('.no-endpoint-warning');
 
-document.getElementById('tpl-btn').addEventListener('click', async () => {
-  const body = {
-    wabaId: document.getElementById('tpl-waba-id').value.trim(),
-    phoneNumberId: document.getElementById('tpl-phone-number-id').value.trim(),
-    name: document.getElementById('tpl-name').value.trim(),
-    category: document.getElementById('tpl-category').value,
-    language: document.getElementById('tpl-language').value.trim(),
-    bodyText: document.getElementById('tpl-body').value,
-  };
-  const res = await fetch('/api/test/create-template', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  document.getElementById('tpl-result').textContent = JSON.stringify(await res.json(), null, 2);
-});
-
-async function refreshWebhookLog() {
-  try {
-    const res = await fetch('/api/webhook/log');
-    const log = await res.json();
-    document.getElementById('webhook-log').textContent = JSON.stringify(log, null, 2);
-  } catch {
-    // Ignore transient failures; next poll will retry.
+    if (overrideCallbackUrl) {
+      document.getElementById('pending-endpoint').textContent = overrideCallbackUrl;
+      snippet.classList.remove('hidden');
+      noEndpointWarning.classList.add('hidden');
+    } else {
+      // No override was set, so incoming messages go to this app's own
+      // /webhook — which just acks and does nothing. There's no endpoint of
+      // theirs to point the smb_message_echoes guidance at yet.
+      snippet.classList.add('hidden');
+      noEndpointWarning.classList.remove('hidden');
+    }
+    pendingTasks.classList.remove('hidden');
   }
-}
-setInterval(refreshWebhookLog, 3000);
-refreshWebhookLog();
+});
 
 init();

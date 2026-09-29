@@ -21,15 +21,3 @@ export function getOnboardedWaba(phoneNumberId: string): OnboardedWaba | undefin
 export function listOnboardedWabas(): OnboardedWaba[] {
   return Array.from(wabasByPhoneNumberId.values());
 }
-
-const webhookLog: unknown[] = [];
-const MAX_LOG_ENTRIES = 50;
-
-export function recordWebhookEvent(event: unknown): void {
-  webhookLog.unshift({ receivedAt: new Date().toISOString(), event });
-  webhookLog.length = Math.min(webhookLog.length, MAX_LOG_ENTRIES);
-}
-
-export function getWebhookLog(): unknown[] {
-  return webhookLog;
-}
