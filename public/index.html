@@ -20,6 +20,7 @@
   </a>
   <div class="hidden md:flex items-center gap-8">
     <a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="/#features">Features</a>
+    <a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="/#pricing">Pricing</a>
     <a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="/#how-to">How-To Guides</a>
     <a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="/#contact">Contact</a>
     <a class="font-label-md text-label-md bg-primary-container text-on-primary-container px-6 py-2 rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all" href="/dashboard/">Open Dashboard</a>
@@ -50,27 +51,16 @@
     <div class="max-w-5xl mx-auto">
       <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-10">Getting Started</h2>
 
-      <div class="card p-6 mb-8 whatsapp-border grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <p class="label-strong text-primary mb-1">PRE-REQUISITE</p>
-          <p class="text-on-surface-variant font-body-md">
-            WhatsApp Business API access, and a working app already using it.
-            Don't have this yet? See the
-            <a class="text-primary font-bold hover:underline" href="#how-to">How-To Guides</a> below.
-          </p>
-        </div>
-        <div class="md:border-l md:border-outline-variant md:pl-6">
-          <p class="label-strong text-primary mb-1">WHY WE GATEKEEP OUTGOING MESSAGES</p>
-          <p class="text-on-surface-variant font-body-md">
-            It's the one place we stay involved, purely so we can protect your
-            number from getting banned — rate limiting and other anti-spam
-            checks are <em>(upcoming)</em>. Everything else — incoming
-            messages, your access token — never touches us.
-          </p>
-        </div>
+      <div class="card p-6 mb-8 whatsapp-border">
+        <p class="label-strong text-primary mb-1">PRE-REQUISITE</p>
+        <p class="text-on-surface-variant font-body-md">
+          WhatsApp Business API access, and a working app already using it.
+          Don't have this yet? See the
+          <a class="text-primary font-bold hover:underline" href="#how-to">How-To Guides</a> below.
+        </p>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="card p-6">
           <p class="label-strong text-primary mb-2">STEP 1</p>
           <p class="section-title text-on-surface mb-2">Scan the QR code &amp; activate Coexistence</p>
@@ -86,6 +76,16 @@
           <p class="section-title text-on-surface mb-2">Send messages through the endpoint we provide</p>
           <p class="text-on-surface-variant font-body-md">Update your app to send outgoing messages through our endpoint instead of directly. This is the only place we sit in the path.</p>
         </div>
+      </div>
+
+      <div class="card p-6 whatsapp-border">
+        <p class="label-strong text-primary mb-1">WHY WE GATEKEEP OUTGOING MESSAGES</p>
+        <p class="text-on-surface-variant font-body-md">
+          It's the one place we stay involved, purely so we can protect your
+          number from getting banned — rate limiting and other anti-spam
+          checks are <em>(upcoming)</em>. Everything else — incoming
+          messages, your access token — never touches us.
+        </p>
       </div>
     </div>
   </section>
@@ -114,6 +114,30 @@
         <div class="card p-6 opacity-80">
           <p class="section-title text-on-surface mb-2">📬 Per-recipient serialization <span class="label-muted">(upcoming)</span></p>
           <p class="text-on-surface-variant font-body-md">Messages to the same recipient get serialized, so retries or bugs on your end can't look like spam to WhatsApp.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section class="px-gutter md:px-24 py-16" id="pricing">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-10">Pricing</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="card p-6">
+          <p class="label-strong text-primary mb-2">FIRST 5 USERS</p>
+          <p class="font-headline-lg text-headline-lg text-on-surface mb-2">Free</p>
+          <p class="text-on-surface-variant font-body-md">No cost for your first 5 users.</p>
+        </div>
+        <div class="card p-6">
+          <p class="label-strong text-primary mb-2">NEXT 100 USERS</p>
+          <p class="font-headline-lg text-headline-lg text-on-surface mb-2">$1 <span class="text-body-md font-body-md text-on-surface-variant">/ user / month</span></p>
+          <p class="text-on-surface-variant font-body-md">Users 6 through 100.</p>
+        </div>
+        <div class="card p-6">
+          <p class="label-strong text-primary mb-2">BEYOND 100 USERS</p>
+          <p class="font-headline-lg text-headline-lg text-on-surface mb-2">$5 <span class="text-body-md font-body-md text-on-surface-variant">/ user / month</span></p>
+          <p class="text-on-surface-variant font-body-md">Every user past 100.</p>
         </div>
       </div>
     </div>
