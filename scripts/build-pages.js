@@ -27,6 +27,8 @@ const PAGE_MAP = {
   'privacy.html': 'privacy.html',
   'tos.html': 'tos.html',
   'data-deletion.html': 'data-deletion.html',
+  'dashboard.html': 'dashboard/index.html',
+  'dashboard-test.html': 'dashboard/test.html',
   'how-to/business-portfolio.html': 'how-to/business-portfolio.html',
   'how-to/meta-app.html': 'how-to/meta-app.html',
   'how-to/whatsapp-api-access.html': 'how-to/whatsapp-api-access.html',

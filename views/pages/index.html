@@ -21,8 +21,37 @@
     </div>
   </section>
 
+  <!-- Why Coexistence -->
+  <section class="px-gutter md:px-24 py-16" id="why-coexistence">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-2">Why Coexistence?</h2>
+      <p class="text-on-surface-variant font-body-md text-center mb-10">
+        Normally you have to pick one: the WhatsApp Business App (for humans on
+        the phone) or the API (for automation). Coexistence lets the <strong>same
+        number</strong> run both at once — Meta keeps them in sync, not us.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="card p-6">
+          <p class="section-title text-on-surface mb-2">📥 A customer messages you</p>
+          <p class="text-on-surface-variant font-body-md">Delivered to <strong>both</strong> surfaces at once — it shows up in the phone app <em>and</em> fires a webhook to your API, the same instant.</p>
+        </div>
+        <div class="card p-6">
+          <p class="section-title text-on-surface mb-2">📤 Your API sends a message</p>
+          <p class="text-on-surface-variant font-body-md">Automatically mirrored into the phone app's chat view. Meta's own docs: <em>"Messages sent and received are mirrored between the Cloud API and WhatsApp Business app."</em> Nothing extra to build.</p>
+        </div>
+        <div class="card p-6">
+          <p class="section-title text-on-surface mb-2">💬 A human replies from the phone</p>
+          <p class="text-on-surface-variant font-body-md">This direction <strong>isn't automatic on your side</strong> — Meta fires an <code>smb_message_echoes</code> webhook event, and your app has to handle it (so your bot doesn't auto-reply on top of a human).</p>
+        </div>
+      </div>
+      <p class="text-on-surface-variant font-body-md text-sm text-center mt-6">
+        Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users/" target="_blank" rel="noopener">Onboard WhatsApp Business app users — Meta for Developers</a>
+      </p>
+    </div>
+  </section>
+
   <!-- Getting Started -->
-  <section class="px-gutter md:px-24 py-16" id="getting-started">
+  <section class="px-gutter md:px-24 py-16 bg-surface-container-low" id="getting-started">
     <div class="max-w-5xl mx-auto">
       <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-10">Getting Started</h2>
 
@@ -66,7 +95,7 @@
   </section>
 
   <!-- Features -->
-  <section class="px-gutter md:px-24 py-16 bg-surface-container-low" id="features">
+  <section class="px-gutter md:px-24 py-16" id="features">
     <div class="max-w-5xl mx-auto">
       <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-10">Features</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -95,7 +124,7 @@
   </section>
 
   <!-- Pricing -->
-  <section class="px-gutter md:px-24 py-16" id="pricing">
+  <section class="px-gutter md:px-24 py-16 bg-surface-container-low" id="pricing">
     <div class="max-w-5xl mx-auto">
       <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-10">Pricing</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
