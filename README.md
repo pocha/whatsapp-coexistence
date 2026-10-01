@@ -77,13 +77,15 @@ under **Review → Verification** in the app dashboard:
   guide. Review typically takes around 5 business days. While it is pending,
   Embedded Signup fails with "App not active".
 
+![Review → Verification page showing business verification as Verified and access verification as In review](public/assets/21.app-verification.png)
+
 Also under **Review → Testing**, make at least one API call that uses each
 permission your use case lists (for example in Graph API Explorer), as
 preparation for App Review. Meta says the results can take up to 24 hours to
 appear. This is separate from the two verifications above and does not block
 local testing.
 
-![Review → Verification page showing business verification as Verified and access verification as In review](public/assets/21.app-verification.png)
+![Review → Testing page listing the permissions that need API test calls](public/assets/20.app-testing.png)
 
 Running Embedded Signup for real customers also needs the app to be an
 approved Meta Tech Provider. Until then, only people with a role on the app
