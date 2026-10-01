@@ -62,7 +62,30 @@ Then collect three values:
   7. Save, and put the **Configuration ID** in `public/assets/app-config.js` as
      `META_CONFIG_ID`.
 
-Running Embedded Signup for real customers also needs this app to be an
+### Verification
+
+Meta requires two verifications before the app can act as a Tech Provider, both
+under **Review → Verification** in the app dashboard:
+
+- **Business verification** of the portfolio the app is attached to. Complete
+  it with the same name, address and phone number you entered when creating the
+  portfolio, matched to the document you upload. See Meta's
+  [Verify Your Business](https://www.facebook.com/business/help/2058515294227817)
+  guide.
+- **Access verification**, which confirms your business is a Tech Provider. See
+  Meta's [Become a Tech Provider](https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/get-started-for-tech-providers)
+  guide. Review typically takes around 5 business days. While it is pending,
+  Embedded Signup fails with "App not active".
+
+Also under **Review → Testing**, make at least one API call that uses each
+permission your use case lists (for example in Graph API Explorer), as
+preparation for App Review. Meta says the results can take up to 24 hours to
+appear. This is separate from the two verifications above and does not block
+local testing.
+
+![Review → Verification page showing business verification as Verified and access verification as In review](public/assets/21.app-verification.png)
+
+Running Embedded Signup for real customers also needs the app to be an
 approved Meta Tech Provider. Until then, only people with a role on the app
 can use it.
 
