@@ -223,11 +223,6 @@ said: ..." through the relay.
       -d '{"messaging_product":"whatsapp","to":"<recipient>","type":"text","text":{"body":"Hello!"}}'
     ```
 
-Known gaps that may show up here:
-
-- The wizard only listens for Meta's `FINISH` message event. The Business-app
-  flow may send a differently named event (`FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING`),
-  in which case step 1 won't complete. Check the browser console.
-- Meta's coexistence docs also require the `smb_app_state_sync` and
-  `smb_message_echoes` webhooks and a history sync within 24 hours. This app
-  doesn't do those yet.
+Known gap that may show up here: Meta's coexistence docs also require the
+`smb_app_state_sync` and `smb_message_echoes` webhooks and a history sync within
+24 hours. This app doesn't do those yet.

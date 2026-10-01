@@ -116,7 +116,10 @@ async function initEmbeddedSignup() {
     if (!event.origin.endsWith('facebook.com')) return;
     try {
       const data = JSON.parse(event.data);
-      if (data.type === 'WA_EMBEDDED_SIGNUP' && data.event === 'FINISH') {
+      if (
+        data.type === 'WA_EMBEDDED_SIGNUP' &&
+        (data.event === 'FINISH' || data.event === 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING')
+      ) {
         wabaId = data.data.waba_id;
         phoneNumberId = data.data.phone_number_id;
         onboardingStatus.textContent = `Signup finished. WABA ${wabaId}, phone number ${phoneNumberId}.`;
@@ -142,7 +145,10 @@ async function initEmbeddedSignup() {
         config_id: META_CONFIG_ID,
         response_type: 'code',
         override_default_response_type: true,
-        extras: { setup: {}, featureType: '', sessionInfoVersion: '3' },
+        // whatsapp_business_app_onboarding is what makes the popup offer coexistence
+        // for a number already on the WhatsApp Business app (instead of only the
+        // "add a new number" flow).
+        extras: { setup: {}, featureType: 'whatsapp_business_app_onboarding', sessionInfoVersion: '3' },
       },
     );
   });
