@@ -12,6 +12,25 @@ function startMetaStub(port) {
       return;
     }
 
+    // Stands in for the business's own incoming-message endpoint: echoes the
+    // challenge back, like a correctly set up webhook does.
+    if (req.method === 'GET' && req.url.startsWith('/business-endpoint')) {
+      const challenge = new URL(req.url, 'http://x').searchParams.get('hub.challenge');
+      res.setHeader('Content-Type', 'text/plain');
+      res.writeHead(200).end(challenge);
+      return;
+    }
+
+    // GET /{waba-id}?fields=id with a bearer token
+    if (req.method === 'GET' && /^\/[^/?]+\?fields=id/.test(req.url)) {
+      if (req.headers.authorization === 'Bearer valid-user-token') {
+        res.writeHead(200).end(JSON.stringify({ id: req.url.split('?')[0].slice(1) }));
+      } else {
+        res.writeHead(401).end(JSON.stringify({ error: { message: 'Invalid OAuth access token' } }));
+      }
+      return;
+    }
+
     if (req.method === 'POST' && req.url.endsWith('/subscribed_apps')) {
       res.writeHead(200).end(JSON.stringify({ success: true }));
       return;

@@ -45,3 +45,14 @@ export async function subscribeApp(
     }),
   });
 }
+
+/**
+ * Confirms the access token can read this WABA. Used to make sure a caller
+ * really holds a valid token for it before we do anything on its behalf.
+ */
+export async function verifyWabaAccess(wabaId: string, accessToken: string): Promise<void> {
+  await graphFetch(`/${encodeURIComponent(wabaId)}?fields=id`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
