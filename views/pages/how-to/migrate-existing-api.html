@@ -1,0 +1,78 @@
+<!--#var title="Already Have WhatsApp API? Migrate to Watobot — WA Coexistence"-->
+<!--#var description="Already using the WhatsApp API through another provider or your own app? What moving your number to us involves, and what to check first."-->
+<!--#include partial="head"-->
+<!--#include partial="header"-->
+
+  <section class="px-gutter md:px-24 py-12">
+    <div class="max-w-3xl mx-auto flex flex-col gap-4">
+      <a href="/#how-to" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to How-To Guides</a>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">Already Have WhatsApp API? How to Migrate to Watobot</h1>
+
+      <p class="text-on-surface-variant font-body-md">
+        A phone number is connected to one WhatsApp Business Account (WABA) at a
+        time, so if your number is already set up with another provider or your
+        own Meta app, it has to be moved to us. It can't be connected in both
+        places.
+      </p>
+
+      <h2 class="section-title text-on-surface mt-4">Moving a number that is already on the Cloud API</h2>
+      <p class="text-on-surface-variant font-body-md">
+        Meta's migration flow moves the number to a new WABA through Embedded
+        Signup. Before you start, Meta requires:
+      </p>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li>A verified business portfolio. See <a class="text-primary font-bold hover:underline" href="/how-to/business-portfolio.html">our portfolio guide</a> or Meta's <a class="text-primary font-bold hover:underline" target="_blank" rel="noopener" href="https://www.facebook.com/business/help/2058515294227817">business verification steps</a>.</li>
+        <li>A WABA in good standing (not restricted or rejected).</li>
+        <li>A valid payment method on that WABA. <a class="text-primary font-bold hover:underline" target="_blank" rel="noopener" href="https://www.facebook.com/business/help/488291839463771">How to add one</a>.</li>
+        <li>An approved display name on the number, with no pending display name change. <a class="text-primary font-bold hover:underline" target="_blank" rel="noopener" href="https://www.facebook.com/business/help/757569725593362">Display name guidelines</a>.</li>
+        <li>
+          <strong>Two-step verification disabled</strong> on the number. In
+          WhatsApp Manager, go to Account tools &rarr; Phone numbers, select
+          your number, open the Two-step verification tab and turn it off.
+          It can't be turned off through the API. If your number has no such
+          tab, there is nothing to disable. <a class="text-primary font-bold hover:underline" target="_blank" rel="noopener" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/business-phone-numbers/two-step-verification/">Meta's guide</a>.
+        </li>
+      </ul>
+
+      <h2 class="section-title text-on-surface mt-4">How the move works</h2>
+      <p class="text-on-surface-variant font-body-md">
+        There's no separate step to disconnect from your old provider. Meta's
+        docs describe the move as part of the new provider's onboarding:
+      </p>
+      <ol class="flex flex-col gap-2 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>Finish the prerequisites above.</li>
+        <li>Start onboarding in our <a class="text-primary font-bold hover:underline" href="/dashboard/">Dashboard</a> and enter your phone number and display name in the popup.</li>
+        <li>Meta creates the new WABA under us and moves the number. The old provider's connection ends automatically.</li>
+        <li>Save the new access token and update your app. Tokens from your old provider stop working for this number.</li>
+      </ol>
+      <p class="text-on-surface-variant font-body-md">
+        One thing to know: your message templates carry over, but their
+        quality ratings reset to <code>UNKNOWN</code>.
+      </p>
+
+      <div class="card p-6 mt-2">
+        <p class="section-title text-on-surface mb-2">Does coexistence still work after migrating?</p>
+        <p class="text-on-surface-variant font-body-md">
+          Meta's migration guide says migrated numbers work only with the Cloud
+          API, which would mean the WhatsApp Business app stops working on that
+          number. We haven't confirmed whether a number already on the Cloud API
+          can be put into coexistence directly. If you want to keep using the
+          Business app, the safest route is to check with Meta support first.
+        </p>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-4">Meta's own docs</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/docs/whatsapp/business-management-api/guides/migrate-phone-to-different-waba/" target="_blank" rel="noopener">Migrate phone numbers to a different WABA</a></li>
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/support/migrating-phone-numbers-among-solution-partners-via-embedded-signup/" target="_blank" rel="noopener">Migrating between Solution Partners via Embedded Signup</a></li>
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users/" target="_blank" rel="noopener">Onboard WhatsApp Business app users (coexistence)</a></li>
+      </ul>
+
+      <div class="card p-6 mt-4">
+        <p class="section-title text-on-surface mb-2">Ready to connect your number?</p>
+        <a class="text-primary font-bold hover:underline" href="/dashboard/">Open the Dashboard &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+<!--#include partial="footer"-->

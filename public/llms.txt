@@ -1,0 +1,22 @@
+# WA Coexistence (Watobot)
+
+> Get WhatsApp API access on a phone number you already use with the WhatsApp Business app. Coexistence lets you keep using the app normally while also building a chatbot on the API, through a WhatsApp Business Account (WABA). We are a Meta Tech Provider (approval pending), so you don't need to create your own Meta app.
+
+Prerequisites: a phone number registered on the WhatsApp Business app, and an app (such as a chatbot) hosted at a public HTTPS URL that receives incoming messages. We never store your access token, and incoming messages go straight from WhatsApp to your app.
+
+## Guides
+
+- [How to Get WhatsApp API Access in 5 minutes](https://watobot.com/how-to/whatsapp-api-access.html): Connect your number through coexistence, save your access token, point incoming messages at your app and test both directions.
+- [Already Have WhatsApp API? How to Migrate to Watobot](https://watobot.com/how-to/migrate-existing-api.html): What moving a number from another provider or your own Meta app involves, and what to check first.
+- [How to Get WhatsApp API for Free](https://watobot.com/how-to/meta-app.html): The do-it-yourself route: create your own Meta app and access token. This route does not give you coexistence.
+- [How to Create a Meta Business Portfolio and Add Your WhatsApp Number](https://watobot.com/how-to/business-portfolio.html): Create a business portfolio, add a WhatsApp account and prepare for an app.
+
+## Legal
+
+- [Privacy Policy](https://watobot.com/privacy.html)
+- [Terms of Service](https://watobot.com/tos.html)
+- [Data Deletion](https://watobot.com/data-deletion.html)
+
+## Source
+
+- [GitHub repository](https://github.com/pocha/whatsapp-coexistence): The code is open source and self-hostable.

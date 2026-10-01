@@ -1,0 +1,136 @@
+<!--#var title="Onboard a WABA — WA Coexistence"-->
+<!--#var description="Activate WhatsApp Coexistence for a WhatsApp Business number."-->
+<!--#include partial="head"-->
+<!--#include partial="header"-->
+
+  <section class="px-gutter md:px-24 py-12">
+    <div class="max-w-2xl mx-auto flex flex-col gap-6">
+      <a href="/dashboard/" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to your WABAs</a>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">Onboard a WABA</h1>
+
+      <!-- Step indicator -->
+      <div class="flex items-center justify-center gap-2" id="step-indicator">
+        <button type="button" data-step="1" class="step-pill w-9 h-9 rounded-full font-label-md text-label-md font-bold flex items-center justify-center transition-all">1</button>
+        <div class="flex-1 h-px bg-outline-variant"></div>
+        <button type="button" data-step="2" class="step-pill w-9 h-9 rounded-full font-label-md text-label-md font-bold flex items-center justify-center transition-all">2</button>
+        <div class="flex-1 h-px bg-outline-variant"></div>
+        <button type="button" data-step="3" class="step-pill w-9 h-9 rounded-full font-label-md text-label-md font-bold flex items-center justify-center transition-all">3</button>
+        <div class="flex-1 h-px bg-outline-variant"></div>
+        <button type="button" data-step="4" class="step-pill w-9 h-9 rounded-full font-label-md text-label-md font-bold flex items-center justify-center transition-all">4</button>
+      </div>
+
+      <!-- Step 1: Login with Facebook (Embedded Signup) -->
+      <div class="card p-6 step-panel" data-step-panel="1">
+        <p class="section-title text-on-surface mb-1">Step 1: Connect via Embedded Signup</p>
+        <p class="text-on-surface-variant font-body-md text-sm mb-4">Runs Meta's Embedded Signup to connect a WhatsApp Business number.</p>
+        <button id="login-btn" disabled class="rounded-xl bg-primary-container text-on-primary-container px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">Login with Facebook</button>
+        <p class="text-on-surface-variant font-body-md text-sm mt-2" id="onboarding-status">Loading Facebook SDK…</p>
+        <div class="flex justify-end mt-4">
+          <button id="step1-next" disabled class="rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all disabled:opacity-50">Next</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Incoming-message endpoint -->
+      <div class="card p-6 step-panel hidden" data-step-panel="2">
+        <p class="section-title text-on-surface mb-1">Step 2: Your incoming-message endpoint</p>
+        <p class="text-on-surface-variant font-body-md text-sm mb-4">
+          Required — this is where WhatsApp delivers incoming messages
+          directly, so we're never in that path.
+        </p>
+        <label class="label-strong text-on-surface-variant block" for="override-url">Endpoint URL</label>
+        <input id="override-url" type="text" placeholder="https://your-app.example.com/whatsapp-webhook" class="w-full mt-1 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"/>
+        <button id="test-endpoint-btn" class="mt-3 rounded-xl bg-primary-container text-on-primary-container px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Test endpoint &amp; activate</button>
+        <p class="text-on-surface-variant font-body-md text-sm mt-2" id="endpoint-check-status"></p>
+        <div class="flex justify-between mt-4">
+          <button data-back-to="1" class="step-back rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Back</button>
+          <button id="step2-next" disabled class="rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all disabled:opacity-50">Next</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Send through the relay -->
+      <div class="card p-6 step-panel hidden" data-step-panel="3">
+        <div id="token-box" class="hidden rounded-xl p-4 mb-4 border !border-amber-400 !bg-amber-100 dark:!bg-amber-950">
+          <p class="label-strong text-amber-900 dark:text-amber-200 mb-1">Your access token &mdash; copy it now</p>
+          <p class="text-amber-950 dark:text-amber-100 font-body-md text-sm mb-2">
+            We don't store this and can't show it again. Put it in your app's
+            secrets. If you lose it, onboard the number again.
+          </p>
+          <div class="flex gap-2">
+            <input id="token-value" type="text" readonly class="flex-1 px-3 py-2 bg-white border border-outline-variant rounded-lg text-xs font-mono"/>
+            <button id="copy-token-btn" class="rounded-xl bg-primary text-on-primary px-4 py-2 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Copy</button>
+          </div>
+        </div>
+        <p class="section-title text-on-surface mb-1">Step 3: Send messages through our relay</p>
+        <p class="text-on-surface-variant font-body-md text-sm">
+          Update your app to call this instead of Meta directly — same
+          request body Meta's own <code>/{phone-number-id}/messages</code>
+          endpoint takes, forwarded with your own access token:
+        </p>
+        <pre id="relay-snippet" class="bg-surface-container-low rounded-lg p-3 mt-3 text-xs overflow-x-auto"></pre>
+        <p class="text-on-surface-variant font-body-md text-sm mt-2">
+          We never store your token — it's forwarded per-request. Rate
+          limiting and per-recipient serialization are upcoming.
+        </p>
+        <button id="fetch-last-message-btn" class="mt-4 rounded-xl bg-primary-container text-on-primary-container px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Fetch last message</button>
+        <p class="text-on-surface-variant font-body-md text-sm mt-2" id="last-message-status">Not checked yet.</p>
+
+        <div class="bg-surface-container-low rounded-xl p-4 mt-4 border border-outline-variant">
+          <p class="label-strong text-on-surface-variant mb-2">Usage</p>
+          <div class="grid grid-cols-3 gap-3 text-center" id="usage-stats">
+            <div><p class="font-headline-md text-headline-md text-on-surface" id="usage-today">—</p><p class="label-muted">Today</p></div>
+            <div><p class="font-headline-md text-headline-md text-on-surface" id="usage-week">—</p><p class="label-muted">This week</p></div>
+            <div><p class="font-headline-md text-headline-md text-on-surface" id="usage-month">—</p><p class="label-muted">This month</p></div>
+          </div>
+        </div>
+
+        <div class="flex justify-between mt-4">
+          <button data-back-to="2" class="step-back rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Back</button>
+          <button id="step3-next" class="rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Next</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Handle human replies -->
+      <div class="card p-6 step-panel hidden" data-step-panel="4">
+        <p class="section-title text-on-surface mb-1">Step 4: Handle replies sent from the phone app</p>
+        <p class="text-on-surface-variant font-body-md text-sm">
+          One thing left. Update <code id="pending-endpoint"></code> to
+          check for <code>change.field === 'smb_message_echoes'</code> and
+          <code>'smb_app_state_sync'</code> — otherwise a human replying
+          from the phone app will look invisible to your integration, and
+          your contact list can drift out of sync:
+        </p>
+        <pre class="bg-surface-container-low rounded-lg p-3 mt-3 text-xs overflow-x-auto">app.post('/whatsapp-webhook', (req, res) =&gt; {
+  for (const entry of req.body.entry) {
+    for (const change of entry.changes) {
+      if (change.field === 'smb_message_echoes') {
+        for (const echo of change.value.message_echoes) {
+          saveToConversationHistory(echo.to, { direction: 'out', from: 'human', ...echo });
+          pauseAutoReplyFor(echo.to, { minutes: 30 });
+        }
+      } else if (change.field === 'smb_app_state_sync') {
+        // contacts added/removed in the Business App — resync your list
+      } else if (change.field === 'messages') {
+        // normal customer-initiated messages, handled as usual
+      }
+    }
+  }
+  res.sendStatus(200);
+});</pre>
+        <p class="text-on-surface-variant font-body-md text-sm mt-2">
+          Full payload shape and why this is needed:
+          <a class="text-primary font-bold hover:underline" href="/#why-coexistence">Why Coexistence?</a> on the homepage.
+        </p>
+        <div class="bg-surface-container-low rounded-xl p-4 mt-4 border border-outline-variant">
+          <p class="label-strong text-primary">🎉 That's everything</p>
+          <p class="text-on-surface-variant font-body-md text-sm mt-1">Once your endpoint handles this, your setup is complete.</p>
+        </div>
+        <div class="flex justify-between mt-4">
+          <button data-back-to="3" class="step-back rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Back</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script type="module" src="/dashboard/waba.js"></script>
+
+<!--#include partial="footer"-->

@@ -1,131 +1,60 @@
 <!--#var title="Dashboard — WA Coexistence"-->
-<!--#var description="Activate WhatsApp Coexistence via Embedded Signup, then wire up incoming and outgoing messaging."-->
+<!--#var description="Manage your onboarded WhatsApp numbers and activate coexistence for new ones."-->
 <!--#include partial="head"-->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@29.5/dist/css/intlTelInput.css"/>
+<script src="https://cdn.jsdelivr.net/npm/intl-tel-input@29.5/dist/js/intlTelInput.min.js"></script>
 <!--#include partial="header"-->
 
   <section class="px-gutter md:px-24 py-12">
-    <div class="max-w-2xl mx-auto flex flex-col gap-8">
-      <h1 class="font-headline-lg text-headline-lg text-on-surface">Dashboard</h1>
+    <div class="max-w-2xl mx-auto flex flex-col gap-6">
 
-      <div class="card p-6">
-        <p class="section-title text-on-surface mb-4">1. Activate Coexistence</p>
-        <button id="login-btn" disabled class="rounded-xl bg-primary-container text-on-primary-container px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">Login with Facebook</button>
-        <p class="text-on-surface-variant font-body-md text-sm mt-2" id="onboarding-status">Loading Facebook SDK…</p>
+      <!-- Signed-out view -->
+      <div id="signed-out" class="hidden card p-8">
+        <p class="section-title text-on-surface mb-2">Sign in to continue</p>
 
-        <label class="label-strong text-on-surface-variant block mt-4" for="override-url">Your incoming-message endpoint (optional — leave blank to use this app's own /webhook for now)</label>
-        <input id="override-url" type="text" placeholder="https://your-app.example.com/whatsapp-webhook" class="w-full mt-1 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"/>
-        <p class="text-on-surface-variant font-body-md text-sm mt-1">Once set, WhatsApp delivers incoming messages straight to this URL — we're never in that path.</p>
-
-        <div class="bg-surface-container-low rounded-xl p-4 mt-3 border border-outline-variant">
-          <p class="label-strong text-on-surface-variant mb-2">Your endpoint needs to handle these, not just plain messages</p>
-          <table class="w-full text-sm">
-            <tbody class="text-on-surface-variant font-body-md">
-              <tr class="align-top">
-                <td class="pr-3 py-1 whitespace-nowrap"><code>smb_message_echoes</code></td>
-                <td class="py-1">A human sent a message from the phone's WhatsApp Business App. Ignore it and your bot won't know — it may auto-reply to the same customer, causing a double response.</td>
-              </tr>
-              <tr class="align-top">
-                <td class="pr-3 py-1 whitespace-nowrap"><code>smb_app_state_sync</code></td>
-                <td class="py-1">Contacts added/removed in the Business App. Ignore it and your contact list drifts out of sync.</td>
-              </tr>
-            </tbody>
-          </table>
+        <div id="phone-step" class="flex flex-col gap-3">
+          <label class="font-label-md text-label-md text-on-surface-variant" for="phone-input">WhatsApp number</label>
+          <input id="phone-input" type="tel" class="w-full px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"/>
+          <button id="send-otp-btn" class="self-start rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">Send code on Whatsapp</button>
         </div>
 
-        <button id="complete-btn" disabled class="mt-4 rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all disabled:opacity-50">Complete onboarding</button>
-        <pre class="bg-surface-container-low rounded-lg p-3 mt-3 text-xs overflow-x-auto whitespace-pre-wrap" id="onboarding-result"></pre>
-
-        <div id="pending-tasks" class="hidden bg-surface-container-low rounded-xl p-4 mt-3 border border-outline-variant">
-          <p class="label-strong text-primary mb-2">✅ Coexistence activated — one thing left</p>
-
-          <div class="no-endpoint-warning hidden">
-            <p class="text-on-surface-variant font-body-md text-sm">
-              You left the endpoint blank, so incoming messages are going to
-              this app's own <code>/webhook</code>, which does nothing with
-              them. Go back to step 1, set your own endpoint, and re-run
-              onboarding — otherwise you won't receive anything, including
-              the echo of a human replying from the phone app.
-            </p>
-          </div>
-
-          <div class="snippet">
-            <p class="text-on-surface-variant font-body-md text-sm">
-              Update <code id="pending-endpoint"></code> to check for
-              <code>change.field === 'smb_message_echoes'</code> and handle
-              it — otherwise a human replying from the phone app will look
-              invisible to your integration:
-            </p>
-            <pre class="bg-white rounded-lg p-3 mt-2 text-xs overflow-x-auto">app.post('/whatsapp-webhook', (req, res) =&gt; {
-  for (const entry of req.body.entry) {
-    for (const change of entry.changes) {
-      if (change.field === 'smb_message_echoes') {
-        for (const echo of change.value.message_echoes) {
-          saveToConversationHistory(echo.to, { direction: 'out', from: 'human', ...echo });
-          pauseAutoReplyFor(echo.to, { minutes: 30 });
-        }
-      } else if (change.field === 'messages') {
-        // normal customer-initiated messages, handled as usual
-      }
-    }
-  }
-  res.sendStatus(200);
-});</pre>
-            <p class="text-on-surface-variant font-body-md text-sm mt-2">
-              Full payload shape and why this is needed:
-              <a class="text-primary font-bold hover:underline" href="/#why-coexistence">Why Coexistence?</a> above.
-            </p>
-          </div>
+        <div id="code-step" class="hidden flex flex-col gap-3 mt-4">
+          <label class="font-label-md text-label-md text-on-surface-variant" for="code-input">6-digit code</label>
+          <input id="code-input" type="text" inputmode="numeric" placeholder="123456" class="w-full px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"/>
+          <button id="verify-otp-btn" class="self-start rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">Verify &amp; sign in</button>
         </div>
+
+        <p class="text-on-surface-variant font-body-md text-sm mt-3" id="login-status"></p>
       </div>
 
-      <div class="card p-6">
-        <p class="section-title text-on-surface mb-2">2. Send messages through the relay</p>
-        <p class="text-on-surface-variant font-body-md text-sm">
-          Once onboarded, send outgoing messages by calling our relay instead
-          of Meta directly — same request body Meta's own
-          <code>/{phone-number-id}/messages</code> endpoint takes, forwarded
-          with your own access token:
-        </p>
-        <pre class="bg-surface-container-low rounded-lg p-3 mt-3 text-xs overflow-x-auto">POST /api/relay/&lt;phone-number-id&gt;/messages
-Authorization: Bearer &lt;your WhatsApp access token&gt;
-Content-Type: application/json
+      <!-- Signed-in view -->
+      <div id="signed-in" class="hidden flex flex-col gap-6">
+        <div class="flex justify-between items-center">
+          <h1 class="font-headline-lg text-headline-lg text-on-surface">Your WABAs</h1>
+          <button id="logout-btn" class="text-on-surface-variant font-body-md text-sm hover:text-primary transition-colors">Log out</button>
+        </div>
 
-{
-  "messaging_product": "whatsapp",
-  "to": "&lt;recipient&gt;",
-  "type": "text",
-  "text": { "body": "Hello!" }
-}</pre>
-        <p class="text-on-surface-variant font-body-md text-sm mt-2">
-          We never store your token — it's forwarded per-request. Rate
-          limiting and per-recipient serialization are upcoming.
-        </p>
-      </div>
+        <a href="/dashboard/waba.html" class="card p-6 hover:shadow-md transition-all border-primary">
+          <p class="section-title text-primary">+ Onboard a WABA</p>
+          <p class="text-on-surface-variant font-body-md text-sm mt-1">Run Embedded Signup to activate coexistence for a new number.</p>
+        </a>
 
-      <div class="card p-6">
-        <p class="section-title text-on-surface mb-2">3. Verify it worked</p>
-        <p class="text-on-surface-variant font-body-md text-sm">
-          Not a "send a test message" button — that only proves the relay
-          works, which isn't in doubt. What actually matters:
-        </p>
-        <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md text-sm mt-2">
-          <li><strong>Coexistence activated?</strong> Check the phone's WhatsApp Business App itself — Meta refreshes it automatically to show the number is now connected to the API. No message needed.</li>
-          <li><strong>Is your echo handling correct?</strong> Send a message from that phone app and confirm your own server received an <code>smb_message_echoes</code> webhook for it. Only your real phone + your real server can prove this — nothing we send on your behalf would test it.</li>
-        </ul>
-      </div>
+        <div id="waba-list" class="flex flex-col gap-4"></div>
+        <p class="text-on-surface-variant font-body-md text-sm" id="waba-list-empty">No WABAs onboarded yet.</p>
 
-      <div class="card p-6">
-        <p class="section-title text-on-surface mb-2">Recording App Review videos?</p>
-        <p class="text-on-surface-variant font-body-md text-sm">
-          Use the send-message / create-template test buttons on the
-          <a class="text-primary font-bold hover:underline" href="/dashboard/test.html">Test page</a>
-          — not part of the product, just there to satisfy Meta's demo-video
-          requirement.
-        </p>
+        <div class="card p-6 mt-4">
+          <p class="section-title text-on-surface mb-1">Delete account</p>
+          <p class="text-on-surface-variant font-body-md text-sm mb-3">
+            Removes all WABAs you've onboarded from our records. Doesn't log
+            you out or revoke Meta's access — do that separately from Meta
+            Business Manager if you want to fully disconnect.
+          </p>
+          <button id="delete-account-btn" class="rounded-xl border border-error text-error px-6 py-3 font-label-md text-label-md font-bold hover:bg-error/10 transition-all">Delete account</button>
+        </div>
       </div>
     </div>
   </section>
 
-  <script src="/dashboard/app.js"></script>
+  <script type="module" src="/dashboard/app.js"></script>
 
 <!--#include partial="footer"-->

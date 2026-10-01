@@ -1,76 +1,80 @@
-<!--#var title="How to Create a Meta Business Portfolio — WA Coexistence"-->
-<!--#var description="Step-by-step guide to creating and verifying a Meta Business Portfolio before applying for WhatsApp Business API access."-->
+<!--#var title="How to Create a Meta Business Portfolio & Add Your WhatsApp Number — WA Coexistence"-->
+<!--#var description="Step-by-step guide to creating a Meta Business Portfolio and adding a WhatsApp Business Account to it."-->
 <!--#include partial="head"-->
 <!--#include partial="header"-->
 
   <section class="px-gutter md:px-24 py-12">
     <div class="max-w-3xl mx-auto flex flex-col gap-4">
       <a href="/#how-to" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to How-To Guides</a>
-      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Create a Meta Business Portfolio</h1>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Create Meta Business Portfolio &amp; Add Your WhatsApp Number to It</h1>
 
       <div class="card p-6 whatsapp-border">
         <p class="label-strong text-primary mb-1">IS THIS MANDATORY?</p>
         <p class="text-on-surface-variant font-body-md">
-          Yes — even if you only want the free test-number tier (250 messages/day,
-          no verification needed). Meta's own docs are explicit: <em>"You must have
-          a business portfolio to use the [WhatsApp Business] platform."</em> There's
-          no way to create a WhatsApp-enabled Meta App without connecting it to one.
+          Yes, you need one. But you do <strong>not</strong> need a verified
+          business: create the portfolio with the name of your app or website,
+          and it can stay unverified. Meta's own docs are explicit:
+          <em>"You must have a business portfolio to use the [WhatsApp
+          Business] platform."</em> There's no way to create a WhatsApp-enabled
+          Meta App without connecting it to one.
           (Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/about-the-platform" target="_blank" rel="noopener">About the WhatsApp Business Platform</a>.)
         </p>
       </div>
 
+      <h2 class="section-title text-on-surface mt-4">1. Create a business portfolio</h2>
       <p class="text-on-surface-variant font-body-md">
-        Don't use your personal Facebook profile if it shows up as an option when
-        connecting a portfolio to your app — full Business Verification (needed
-        later if you outgrow the free tier) requires a real legal business behind
-        the portfolio, not an individual account.
+        Go to <a class="text-primary font-bold hover:underline" href="https://business.facebook.com/" target="_blank" rel="noopener">business.facebook.com</a>
+        and create a new business portfolio. You do <strong>not</strong> need a
+        different Facebook account. One Facebook account can own several
+        portfolios, so if you land in an existing one (for example, one made
+        for another project), stay logged in and add a new portfolio using the
+        switcher at the top left.
       </p>
-
-      <img src="/assets/0.business-portfolio.png" alt="Meta app-creation screen showing only a personal profile as a connectable business portfolio option" class="rounded-xl border border-outline-variant w-full"/>
-      <p class="text-on-surface-variant font-body-md text-sm text-center -mt-2">Don't pick a personal profile here — create a dedicated portfolio instead.</p>
-
-      <p class="text-on-surface-variant font-body-md">
-        You don't need a separate Facebook login for this. One Facebook account can
-        own multiple Business Portfolios, so if <code>business.facebook.com</code>
-        drops you into an unrelated existing portfolio (e.g. one made for a personal
-        project), stay logged in and create a <strong>new</strong> portfolio for this
-        business instead — use the portfolio switcher at the top-left of Meta
-        Business Suite.
-      </p>
-
       <img src="/assets/1.create-business-portfolio.png" alt="Meta Business Suite portfolio switcher with the 'Create a business portfolio' button" class="rounded-xl border border-outline-variant w-full"/>
-      <p class="text-on-surface-variant font-body-md text-sm text-center -mt-2">The portfolio switcher (top-left) has a "Create a business portfolio" button.</p>
+      <p class="text-on-surface-variant font-body-md text-sm text-center -mt-2">The portfolio switcher (top left) has a "Create a business portfolio" button.</p>
 
-      <ol class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
-        <li>Go to <a class="text-primary font-bold hover:underline" href="https://business.facebook.com/" target="_blank" rel="noopener">business.facebook.com</a> and create a new Business Portfolio for this business (or click <strong>"Create a business portfolio"</strong> from the app-creation screen itself).</li>
-        <li>Fill in your <strong>legal business name</strong>, business email, and business address — use the details that match your registration documents, since these get checked during verification.</li>
-        <li>
-          Check <strong>Business Settings → Security Center → Business verification</strong>.
-          Meta only requires this once your usage needs it (e.g. requesting Advanced
-          Access permissions, or crossing certain messaging-volume tiers) — it's
-          common to see <strong>"Your organisation does not need to be verified"</strong>
-          at this stage. That's fine; it's not a blocker. If it does say verification
-          is needed, you'll be asked for documents such as a business registration
-          certificate / tax ID, verified by document upload, a phone call, or a
-          domain check, depending on your business — see Meta's
-          <a class="text-primary font-bold hover:underline" href="https://www.facebook.com/business/help/2058515294227817" target="_blank" rel="noopener">Verify Your Business in Meta Business Suite</a>
-          guide for the exact process.
-        </li>
-        <li>
-          Either way, you can create the Meta App and start using the API's free
-          tier right away — see
-          <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-api-access.html">How to Get WhatsApp Business API Access</a>.
-          You'll only be prompted for verification later if you need to scale
-          past the 250-messages/day starter limit.
-        </li>
-      </ol>
+      <h2 class="section-title text-on-surface mt-4">2. Fill in the details</h2>
+      <p class="text-on-surface-variant font-body-md">
+        Enter the business details Meta asks for, such as the business name,
+        your name and a business email. If you have a registered business,
+        provide <strong>the exact details</strong> (name, address and phone
+        number) as on the document you plan to submit for business
+        verification. Later you can edit the display name from
+        <strong>Business Settings &rarr; Business Info</strong>.
+      </p>
 
+      <img src="/assets/18.business-info.png" alt="Business Settings, Business info page showing the portfolio display name with an Edit button and the legal business name under Business details" class="rounded-xl border border-outline-variant w-full"/>
+
+      <h2 class="section-title text-on-surface mt-4">3. Open Business Settings</h2>
+      <p class="text-on-surface-variant font-body-md">
+        Once the portfolio is created, click the <strong>Business Settings</strong>
+        button, or go straight to
+        <a class="text-primary font-bold hover:underline" href="https://business.facebook.com/latest/settings" target="_blank" rel="noopener">business.facebook.com/latest/settings</a>.
+        If you land on a different account, switch to the new portfolio using
+        the portfolio switcher at the top left.
+      </p>
+
+      <h2 class="section-title text-on-surface mt-4">4. Add your WhatsApp account</h2>
+      <p class="text-on-surface-variant font-body-md">
+        First, install the WhatsApp Business app (free on the app store) and
+        log in with the phone number you want the API activated on.
+        Then come back here. In Business Settings, go to
+        <strong>Accounts → WhatsApp accounts</strong>, click <strong>Add</strong>
+        and choose <strong>Link a WhatsApp Business account</strong>.
+      </p>
+      <img src="/assets/17.business-setting-WABA.png" alt="Business Settings WhatsApp accounts page with the Add menu open, showing the options to create or link a WhatsApp business account" class="rounded-xl border border-outline-variant w-full"/>
+
+      <h2 class="section-title text-on-surface mt-4">5. Add an app</h2>
+      <p class="text-on-surface-variant font-body-md">
+        Your portfolio needs a Meta app before you can get an access token. See
+        <a class="text-primary font-bold hover:underline" href="/how-to/meta-app.html">How to Get WhatsApp API for Free</a>.
+      </p>
       <img src="/assets/2.add-app.png" alt="New business portfolio's Apps settings page, ready with an Add button and no apps yet" class="rounded-xl border border-outline-variant w-full"/>
       <p class="text-on-surface-variant font-body-md text-sm text-center -mt-2">Your new portfolio, ready to have an app connected to it.</p>
 
       <div class="card p-6 mt-4">
         <p class="section-title text-on-surface mb-2">See also</p>
-        <a class="text-primary font-bold hover:underline" href="/how-to/meta-app.html">How to Create an App on Facebook Developers Portal &rarr;</a>
+        <a class="text-primary font-bold hover:underline" href="/how-to/meta-app.html">How to Get WhatsApp API for Free &rarr;</a>
       </div>
     </div>
   </section>

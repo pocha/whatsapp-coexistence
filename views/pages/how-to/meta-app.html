@@ -1,17 +1,19 @@
-<!--#var title="How to Create an App on Facebook Developers Portal — WA Coexistence"-->
-<!--#var description="Step-by-step guide to creating a Meta App for WhatsApp and connecting it to a Business Portfolio, for your own WhatsApp Business API access."-->
+<!--#var title="How to Get WhatsApp API for Free — WA Coexistence"-->
+<!--#var description="Get WhatsApp API access on your own, without a third party or Tech Provider: create a Meta app, then generate an access token. This route does not give you coexistence."-->
 <!--#include partial="head"-->
 <!--#include partial="header"-->
 
   <section class="px-gutter md:px-24 py-12">
     <div class="max-w-3xl mx-auto flex flex-col gap-4">
       <a href="/#how-to" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to How-To Guides</a>
-      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Create an App on Facebook Developers Portal</h1>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Get WhatsApp API for Free</h1>
 
       <p class="text-on-surface-variant font-body-md">
         Make sure you've already created a
         <a class="text-primary font-bold hover:underline" href="/how-to/business-portfolio.html">Business Portfolio</a>
-        before starting this.
+        before starting this. Even if you do not have a registered business,
+        you need to create a business portfolio, and it will stay
+        "unverified", which is ok.
       </p>
 
       <ol class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
@@ -51,45 +53,93 @@
 
       <img src="/assets/5.no-business-requirement.png" alt="Requirements step showing 'No requirements identified. This may change if you add more to this app.'" class="rounded-xl border border-outline-variant w-full"/>
 
-      <ol start="5" class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
-        <li>Go to <strong>App Settings → Basic</strong> and note down the <strong>App ID</strong> and <strong>App Secret</strong>.</li>
-        <li>
-          That's it — your app is ready to use the WhatsApp API under
-          <strong>Standard Access</strong>, which is all a business needs to send
-          and receive messages on its own number.
-        </li>
-      </ol>
-
-      <div class="card p-6 whatsapp-border">
-        <p class="label-strong text-primary mb-1">DO YOU NEED APP REVIEW?</p>
-        <p class="text-on-surface-variant font-body-md">
-          <em>"If you are using the API for yourself as a Direct Developer, you do
-          not need Advanced access or app review. If you are building an app that
-          other businesses will be using, you must request Advanced access for any
-          permissions your app needs."</em>
-        </p>
-        <p class="text-on-surface-variant font-body-md text-sm mt-2">
-          (Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/app-review" target="_blank" rel="noopener">App Review — Meta for Developers</a>)
-        </p>
-      </div>
-
-      <p class="text-on-surface-variant font-body-md">
-        So: no App Review, no demo videos, no Tech Provider status needed to send
-        and receive on your own number — that whole process is a separate, optional
-        path only required if you're building a platform for <em>other</em>
-        businesses to use (see Meta's
-        <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/get-started-for-tech-providers" target="_blank" rel="noopener">Become a Tech Provider</a>
-        docs if that's you). See
-        <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-api-access.html">How to Get WhatsApp Business API Access</a>
-        for what to do next with your new app.
-      </p>
-
       <img src="/assets/6.create-app.png" alt="Final app-creation overview screen listing app name, use case, business portfolio and requirements" class="rounded-xl border border-outline-variant w-full"/>
       <p class="text-on-surface-variant font-body-md text-sm text-center -mt-2">The final overview — confirm everything looks right, then finish creating the app. (The app name shown here, "WA Coexistence", is ours — name yours whatever you like.)</p>
 
+      <ol start="5" class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>
+          Your app can now use the WhatsApp API under <strong>Standard
+          Access</strong>, which is all a business needs on its own number.
+          Next you need an access token.
+        </li>
+      </ol>
+
+      <h2 class="section-title text-on-surface mt-4">Get an access token</h2>
+      <p class="text-on-surface-variant font-body-md">
+        To send messages you need an access token. You don't need the App ID
+        or App Secret for this.
+      </p>
+      <ol class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>
+          In the App Dashboard, open <strong>Use cases</strong> in the left
+          sidebar and click <strong>Customize</strong> on the WhatsApp use case
+          (<strong>Connect on WhatsApp</strong>).
+        </li>
+        <li>
+          Under <strong>Basic setup</strong>, go to <strong>Step 2. Production
+          setup</strong>. <strong>Step 1. Try it out</strong> is only for first
+          tests with Meta's test number.
+        </li>
+        <li>
+          Complete <strong>Register your WhatsApp phone number</strong> and
+          <strong>Add payment to send business-initiated messages</strong>.
+          The token step needs a registered number.
+        </li>
+        <li>
+          Open <strong>Send message</strong>, and under <strong>Step 1: Generate
+          token</strong> click <strong>Generate token</strong>. Meta describes
+          this as a permanent access token for your WhatsApp Business account.
+          Copy it and store it somewhere safe.
+        </li>
+      </ol>
+
+      <img src="/assets/15.generate-token.png" alt="Production setup screen with the Send message section open and the Generate token button in Step 1" class="rounded-xl border border-outline-variant w-full max-w-md mx-auto"/>
+
+      <h3 class="font-body-md font-bold text-on-surface mt-2">If that doesn't work: create a system user token</h3>
+      <p class="text-on-surface-variant font-body-md">
+        Meta links to this manual route from the same screen when token
+        generation fails.
+      </p>
+      <ol class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>
+          Open Business Settings at
+          <a class="text-primary font-bold hover:underline" href="https://business.facebook.com/latest/settings" target="_blank" rel="noopener">business.facebook.com/latest/settings</a>
+          and choose the right portfolio from the switcher at the top left.
+          Then go to <strong>Users → System users</strong> and click
+          <strong>+ Add</strong>. Name it, and pick the Admin or Employee role.
+        </li>
+        <li>Click <strong>Assign assets</strong> and give the system user <strong>Manage app</strong> control over your app. Also assign your WhatsApp account so the token can reach it.</li>
+        <li>Click <strong>Generate token</strong>, select your app, and choose an expiration.</li>
+        <li>
+          Select the permissions <code>business_management</code>,
+          <code>whatsapp_business_management</code> and
+          <code>whatsapp_business_messaging</code>, then copy the token. Store
+          it somewhere safe, because Meta won't show it again.
+        </li>
+      </ol>
+      <img src="/assets/19.system-user-token.png" alt="Business Settings, System users page with a system user selected and the Generate token and Assign assets buttons" class="rounded-xl border border-outline-variant w-full"/>
+      <p class="text-on-surface-variant font-body-md text-sm">
+        Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/access-tokens" target="_blank" rel="noopener">Access tokens — Meta for Developers</a>.
+        Exact button names can change as Meta updates the dashboard.
+      </p>
+
+      <div class="card p-6 !bg-amber-100 !border-amber-400 dark:!bg-amber-950 dark:!border-amber-600">
+        <p class="label-strong text-amber-900 dark:text-amber-200 mb-1">&#9888; NO COEXISTENCE ON THIS ROUTE</p>
+        <p class="text-amber-950 dark:text-amber-100 font-body-md">
+          Getting API access this way does <strong>not</strong> give you
+          coexistence. A number registered on the Cloud API through your own app
+          can't also be used with the WhatsApp Business app. To keep using the
+          Business app on the same number, use
+          <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-api-access.html">coexistence through us</a>
+          instead. Meta's
+          <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users/" target="_blank" rel="noopener">Business app onboarding</a>
+          doc explains the options.
+        </p>
+      </div>
+
       <div class="card p-6 mt-4">
         <p class="section-title text-on-surface mb-2">See also</p>
-        <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-api-access.html">How to Get WhatsApp Business API Access &rarr;</a>
+        <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-api-access.html">How to Get WhatsApp API Access in 5 minutes &rarr;</a>
       </div>
     </div>
   </section>

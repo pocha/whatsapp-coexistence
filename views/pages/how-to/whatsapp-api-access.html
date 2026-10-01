@@ -1,85 +1,94 @@
-<!--#var title="How to Get WhatsApp Business API Access — WA Coexistence"-->
-<!--#var description="How to get WhatsApp Business API access for your own number: test numbers, going to production, and messaging limits — no Tech Provider status or App Review needed."-->
+<!--#var title="How to Get WhatsApp API Access in 5 minutes — WA Coexistence"-->
+<!--#var description="Get WhatsApp API access on a number you already use with the WhatsApp Business app — no Meta app of your own needed."-->
 <!--#include partial="head"-->
 <!--#include partial="header"-->
 
   <section class="px-gutter md:px-24 py-12">
     <div class="max-w-3xl mx-auto flex flex-col gap-4">
       <a href="/#how-to" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to How-To Guides</a>
-      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Get WhatsApp Business API Access</h1>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Get WhatsApp API Access in 5 minutes</h1>
 
-      <p class="text-on-surface-variant font-body-md">
-        If you're using the API for your own business — not building a platform
-        other businesses will use — this is simpler than most guides make it
-        sound. No App Review, no demo videos, no Tech Provider status (see the
-        Meta App guide below for why). You just need two things first:
-      </p>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-2">
-        <a href="/how-to/business-portfolio.html" class="card p-6 hover:shadow-md transition-all">
-          <p class="section-title text-on-surface mb-2">1. A Business Portfolio</p>
-          <p class="text-on-surface-variant font-body-md text-sm">The verified (or verification-eligible) Meta Business Portfolio your app connects to.</p>
-        </a>
-        <a href="/how-to/meta-app.html" class="card p-6 hover:shadow-md transition-all">
-          <p class="section-title text-on-surface mb-2">2. A Meta App</p>
-          <p class="text-on-surface-variant font-body-md text-sm">Created on developers.facebook.com with the WhatsApp product and your App ID / Secret.</p>
-        </a>
+      <div class="card p-6">
+        <p class="text-on-surface-variant font-body-md">
+          <strong>Already have WhatsApp API access</strong> through
+          another provider or your own app? Read
+          <a class="text-primary font-bold hover:underline" href="/how-to/migrate-existing-api.html">how to migrate to Watobot</a>
+          first.
+        </p>
       </div>
 
       <p class="text-on-surface-variant font-body-md">
-        With both of those in place, here's what to do next.
+        You don't need your own Meta app or developer account. We're the
+        Tech Provider, so signing in through us connects your number to the
+        API, and you keep using the WhatsApp Business app on it as before.
       </p>
 
-      <h2 class="section-title text-on-surface mt-4">1. Try it with a free test number</h2>
+      <h2 class="section-title text-on-surface mt-4">Before you start</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li>
+          The WhatsApp Business app installed, with your phone number
+          registered on it. Meta requires app version 2.24.17 or higher for
+          coexistence.
+        </li>
+        <li>
+          If the number is already connected to another Tech Provider (or your
+          own Meta app), follow the
+          <a class="text-primary font-bold hover:underline" href="/how-to/migrate-existing-api.html">migration steps</a> first.
+        </li>
+        <li>
+          An app (a chatbot, for example) hosted at a public HTTPS URL that
+          receives incoming messages. You'll give us this URL in step 3, and
+          use the same app to test sending through our endpoint.
+        </li>
+      </ul>
+
+      <h2 class="section-title text-on-surface mt-4">1. Connect it from the Dashboard</h2>
       <p class="text-on-surface-variant font-body-md">
-        Once your app has the WhatsApp product added, its Quickstart page gives you
-        a free, temporary <strong>test number</strong> — no verification, no cost.
-        You can add up to <strong>5 recipient numbers</strong> to an "allowed
-        recipients" list (each one confirms via a code sent in WhatsApp), then send
-        them the pre-built <code>hello_world</code> template straight from the API
-        Setup screen to confirm everything's wired up.
-      </p>
-      <p class="text-on-surface-variant font-body-md">
-        Full steps: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/get-started" target="_blank" rel="noopener">WhatsApp Cloud API — Get Started</a>.
+        Sign in to the <a class="text-primary font-bold hover:underline" href="/dashboard/">Dashboard</a>
+        with your WhatsApp number and choose <strong>Onboard a WABA</strong>.
+        A Facebook popup walks you through connecting the number. You'll pick
+        or create a business portfolio there, so you don't need to set one up
+        beforehand. This creates your WhatsApp Business Account (WABA).
       </p>
 
-      <h2 class="section-title text-on-surface mt-4">2. Go to production with your real number</h2>
+      <h2 class="section-title text-on-surface mt-4">2. Save your access token</h2>
       <p class="text-on-surface-variant font-body-md">
-        When you're ready to send/receive on your actual business number, add it
-        as a business phone number on the same WhatsApp app (instead of the
-        temporary test number) and generate a permanent access token for it via a
-        System User in Business Settings. This is still Standard Access — no
-        review needed, same as the test number.
-      </p>
-      <p class="text-on-surface-variant font-body-md">
-        Reference: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/business-phone-numbers/phone-numbers" target="_blank" rel="noopener">Business phone numbers — Meta for Developers</a>.
+        We show you an access token for your WABA once. <strong>We don't
+        store it</strong>, so copy it into your app's secrets right away. You'll
+        use it to send messages.
       </p>
 
-      <h2 class="section-title text-on-surface mt-4">3. Know your messaging limits</h2>
+      <h2 class="section-title text-on-surface mt-4">3. Point incoming messages at your app</h2>
       <p class="text-on-surface-variant font-body-md">
-        Every new Business Portfolio starts at <strong>250 unique customers per
-        24-hour period</strong>, regardless of verification status — this is the
-        free tier and it applies to real (non-test) numbers too. To scale up:
+        Enter your app's incoming-message webhook URL in the Dashboard. We
+        check it responds correctly, then route your WhatsApp messages
+        straight to it.
+      </p>
+
+      <h2 class="section-title text-on-surface mt-4">4. Test both directions</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li>Send a message to your number from another phone. It should reach your app.</li>
+        <li>From your app, send a message through our endpoint with your access token. The recipient's phone should receive it.</li>
+      </ul>
+
+      <h2 class="section-title text-on-surface mt-4">5. Know your messaging limits</h2>
+      <p class="text-on-surface-variant font-body-md">
+        Every new business portfolio starts at <strong>250 unique customers per
+        24-hour period</strong>, regardless of verification status. To scale up:
       </p>
       <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
         <li>Reach <strong>2,000</strong> by either verifying your business, or by sending 2,000 delivered messages outside customer-service windows with high-quality templates within 30 days.</li>
         <li>Beyond 2,000, limits scale automatically (to 10,000 / 100,000 / unlimited) as long as you keep messaging quality high and use at least 50% of your current limit in the past 7 days.</li>
       </ul>
       <p class="text-on-surface-variant font-body-md">
+        To verify, follow the
+        <a class="text-primary font-bold hover:underline" href="/how-to/business-portfolio.html">business portfolio guide</a>.
         Full details: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/messaging-limits" target="_blank" rel="noopener">Messaging Limits — Meta for Developers</a>.
       </p>
 
-      <p class="text-on-surface-variant font-body-md">
-        The above is everything a single business needs. Building a platform for
-        <em>other</em> businesses instead? That needs App Review and Tech Provider
-        status — see the
-        <a class="text-primary font-bold hover:underline" href="/how-to/meta-app.html">Meta App guide</a>
-        for the details and source.
-      </p>
-
       <div class="card p-6 mt-4">
-        <p class="section-title text-on-surface mb-2">Got WhatsApp Business API access?</p>
-        <a class="text-primary font-bold hover:underline" href="/dashboard/">Open the Dashboard to activate Coexistence &rarr;</a>
+        <p class="section-title text-on-surface mb-2">Ready?</p>
+        <a class="text-primary font-bold hover:underline" href="/dashboard/">Open the Dashboard &rarr;</a>
       </div>
     </div>
   </section>
