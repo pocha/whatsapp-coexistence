@@ -1,0 +1,10 @@
+{
+  "name": "test-chatbot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal echo chatbot for testing WA Coexistence onboarding",
+  "scripts": {
+    "start": "node --env-file=.env server.js"
+  },
+  "engines": { "node": ">=24" }
+}
