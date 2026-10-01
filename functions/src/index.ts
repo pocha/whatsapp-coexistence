@@ -3,8 +3,8 @@ import { initializeApp } from 'firebase-admin/app';
 
 initializeApp();
 
-export { checkEndpoint } from './checkEndpoint';
-export { completeOnboarding } from './completeOnboarding';
+export { exchangeCode } from './exchangeCode';
+export { setWebhook } from './setWebhook';
 export { relayMessage } from './relayMessage';
 export { webhook } from './webhook';
 export { sendOtp } from './sendOtp';

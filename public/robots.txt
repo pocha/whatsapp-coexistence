@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /dashboard/
+Disallow: /waba.html
+Disallow: /test.html
 
 Sitemap: https://watobot.com/sitemap.xml

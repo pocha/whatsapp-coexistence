@@ -6,10 +6,10 @@
 <!--#include partial="header"-->
 
   <section class="px-gutter md:px-24 py-12">
-    <div class="max-w-2xl mx-auto flex flex-col gap-6">
+    <div class="max-w-5xl mx-auto flex flex-col gap-6">
 
       <!-- Signed-out view -->
-      <div id="signed-out" class="hidden card p-8">
+      <div id="signed-out" class="hidden card p-8 max-w-xl mx-auto w-full">
         <p class="section-title text-on-surface mb-2">Sign in to continue</p>
 
         <div id="phone-step" class="flex flex-col gap-3">
@@ -28,28 +28,33 @@
       </div>
 
       <!-- Signed-in view -->
-      <div id="signed-in" class="hidden flex flex-col gap-6">
-        <div class="flex justify-between items-center">
-          <h1 class="font-headline-lg text-headline-lg text-on-surface">Your WABAs</h1>
-          <button id="logout-btn" class="text-on-surface-variant font-body-md text-sm hover:text-primary transition-colors">Log out</button>
-        </div>
+      <div id="signed-in" class="hidden flex flex-col md:flex-row gap-8 items-start">
+        <!--#include partial="waba-sidebar"-->
 
-        <a href="/dashboard/waba.html" class="card p-6 hover:shadow-md transition-all border-primary">
-          <p class="section-title text-primary">+ Onboard a WABA</p>
-          <p class="text-on-surface-variant font-body-md text-sm mt-1">Run Embedded Signup to activate coexistence for a new number.</p>
-        </a>
+        <div class="flex-1 flex flex-col gap-6 w-full">
+          <div class="flex justify-between items-center">
+            <h1 class="font-headline-lg text-headline-lg text-on-surface">Dashboard</h1>
+            <button id="logout-btn" class="text-on-surface-variant font-body-md text-sm hover:text-primary transition-colors">Log out</button>
+          </div>
 
-        <div id="waba-list" class="flex flex-col gap-4"></div>
-        <p class="text-on-surface-variant font-body-md text-sm" id="waba-list-empty">No WABAs onboarded yet.</p>
+          <div class="card p-6">
+            <p class="section-title text-on-surface mb-1">Your WhatsApp numbers</p>
+            <p class="text-on-surface-variant font-body-md text-sm">
+              Pick a number from the list to set where its incoming messages
+              go and to test sending. To connect a new number, click
+              <strong>Onboard WABA</strong>.
+            </p>
+          </div>
 
-        <div class="card p-6 mt-4">
-          <p class="section-title text-on-surface mb-1">Delete account</p>
-          <p class="text-on-surface-variant font-body-md text-sm mb-3">
-            Removes all WABAs you've onboarded from our records. Doesn't log
-            you out or revoke Meta's access — do that separately from Meta
-            Business Manager if you want to fully disconnect.
-          </p>
-          <button id="delete-account-btn" class="rounded-xl border border-error text-error px-6 py-3 font-label-md text-label-md font-bold hover:bg-error/10 transition-all">Delete account</button>
+          <div class="card p-6">
+            <p class="section-title text-on-surface mb-1">Delete account</p>
+            <p class="text-on-surface-variant font-body-md text-sm mb-3">
+              Removes all WABAs you've onboarded from our records. Doesn't log
+              you out or revoke Meta's access. Do that separately from Meta
+              Business Manager if you want to fully disconnect.
+            </p>
+            <button id="delete-account-btn" class="rounded-xl border border-error text-error px-6 py-3 font-label-md text-label-md font-bold hover:bg-error/10 transition-all">Delete account</button>
+          </div>
         </div>
       </div>
     </div>

@@ -173,13 +173,16 @@ assume it is served from the root of its domain.
 ### 5. Test onboarding a WABA locally
 
 You need the pieces from steps 1 to 3 and a spare phone number registered on
-the WhatsApp Business app. For the endpoint you give the wizard, use the
+the WhatsApp Business app. For the incoming-message URL, use the
 included `test-chatbot/`: a small Node app (no dependencies) that answers
 Meta's verification handshake, logs every incoming event, and replies "You
 said: ..." through the relay.
 
-1. In the Meta app, confirm Access Verification is cleared. While it is
-   pending, Embedded Signup fails with "App not active".
+1. In the Meta app, confirm Access Verification is cleared and the app has
+   Advanced Access to `whatsapp_business_management` and
+   `whatsapp_business_messaging`. Until then Embedded Signup fails (with "App
+   not active", or the "Partner app lacks required advanced ... permissions"
+   error).
 2. Start the test chatbot (Node 24):
 
    ```bash
@@ -189,7 +192,7 @@ said: ..." through the relay.
    ```
 
 3. In a second terminal, expose it over public HTTPS. Meta calls your endpoint
-   directly, and the wizard rejects non-HTTPS URLs:
+   directly, and the Functions reject non-HTTPS URLs:
 
    ```bash
    brew install cloudflared            # once
@@ -200,28 +203,31 @@ said: ..." through the relay.
    `https://....trycloudflare.com` address plus `/webhook`, for example
    `https://random-words.trycloudflare.com/webhook`.
 4. In a third terminal, from the repo root, `npm start` and open
-   `http://localhost:8765/dashboard/`.
-5. Sign in with a number you own and the OTP sent to it.
-6. Click **Onboard a WABA** and complete Meta's popup with the spare number. You
-   must have a role on the Meta app. For a number on the Business app, Meta
-   sends a verification code to the Business app, with a **Connect** button.
-7. Step 2 of the wizard: paste your endpoint URL and click **Test endpoint &
-   activate**. The test chatbot's terminal prints `GET /webhook handshake: ok`.
-8. Step 3: copy the access token. It is shown once and not stored. Put it in
-   `test-chatbot/.env` as `ACCESS_TOKEN` and restart the test chatbot, so it can
-   reply.
+   `http://localhost:8765/dashboard/`. Sign in with a number you own and the
+   OTP sent to it.
+5. Click **Onboard WABA**, then **Fetch my WABAs**, and complete Meta's popup
+   with the spare number. You must have a role on the Meta app. For a number
+   on the Business app, Meta sends a verification code to the Business app,
+   with a **Connect** button.
+6. Copy the access token shown. It is shown once and not stored, and you
+   need it for the next steps. Click **I've saved my token** to continue to
+   `http://localhost:8765/waba.html?id=<phoneNumberId>`.
+7. **Override incoming message URL**: enter the access token, the WABA ID, and
+   your tunnel URL (`.../webhook`), then click **Verify & save**. The test
+   chatbot's terminal prints `GET /webhook handshake: ok`.
+8. Put the access token in `test-chatbot/.env` as `ACCESS_TOKEN` and restart
+   the test chatbot, so it can reply.
 9. From another phone, send a WhatsApp message to the number. The test chatbot
    logs it and replies "You said: ...", and you should receive that reply.
-10. To send through the relay yourself (free-form text only works within 24 hours
-    of the customer's last message, so do step 9 first):
+10. **Test outgoing message** on the same page: enter the access token, fill in
+    `to` and the message text in the JSON body, and click **Test**. Free-form
+    text only works within 24 hours of the customer's last message, so do
+    step 9 first.
 
-    ```bash
-    curl -X POST \
-      "http://127.0.0.1:5001/wa-coexistence/us-central1/relayMessage/<phoneNumberId>/messages" \
-      -H "Authorization: Bearer <your access token>" \
-      -H "Content-Type: application/json" \
-      -d '{"messaging_product":"whatsapp","to":"<recipient>","type":"text","text":{"body":"Hello!"}}'
-    ```
+The `/waba.html` page works without signing in. Anyone with a number's ID and
+its access token can set its incoming URL and send test messages. Signing in
+only adds your list of numbers in the sidebar, the message counts, and saving
+the new URL to your account.
 
 Known gap that may show up here: Meta's coexistence docs also require the
 `smb_app_state_sync` and `smb_message_echoes` webhooks and a history sync within

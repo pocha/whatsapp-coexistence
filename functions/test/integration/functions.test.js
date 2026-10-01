@@ -45,25 +45,67 @@ test('webhook GET verify handshake echoes the challenge for a matching token', a
   assert.equal(text, 'abc123');
 });
 
-test('completeOnboarding succeeds end-to-end against the Meta stub for an authenticated caller', async () => {
-  const res = await fetch(`${FUNCTIONS_BASE}/completeOnboarding`, {
+test('exchangeCode returns the access token to a signed-in caller', async () => {
+  const res = await fetch(`${FUNCTIONS_BASE}/exchangeCode`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify({ code: 'fake-signup-code' }),
+  });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { ok: true, accessToken: 'stub-access-token' });
+});
+
+test('exchangeCode rejects a caller who is not signed in', async () => {
+  const res = await fetch(`${FUNCTIONS_BASE}/exchangeCode`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: 'fake-signup-code' }),
+  });
+  assert.equal(res.status, 401);
+});
+
+const BUSINESS_ENDPOINT = 'http://127.0.0.1:9905/business-endpoint';
+
+test('setWebhook verifies the token and the endpoint, then subscribes, with no sign-in', async () => {
+  const res = await fetch(`${FUNCTIONS_BASE}/setWebhook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      code: 'fake-signup-code',
       wabaId: 'waba-integration-test',
-      phoneNumberId: 'phone-integration-test',
-      overrideCallbackUrl: 'https://business.example.com/webhook',
+      accessToken: 'valid-user-token',
+      overrideCallbackUrl: BUSINESS_ENDPOINT,
     }),
   });
-  const body = await res.json();
   assert.equal(res.status, 200);
-  assert.deepEqual(body, {
-    ok: true,
-    wabaId: 'waba-integration-test',
-    phoneNumberId: 'phone-integration-test',
-    accessToken: 'stub-access-token',
+  assert.deepEqual(await res.json(), { ok: true });
+});
+
+test('setWebhook refuses an access token Meta does not accept', async () => {
+  const res = await fetch(`${FUNCTIONS_BASE}/setWebhook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      wabaId: 'waba-integration-test',
+      accessToken: 'some-other-token',
+      overrideCallbackUrl: BUSINESS_ENDPOINT,
+    }),
   });
+  assert.equal(res.status, 401);
+});
+
+test('setWebhook refuses an endpoint that does not answer the handshake', async () => {
+  const res = await fetch(`${FUNCTIONS_BASE}/setWebhook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      wabaId: 'waba-integration-test',
+      accessToken: 'valid-user-token',
+      overrideCallbackUrl: 'http://127.0.0.1:9905/not-an-endpoint',
+    }),
+  });
+  assert.equal(res.status, 400);
+  const body = await res.json();
+  assert.equal(body.ok, false);
 });
 
 test('relayMessage proxies a send through the stub and records usage against the WABA doc', async () => {

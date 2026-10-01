@@ -31,7 +31,7 @@ async function main() {
 
   let exitCode = 1;
   try {
-    fs.writeFileSync(ENV_PATH, `${originalEnv}\nGRAPH_API_BASE=http://127.0.0.1:${META_STUB_PORT}\n`);
+    fs.writeFileSync(ENV_PATH, `${originalEnv}\nGRAPH_API_BASE=http://127.0.0.1:${META_STUB_PORT}\nALLOW_HTTP_ENDPOINT=true\n`);
 
     exitCode = await new Promise((resolve) => {
       const child = spawn(

@@ -1,10 +1,3 @@
-import { onRequest } from 'firebase-functions/v2/https';
-import cors from 'cors';
-import { config } from './config';
-import { requireAuth, HttpError } from './auth';
-
-const corsHandler = cors({ origin: true });
-
 export interface CheckResult {
   ok: boolean;
   error?: string;
@@ -21,7 +14,9 @@ export interface CheckResult {
  */
 export async function verifyEndpointChallenge(url: string | undefined, verifyToken: string): Promise<CheckResult> {
   if (!url) return { ok: false, error: 'url is required' };
-  if (!url.startsWith('https://')) {
+  // ALLOW_HTTP_ENDPOINT is set only by the integration test runner, so tests can
+  // use a local http stub as the "business endpoint". Never set in production.
+  if (!url.startsWith('https://') && process.env.ALLOW_HTTP_ENDPOINT !== 'true') {
     return { ok: false, error: 'Endpoint must be HTTPS — Meta requires it for webhooks.' };
   }
 
@@ -45,26 +40,3 @@ export async function verifyEndpointChallenge(url: string | undefined, verifyTok
     return { ok: false, error: `Could not reach endpoint: ${(err as Error).message}` };
   }
 }
-
-// Requires sign-in (not because the check itself is sensitive, but because
-// it makes an outbound fetch to a caller-supplied URL — an anonymous open
-// endpoint doing that is an easy SSRF/scanning target).
-export const checkEndpoint = onRequest((req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method !== 'POST') {
-      res.status(405).send({ ok: false, error: 'Use POST' });
-      return;
-    }
-
-    try {
-      await requireAuth(req);
-    } catch (err) {
-      const status = err instanceof HttpError ? err.status : 401;
-      res.status(status).send({ ok: false, error: (err as Error).message });
-      return;
-    }
-
-    const result = await verifyEndpointChallenge(req.body?.url, config.webhookVerifyToken);
-    res.status(200).send(result);
-  });
-});

@@ -1,4 +1,5 @@
 import { auth, db, functionsBase, onAuthStateChanged, signInWithOtpToken, signOutUser } from '/assets/firebase-init.js';
+import { fillSidebar } from '/assets/waba-sidebar.js';
 import {
   collection,
   query,
@@ -17,8 +18,6 @@ const sendOtpBtn = document.getElementById('send-otp-btn');
 const verifyOtpBtn = document.getElementById('verify-otp-btn');
 const loginStatus = document.getElementById('login-status');
 const logoutBtn = document.getElementById('logout-btn');
-const wabaListEl = document.getElementById('waba-list');
-const wabaListEmptyEl = document.getElementById('waba-list-empty');
 const deleteAccountBtn = document.getElementById('delete-account-btn');
 
 let pendingPhone = null;
@@ -106,42 +105,15 @@ deleteAccountBtn.addEventListener('click', async () => {
   snapshot.forEach((docSnap) => batch.delete(docSnap.ref));
   await batch.commit();
 
-  await loadWabas(user.uid);
+  await fillSidebar(user.uid);
   alert('Your WABAs have been deleted.');
 });
-
-async function loadWabas(uid) {
-  const snapshot = await getDocs(query(collection(db, 'wabas'), where('ownerUid', '==', uid)));
-  wabaListEl.innerHTML = '';
-
-  if (snapshot.empty) {
-    wabaListEmptyEl.classList.remove('hidden');
-    return;
-  }
-  wabaListEmptyEl.classList.add('hidden');
-
-  snapshot.forEach((docSnap) => {
-    const waba = docSnap.data();
-    const activated = Boolean(waba.activatedAt);
-    const card = document.createElement('a');
-    card.href = `/dashboard/waba.html?id=${encodeURIComponent(docSnap.id)}`;
-    card.className = 'card p-6 hover:shadow-md transition-all';
-    card.innerHTML = `
-      <div class="flex justify-between items-center">
-        <p class="section-title text-on-surface">${docSnap.id}</p>
-        <span class="label-muted ${activated ? 'text-primary' : 'text-on-surface-variant'}">${activated ? 'Active' : 'Setup incomplete'}</span>
-      </div>
-      <p class="text-on-surface-variant font-body-md text-sm mt-1">WABA ${waba.wabaId ?? '—'}</p>
-    `;
-    wabaListEl.appendChild(card);
-  });
-}
 
 onAuthStateChanged(auth, (user) => {
   if (user) {
     signedOutEl.classList.add('hidden');
     signedInEl.classList.remove('hidden');
-    loadWabas(user.uid);
+    fillSidebar(user.uid);
   } else {
     signedInEl.classList.add('hidden');
     signedOutEl.classList.remove('hidden');
