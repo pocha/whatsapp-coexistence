@@ -8,18 +8,30 @@
     <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-10 md:gap-16">
       <img src="/assets/logo.png" alt="WA Coexistence logo" class="w-56 h-56 md:w-72 md:h-72 flex-shrink-0"/>
       <div class="flex flex-col gap-6 text-center md:text-left items-center md:items-start">
-        <h1 class="font-headline-lg text-headline-lg text-on-surface">Minimal WhatsApp Co-existence App</h1>
+        <h1 class="font-headline-lg text-headline-lg"><span style="color:#46bc6a">Get WhatsApp API Access</span> <strong style="color:#5e5e5e">with Coexistence</strong></h1>
         <p class="text-on-surface-variant font-body-md text-lg">
-          Got WhatsApp API but also want to use WhatsApp Business on the same
-          number? This app helps you achieve that.
+          Coexistence gives you WhatsApp API access, on a number you already use with
+          the WhatsApp Business app. Anybody can get access, without a
+          verified business. <br/><b>Free for the first 10 users.</b>
+        </p>
+        <p class="text-on-surface-variant font-body-md text-sm">
+          Already have WhatsApp API access? You can still enable coexistence
+          using our app.
         </p>
         <div class="flex flex-wrap gap-4 justify-center md:justify-start">
-          <a href="/dashboard/" class="inline-flex items-center gap-2 rounded-xl bg-primary-container text-on-primary-container px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Open Dashboard</a>
-          <a href="https://github.com/pocha/whatsapp-coexistence" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">View on GitHub</a>
+          <a id="hero-cta" href="/dashboard/" class="inline-flex items-center gap-2 rounded-xl bg-primary-container text-on-primary-container px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Try Now</a>
+          <a href="/how-to/whatsapp-api-access.html" class="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Know more</a>
         </div>
       </div>
     </div>
   </section>
+
+  <script type="module">
+    import { auth, onAuthStateChanged } from '/assets/firebase-init.js';
+    onAuthStateChanged(auth, (user) => {
+      if (user) document.getElementById('hero-cta').textContent = 'Go to Dashboard';
+    });
+  </script>
 
   <!-- Why Coexistence -->
   <section class="px-gutter md:px-24 py-16" id="why-coexistence">
@@ -53,22 +65,30 @@
   <!-- Getting Started -->
   <section class="px-gutter md:px-24 py-16 bg-surface-container-low" id="getting-started">
     <div class="max-w-5xl mx-auto">
-      <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-10">Getting Started</h2>
+      <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-10">WhatsApp API Access in 3 Steps</h2>
 
       <div class="card p-6 mb-8 whatsapp-border">
-        <p class="label-strong text-primary mb-1">PRE-REQUISITE</p>
-        <p class="text-on-surface-variant font-body-md">
-          WhatsApp Business API access, and a working app already using it.
-          Don't have this yet? See the
-          <a class="text-primary font-bold hover:underline" href="#how-to">How-To Guides</a> below.
-        </p>
+        <p class="label-strong text-primary mb-2">PRE-REQUISITES</p>
+        <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+          <li>The WhatsApp Business app installed, with your phone number registered on it.</li>
+          <li>
+            If that number is already connected to another Tech Provider (or
+            your own Meta app), follow the
+            <a class="text-primary font-bold hover:underline" href="/how-to/migrate-existing-api.html">migration steps</a> first.
+          </li>
+          <li>
+            An app (a chatbot, for example) that receives incoming messages at
+            a publicly hosted HTTPS endpoint, so we can point WhatsApp at it
+            and you can test outgoing messages through our endpoint.
+          </li>
+        </ul>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="card p-6">
           <p class="label-strong text-primary mb-2">STEP 1</p>
-          <p class="section-title text-on-surface mb-2">Scan the QR code &amp; activate Coexistence</p>
-          <p class="text-on-surface-variant font-body-md">Open the <a class="text-primary font-bold hover:underline" href="/dashboard/">Dashboard</a> and scan the QR code to link WhatsApp Business on the same number your API already uses.</p>
+          <p class="section-title text-on-surface mb-2">Connect your number &amp; activate Coexistence</p>
+          <p class="text-on-surface-variant font-body-md">Open the <a class="text-primary font-bold hover:underline" href="/dashboard/">Dashboard</a> and connect your WhatsApp Business app number through Meta's popup. We show you an access token once. Save it, because we don't store it.</p>
         </div>
         <div class="card p-6">
           <p class="label-strong text-primary mb-2">STEP 2</p>
@@ -88,7 +108,7 @@
           It's the one place we stay involved, purely so we can protect your
           number from getting banned — rate limiting and other anti-spam
           checks are <em>(upcoming)</em>. Everything else — incoming
-          messages, your access token — never touches us.
+          messages — never touches us, and we never store your access token.
         </p>
       </div>
     </div>
@@ -129,14 +149,14 @@
       <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-10">Pricing</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="card p-6">
-          <p class="label-strong text-primary mb-2">FIRST 5 USERS</p>
+          <p class="label-strong text-primary mb-2">FIRST 10 USERS</p>
           <p class="font-headline-lg text-headline-lg text-on-surface mb-2">Free</p>
-          <p class="text-on-surface-variant font-body-md">No cost for your first 5 users.</p>
+          <p class="text-on-surface-variant font-body-md">No cost for your first 10 users.</p>
         </div>
         <div class="card p-6">
-          <p class="label-strong text-primary mb-2">NEXT 100 USERS</p>
+          <p class="label-strong text-primary mb-2">USERS 11 TO 100</p>
           <p class="font-headline-lg text-headline-lg text-on-surface mb-2">$1 <span class="text-body-md font-body-md text-on-surface-variant">/ user / month</span></p>
-          <p class="text-on-surface-variant font-body-md">Users 6 through 100.</p>
+          <p class="text-on-surface-variant font-body-md">Users 11 through 100.</p>
         </div>
         <div class="card p-6">
           <p class="label-strong text-primary mb-2">BEYOND 100 USERS</p>
@@ -151,19 +171,23 @@
   <section class="px-gutter md:px-24 py-16" id="how-to">
     <div class="max-w-5xl mx-auto">
       <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-2">How-To Guides</h2>
-      <p class="text-on-surface-variant font-body-md text-center mb-10">Don't have WhatsApp Business API access yet? Start here.</p>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <p class="text-on-surface-variant font-body-md text-center mb-10">Don't have WhatsApp API access yet? Start here.</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <a href="/how-to/migrate-existing-api.html" class="card p-6 hover:shadow-md transition-all">
+          <p class="section-title text-on-surface mb-2">Already Have WhatsApp API? Migrate to Watobot</p>
+          <p class="text-on-surface-variant font-body-md text-sm">What moving a number from another provider or your own app involves, and what to check first.</p>
+        </a>
         <a href="/how-to/whatsapp-api-access.html" class="card p-6 hover:shadow-md transition-all">
-          <p class="section-title text-on-surface mb-2">How to Get WhatsApp Business API Access</p>
-          <p class="text-on-surface-variant font-body-md text-sm">Test numbers, going to production, and messaging limits — no Tech Provider status needed for your own number.</p>
+          <p class="section-title text-on-surface mb-2">How to Get WhatsApp API Access in 5 minutes</p>
+          <p class="text-on-surface-variant font-body-md text-sm">Anybody with the free WhatsApp Business app can get access. <b>No verified business needed</b>. Get API access with coexistence so you can continue to use your WhatsApp Business app as usual.</p>
         </a>
         <a href="/how-to/business-portfolio.html" class="card p-6 hover:shadow-md transition-all">
-          <p class="section-title text-on-surface mb-2">How to Create a Business Portfolio</p>
-          <p class="text-on-surface-variant font-body-md text-sm">Set up and verify the Meta Business Portfolio your app will be connected to.</p>
+          <p class="section-title text-on-surface mb-2">How to Create a Business Portfolio &amp; Add Your WhatsApp Number</p>
+          <p class="text-on-surface-variant font-body-md text-sm">Pre-requisite to getting API access. Either you go with a Tech Provider (like Watobot) or get free access via creating Meta app, you need to have Business Portfolio with your Whatsapp Number connected.</p>
         </a>
         <a href="/how-to/meta-app.html" class="card p-6 hover:shadow-md transition-all">
-          <p class="section-title text-on-surface mb-2">How to Create an App on Facebook Developers Portal</p>
-          <p class="text-on-surface-variant font-body-md text-sm">Walk through developers.facebook.com to add the WhatsApp product and get your credentials.</p>
+          <p class="section-title text-on-surface mb-2">How to Get WhatsApp API for Free</p>
+          <p class="text-on-surface-variant font-body-md text-sm">Create your own Meta app and access token. No coexistence on this route: the WhatsApp Business app can't be used on that number.</p>
         </a>
       </div>
     </div>

@@ -1,101 +1,155 @@
-let signupCode = null;
-let signupWabaId = null;
-let signupPhoneNumberId = null;
+import { auth, db, functionsBase, onAuthStateChanged, signInWithOtpToken, signOutUser } from '/assets/firebase-init.js';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  writeBatch,
+} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const onboardingStatus = document.getElementById('onboarding-status');
-const loginBtn = document.getElementById('login-btn');
-const completeBtn = document.getElementById('complete-btn');
+const signedOutEl = document.getElementById('signed-out');
+const signedInEl = document.getElementById('signed-in');
+const phoneStepEl = document.getElementById('phone-step');
+const codeStepEl = document.getElementById('code-step');
+const phoneInput = document.getElementById('phone-input');
+const codeInput = document.getElementById('code-input');
+const sendOtpBtn = document.getElementById('send-otp-btn');
+const verifyOtpBtn = document.getElementById('verify-otp-btn');
+const loginStatus = document.getElementById('login-status');
+const logoutBtn = document.getElementById('logout-btn');
+const wabaListEl = document.getElementById('waba-list');
+const wabaListEmptyEl = document.getElementById('waba-list-empty');
+const deleteAccountBtn = document.getElementById('delete-account-btn');
 
-async function init() {
-  const res = await fetch('/api/config');
-  const { appId, configId } = await res.json();
+let pendingPhone = null;
 
-  window.fbAsyncInit = function () {
-    FB.init({ appId, cookie: true, xfbml: false, version: 'v21.0' });
-    onboardingStatus.textContent = 'Ready.';
-    loginBtn.disabled = false;
-  };
+// Country-aware phone input: flag dropdown, auto-formatting, and validation
+// against Google's libphonenumber data (loaded lazily via loadUtils).
+const iti = window.intlTelInput(phoneInput, {
+  initialCountry: 'in',
+  loadUtils: () => import('https://cdn.jsdelivr.net/npm/intl-tel-input@29.5/dist/js/utils.js'),
+});
 
-  const script = document.createElement('script');
-  script.src = 'https://connect.facebook.net/en_US/sdk.js';
-  script.async = true;
-  document.body.appendChild(script);
-
-  // Embedded Signup posts the new WABA's ids here once the popup finishes —
-  // FB.login's own callback only gives you the `code`.
-  window.addEventListener('message', (event) => {
-    if (!event.origin.endsWith('facebook.com')) return;
-    try {
-      const data = JSON.parse(event.data);
-      if (data.type === 'WA_EMBEDDED_SIGNUP' && data.event === 'FINISH') {
-        signupWabaId = data.data.waba_id;
-        signupPhoneNumberId = data.data.phone_number_id;
-        onboardingStatus.textContent = `Signup finished. WABA ${signupWabaId}, phone number ${signupPhoneNumberId}.`;
-        maybeEnableComplete();
-      }
-    } catch {
-      // Not a JSON message we care about (Facebook posts other message shapes too).
+sendOtpBtn.addEventListener('click', async () => {
+  if (!phoneInput.value.trim()) {
+    loginStatus.textContent = 'Enter your WhatsApp number first.';
+    return;
+  }
+  if (!iti.isValidNumber()) {
+    loginStatus.textContent = 'That doesn\'t look like a valid WhatsApp number — check the country and number.';
+    return;
+  }
+  const phone = iti.getNumber(); // E.164, e.g. +919876543210
+  sendOtpBtn.disabled = true;
+  phoneInput.disabled = true;
+  loginStatus.textContent = 'Sending code — this can take up to a minute…';
+  try {
+    const res = await fetch(`${functionsBase()}/sendOtp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    });
+    const body = await res.json();
+    if (!body.ok) {
+      loginStatus.textContent = body.error || 'Failed to send code.';
+      return;
     }
-  });
-
-  loginBtn.addEventListener('click', () => {
-    FB.login(
-      (response) => {
-        if (response.authResponse && response.authResponse.code) {
-          signupCode = response.authResponse.code;
-          onboardingStatus.textContent = 'Got signup code, waiting for WABA details…';
-          maybeEnableComplete();
-        } else {
-          onboardingStatus.textContent = 'Login cancelled or failed.';
-        }
-      },
-      {
-        config_id: configId,
-        response_type: 'code',
-        override_default_response_type: true,
-        extras: { setup: {}, featureType: '', sessionInfoVersion: '3' },
-      },
-    );
-  });
-}
-
-function maybeEnableComplete() {
-  completeBtn.disabled = !(signupCode && signupWabaId && signupPhoneNumberId);
-}
-
-completeBtn.addEventListener('click', async () => {
-  const overrideCallbackUrl = document.getElementById('override-url').value.trim() || undefined;
-  const res = await fetch('/api/onboarding/complete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      code: signupCode,
-      wabaId: signupWabaId,
-      phoneNumberId: signupPhoneNumberId,
-      overrideCallbackUrl,
-    }),
-  });
-  const body = await res.json();
-  document.getElementById('onboarding-result').textContent = JSON.stringify(body, null, 2);
-
-  if (res.ok) {
-    const pendingTasks = document.getElementById('pending-tasks');
-    const snippet = pendingTasks.querySelector('.snippet');
-    const noEndpointWarning = pendingTasks.querySelector('.no-endpoint-warning');
-
-    if (overrideCallbackUrl) {
-      document.getElementById('pending-endpoint').textContent = overrideCallbackUrl;
-      snippet.classList.remove('hidden');
-      noEndpointWarning.classList.add('hidden');
-    } else {
-      // No override was set, so incoming messages go to this app's own
-      // /webhook — which just acks and does nothing. There's no endpoint of
-      // theirs to point the smb_message_echoes guidance at yet.
-      snippet.classList.add('hidden');
-      noEndpointWarning.classList.remove('hidden');
-    }
-    pendingTasks.classList.remove('hidden');
+    pendingPhone = phone;
+    phoneStepEl.classList.add('hidden');
+    codeStepEl.classList.remove('hidden');
+    loginStatus.textContent = 'Code sent — check WhatsApp.';
+    codeInput.focus();
+  } catch (err) {
+    loginStatus.textContent = `Failed to send code: ${err.message}`;
+  } finally {
+    sendOtpBtn.disabled = false;
+    phoneInput.disabled = false;
   }
 });
 
-init();
+verifyOtpBtn.addEventListener('click', async () => {
+  const code = codeInput.value.trim();
+  if (!code) {
+    loginStatus.textContent = 'Enter the code you received.';
+    return;
+  }
+  verifyOtpBtn.disabled = true;
+  loginStatus.textContent = 'Verifying…';
+  try {
+    const res = await fetch(`${functionsBase()}/verifyOtp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: pendingPhone, code }),
+    });
+    const body = await res.json();
+    if (!body.ok) {
+      loginStatus.textContent = body.error || 'Verification failed.';
+      return;
+    }
+    await signInWithOtpToken(body.token);
+  } catch (err) {
+    loginStatus.textContent = `Verification failed: ${err.message}`;
+  } finally {
+    verifyOtpBtn.disabled = false;
+  }
+});
+
+logoutBtn.addEventListener('click', () => signOutUser());
+
+deleteAccountBtn.addEventListener('click', async () => {
+  const user = auth.currentUser;
+  if (!user) return;
+  if (!confirm('Delete all your onboarded WABAs from our records? This cannot be undone.')) return;
+
+  const snapshot = await getDocs(query(collection(db, 'wabas'), where('ownerUid', '==', user.uid)));
+  const batch = writeBatch(db);
+  snapshot.forEach((docSnap) => batch.delete(docSnap.ref));
+  await batch.commit();
+
+  await loadWabas(user.uid);
+  alert('Your WABAs have been deleted.');
+});
+
+async function loadWabas(uid) {
+  const snapshot = await getDocs(query(collection(db, 'wabas'), where('ownerUid', '==', uid)));
+  wabaListEl.innerHTML = '';
+
+  if (snapshot.empty) {
+    wabaListEmptyEl.classList.remove('hidden');
+    return;
+  }
+  wabaListEmptyEl.classList.add('hidden');
+
+  snapshot.forEach((docSnap) => {
+    const waba = docSnap.data();
+    const activated = Boolean(waba.activatedAt);
+    const card = document.createElement('a');
+    card.href = `/dashboard/waba.html?id=${encodeURIComponent(docSnap.id)}`;
+    card.className = 'card p-6 hover:shadow-md transition-all';
+    card.innerHTML = `
+      <div class="flex justify-between items-center">
+        <p class="section-title text-on-surface">${docSnap.id}</p>
+        <span class="label-muted ${activated ? 'text-primary' : 'text-on-surface-variant'}">${activated ? 'Active' : 'Setup incomplete'}</span>
+      </div>
+      <p class="text-on-surface-variant font-body-md text-sm mt-1">WABA ${waba.wabaId ?? '—'}</p>
+    `;
+    wabaListEl.appendChild(card);
+  });
+}
+
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    signedOutEl.classList.add('hidden');
+    signedInEl.classList.remove('hidden');
+    loadWabas(user.uid);
+  } else {
+    signedInEl.classList.add('hidden');
+    signedOutEl.classList.remove('hidden');
+    pendingPhone = null;
+    codeStepEl.classList.add('hidden');
+    phoneStepEl.classList.remove('hidden');
+    iti.setNumber('');
+    codeInput.value = '';
+    loginStatus.textContent = '';
+  }
+});

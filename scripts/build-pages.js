@@ -28,10 +28,12 @@ const PAGE_MAP = {
   'tos.html': 'tos.html',
   'data-deletion.html': 'data-deletion.html',
   'dashboard.html': 'dashboard/index.html',
+  'dashboard-waba.html': 'dashboard/waba.html',
   'dashboard-test.html': 'dashboard/test.html',
   'how-to/business-portfolio.html': 'how-to/business-portfolio.html',
   'how-to/meta-app.html': 'how-to/meta-app.html',
   'how-to/whatsapp-api-access.html': 'how-to/whatsapp-api-access.html',
+  'how-to/migrate-existing-api.html': 'how-to/migrate-existing-api.html',
 };
 
 const VAR_RE = /^<!--#var\s+([a-zA-Z0-9_]+)="([^"]*)"-->\n?/;
