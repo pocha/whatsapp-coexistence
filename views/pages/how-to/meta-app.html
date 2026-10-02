@@ -56,25 +56,17 @@
       <img src="/assets/6.create-app.png" alt="Final app-creation overview screen listing app name, use case, business portfolio and requirements" class="rounded-xl border border-outline-variant w-full"/>
       <p class="text-on-surface-variant font-body-md text-sm text-center -mt-2">The final overview — confirm everything looks right, then finish creating the app. (The app name shown here, "WA Coexistence", is ours — name yours whatever you like.)</p>
 
-      <ol start="5" class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
-        <li>
-          Your app can now use the WhatsApp API under <strong>Standard
-          Access</strong>, which is all a business needs on its own number.
-          Next you need an access token.
-        </li>
-      </ol>
-
-      <h2 class="section-title text-on-surface mt-4">Get an access token</h2>
+      <h2 class="section-title text-on-surface mt-4">Set up the WhatsApp use case</h2>
       <p class="text-on-surface-variant font-body-md">
-        To send messages you need an access token. You don't need the App ID
-        or App Secret for this.
+        Once the app is created you land on its dashboard. Your app can already
+        use the WhatsApp API under <strong>Standard Access</strong>, which is all a
+        business needs on its own number. Click <strong>Customize the Connect with
+        customers through WhatsApp use case</strong>.
       </p>
+      <img src="/assets/7.dashboard.png" alt="App dashboard with the checklist item 'Customize the Connect with customers through WhatsApp use case'" class="rounded-xl border border-outline-variant w-full"/>
+      <p class="text-on-surface-variant font-body-md text-sm text-center -mt-2">Your checklist may show fewer items than this one.</p>
+
       <ol class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
-        <li>
-          In the App Dashboard, open <strong>Use cases</strong> in the left
-          sidebar and click <strong>Customize</strong> on the WhatsApp use case
-          (<strong>Connect on WhatsApp</strong>).
-        </li>
         <li>
           Under <strong>Basic setup</strong>, go to <strong>Step 2. Production
           setup</strong>. <strong>Step 1. Try it out</strong> is only for first
@@ -85,11 +77,24 @@
           <strong>Add payment to send business-initiated messages</strong>.
           The token step needs a registered number.
         </li>
+      </ol>
+
+      <h2 class="section-title text-on-surface mt-4">Get an access token and send a message</h2>
+      <p class="text-on-surface-variant font-body-md">
+        To send messages you need an access token. You don't need the App ID
+        or App Secret for this.
+      </p>
+      <ol class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
         <li>
           Open <strong>Send message</strong>, and under <strong>Step 1: Generate
           token</strong> click <strong>Generate token</strong>. Meta describes
           this as a permanent access token for your WhatsApp Business account.
           Copy it and store it somewhere safe.
+        </li>
+        <li>
+          Under <strong>Step 2: Send a message from your registered number</strong>,
+          choose your number, enter a recipient and a message, and send it. The
+          recipient should receive it in WhatsApp.
         </li>
       </ol>
 
@@ -122,6 +127,64 @@
         Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/access-tokens" target="_blank" rel="noopener">Access tokens — Meta for Developers</a>.
         Exact button names can change as Meta updates the dashboard.
       </p>
+
+      <h2 class="section-title text-on-surface mt-4">Receive incoming messages: set up the webhook</h2>
+      <p class="text-on-surface-variant font-body-md">
+        WhatsApp delivers messages people send to your number by calling a URL
+        you provide, so your app needs to be reachable over public HTTPS.
+      </p>
+      <ol class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>
+          In <strong>Step 2. Production setup</strong>, open
+          <strong>Configure Webhooks</strong>. Enter your app's URL as the
+          <strong>Callback URL</strong>, and a <strong>Verify token</strong>: any
+          string you choose, which your app must check when Meta calls it.
+        </li>
+      </ol>
+      <div class="card p-6">
+        <p class="text-on-surface-variant font-body-md">
+          <strong>Don't have an app yet?</strong> Set up our
+          <a class="text-primary font-bold hover:underline" target="_blank" rel="noopener" href="https://github.com/pocha/whatsapp-coexistence/tree/main/test-chatbot">test chatbot</a>.
+          It runs on your computer, gives you a public HTTPS URL to use as the
+          Callback URL, and shows incoming messages in its logs. Use the same
+          verify token in its <code>.env</code> and here.
+        </p>
+      </div>
+      <img src="/assets/8(1).dashboard-webhook-setup.png" alt="Configure Webhooks section with a Callback URL and a Verify token filled in and the Verify and save button" class="rounded-xl border border-outline-variant w-full"/>
+      <p class="text-on-surface-variant font-body-md text-sm text-center -mt-2">Use your own URL and verify token here.</p>
+
+      <ol start="2" class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>
+          Click <strong>Verify and save</strong>. Meta sends your URL a
+          verification request, and your app must answer it correctly.
+        </li>
+        <li>
+          Check <strong>Permissions and features</strong> (under
+          <strong>Other tools</strong> in the left menu).
+          <code>whatsapp_business_messaging</code> and
+          <code>whatsapp_business_management</code> are the permissions the
+          WhatsApp API uses. You don't need to add any others for this.
+        </li>
+      </ol>
+      <img src="/assets/8(2).permissions.png" alt="Permissions and features page listing the WhatsApp permissions and their status" class="rounded-xl border border-outline-variant w-full"/>
+
+      <ol start="4" class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>
+          Back in <strong>Configure Webhooks</strong>, scroll to the
+          <strong>Webhook fields</strong> list. Make sure
+          <code>messages</code> is set to <strong>Subscribed</strong>. Meta
+          subscribes the common fields for you, but it is worth checking, since
+          without it you won't receive incoming messages.
+        </li>
+      </ol>
+      <img src="/assets/8(3).dashboard-webhook-fields.png" alt="Webhook fields list with the messages field subscribed" class="rounded-xl border border-outline-variant w-full max-w-md mx-auto"/>
+
+      <ol start="5" class="flex flex-col gap-4 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>
+          Send a WhatsApp message to your number from another phone. It reaches
+          your app. With the test chatbot, you'll see it in its logs.
+        </li>
+      </ol>
 
       <div class="card p-6 !bg-amber-100 !border-amber-400 dark:!bg-amber-950 dark:!border-amber-600">
         <p class="label-strong text-amber-900 dark:text-amber-200 mb-1">&#9888; NO COEXISTENCE ON THIS ROUTE</p>
