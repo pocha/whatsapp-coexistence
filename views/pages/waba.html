@@ -1,20 +1,20 @@
-<!--#var title="Manage a WhatsApp number — WA Coexistence"-->
-<!--#var description="Set where a WhatsApp number's incoming messages go, and test sending through the API."-->
+<!--#var title="Manage a WhatsApp Business Account — WA Coexistence"-->
+<!--#var description="Set where a WhatsApp Business Account's incoming messages go, and test sending through the API."-->
 <!--#include partial="head"-->
 <!--#include partial="header"-->
 
   <section class="px-gutter md:px-24 py-12">
-    <div class="max-w-5xl mx-auto flex flex-col md:flex-row gap-8 items-start">
+    <div class="max-w-6xl mx-auto flex flex-col md:flex-row gap-8 items-start">
       <!--#include partial="waba-sidebar"-->
 
       <div class="flex-1 flex flex-col gap-6 w-full min-w-0">
         <div>
-          <h1 class="font-headline-lg text-headline-lg text-on-surface">WhatsApp number</h1>
-          <p id="number-id" class="text-on-surface-variant font-body-md text-sm mt-1 break-all"></p>
+          <h1 class="font-headline-lg text-headline-lg text-on-surface">WhatsApp Business Account</h1>
+          <p id="waba-id-line" class="text-on-surface-variant font-body-md text-sm mt-1 break-all"></p>
           <p id="no-id" class="hidden text-on-surface-variant font-body-md mt-1">
-            No number selected. Open one from your
+            No WABA selected. Open one from your
             <a class="text-primary font-bold hover:underline" href="/dashboard/">Dashboard</a>, or use a link like
-            <code>/waba.html?id=&lt;phone-number-id&gt;</code>.
+            <code>/waba.html?id=&lt;waba-id&gt;</code>.
           </p>
         </div>
 
@@ -27,7 +27,7 @@
           </div>
         </div>
 
-        <div id="sections" class="hidden flex flex-col gap-6">
+        <div id="sections" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <div class="card p-6">
             <p class="section-title text-on-surface mb-1">Override incoming message URL</p>
             <p class="text-on-surface-variant font-body-md text-sm mb-4">
@@ -40,8 +40,6 @@
             </p>
             <label class="label-strong text-on-surface-variant block" for="ov-token">Access token</label>
             <input id="ov-token" type="password" autocomplete="off" placeholder="the token you saved when onboarding" class="w-full mt-1 mb-3 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"/>
-            <label class="label-strong text-on-surface-variant block" for="ov-waba-id">WABA ID</label>
-            <input id="ov-waba-id" class="w-full mt-1 mb-3 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"/>
             <label class="label-strong text-on-surface-variant block" for="ov-url">Your incoming-message URL</label>
             <input id="ov-url" placeholder="https://your-app.example.com/webhook" class="w-full mt-1 mb-3 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"/>
             <button id="ov-btn" class="rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">Verify &amp; save</button>
@@ -56,13 +54,20 @@
               values and press Test to send a message to the recipient.
             </p>
             <p class="label-strong text-on-surface-variant">Endpoint</p>
-            <pre class="bg-surface-container-low rounded-lg p-3 mt-1 mb-3 text-xs overflow-x-auto whitespace-pre-wrap" id="endpoint-line"></pre>
-            <label class="label-strong text-on-surface-variant block" for="out-token">Access token</label>
+            <pre class="bg-surface-container-low rounded-lg p-3 text-xs overflow-x-auto whitespace-pre-wrap" id="endpoint-line"></pre>
+            <label class="label-strong text-on-surface-variant block mt-3" for="out-token">Access token</label>
             <input id="out-token" type="password" autocomplete="off" placeholder="the token you saved when onboarding" class="w-full mt-1 mb-3 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"/>
+            <label class="label-strong text-on-surface-variant block" for="out-phone">Phone number ID</label>
+            <div class="flex gap-2 mb-3">
+              <input id="out-phone" list="out-phone-options" class="w-full mt-1 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"/>
+              <datalist id="out-phone-options"></datalist>
+              <button id="lookup-btn" class="rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all disabled:opacity-50 whitespace-nowrap">Look up</button>
+            </div>
+            <p class="text-on-surface-variant font-body-md text-xs -mt-2 mb-3" id="lookup-status">Look up finds the numbers on this WABA, using your access token.</p>
             <label class="label-strong text-on-surface-variant block" for="out-body">Request body (JSON)</label>
             <textarea id="out-body" rows="9" spellcheck="false" class="w-full mt-1 mb-3 px-4 py-2 font-mono text-xs bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"></textarea>
             <button id="out-btn" class="rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">Test</button>
-            <pre class="bg-surface-container-low rounded-lg p-3 mt-3 text-xs overflow-x-auto whitespace-pre-wrap" id="out-result"></pre>
+            <pre class="bg-surface-container-low rounded-lg p-3 text-xs mt-3 overflow-x-auto whitespace-pre-wrap" id="out-result"></pre>
           </div>
         </div>
       </div>

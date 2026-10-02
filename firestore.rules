@@ -3,15 +3,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // One doc per onboarded WhatsApp number, keyed by phoneNumberId (see
-    // functions/src/relay.ts for why: it's what the relay and Meta both key
-    // off operationally, unlike wabaId).
+    // One doc per onboarded WABA, keyed by wabaId, with the phoneNumberId the
+    // relay looks it up by stored as a field.
     //
     // Trust boundary: the owner can read/write everything about their own
     // WABA EXCEPT lastRelayCall and usage — those are written only by the
     // relay Cloud Function (Admin SDK, bypasses these rules entirely),
     // because they're the basis for billing and must not be client-editable.
-    match /wabas/{phoneNumberId} {
+    match /wabas/{wabaId} {
       allow read, delete: if isOwner(resource.data.ownerUid);
 
       allow create: if isOwner(request.resource.data.ownerUid)

@@ -37,8 +37,8 @@ async function maybeFinish() {
     const connected = document.getElementById('connected-status');
     try {
       await setDoc(
-        doc(db, 'wabas', phoneNumberId),
-        { ownerUid: auth.currentUser.uid, wabaId },
+        doc(db, 'wabas', wabaId),
+        { ownerUid: auth.currentUser.uid, wabaId, phoneNumberId },
         { merge: true },
       );
       connected.textContent = `Connected: WABA ${wabaId}, phone number ID ${phoneNumberId}.`;
@@ -109,7 +109,7 @@ document.getElementById('copy-token-btn').addEventListener('click', async () => 
 });
 
 document.getElementById('saved-btn').addEventListener('click', () => {
-  location.href = `/waba.html?id=${encodeURIComponent(phoneNumberId)}`;
+  location.href = `/waba.html?id=${encodeURIComponent(wabaId)}`;
 });
 
 let started = false;

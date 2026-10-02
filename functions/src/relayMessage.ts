@@ -62,11 +62,12 @@ app.post('/:phoneNumberId/messages', async (req, res) => {
   // Metadata only — timestamp + outcome, never the message content or
   // token — and only successful sends count toward billable usage.
   //
-  // Uses update() rather than set(merge:true) on purpose: it fails instead
-  // of creating a doc if phoneNumberId isn't an actual onboarded WABA, so a
-  // probe with a bogus phoneNumberId can't pollute Firestore with orphan
-  // ownerUid-less documents. That failure is swallowed — bookkeeping is
-  // best-effort and shouldn't affect the response the caller sees.
+  // Records are keyed by WABA id, so the one for this phone number is found by
+  // its phoneNumberId field. Uses update() rather than set(merge:true) on
+  // purpose: it only touches a record that already exists, so a probe with a
+  // bogus phoneNumberId can't pollute Firestore with orphan ownerUid-less
+  // documents. Any failure is swallowed — bookkeeping is best-effort and
+  // shouldn't affect the response the caller sees.
   const now = new Date();
   const update: Record<string, unknown> = {
     lastRelayCall: { at: now.getTime(), ok: metaRes.ok, statusCode: metaRes.status },
@@ -77,9 +78,14 @@ app.post('/:phoneNumberId/messages', async (req, res) => {
     update[`usage.monthly.${monthlyKey(now)}`] = FieldValue.increment(1);
   }
   try {
-    await getFirestore().collection('wabas').doc(phoneNumberId).update(update);
+    const match = await getFirestore()
+      .collection('wabas')
+      .where('phoneNumberId', '==', phoneNumberId)
+      .limit(1)
+      .get();
+    if (!match.empty) await match.docs[0].ref.update(update);
   } catch {
-    // No such WABA doc — nothing to record against.
+    // No record for this number — nothing to record against.
   }
 
   res.status(metaRes.status).send(body);
