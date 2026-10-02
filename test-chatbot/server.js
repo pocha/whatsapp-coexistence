@@ -3,7 +3,19 @@
 //                  "Test endpoint" step calls)
 //   POST /webhook  logs every incoming event, and replies "You said: ..." to
 //                  text messages through the relay
+// It also starts a cloudflared tunnel (the `cloudflared` npm package, installed
+// by `npm install`), so the bot gets a public HTTPS URL that Meta can reach,
+// and stops the tunnel when it exits.
 const http = require('node:http');
+const fs = require('node:fs');
+
+let cloudflared;
+try {
+  cloudflared = require('cloudflared');
+} catch {
+  console.error('cloudflared is not installed. Run ./install.sh (or npm install) first, then run this again.');
+  process.exit(1);
+}
 
 const PORT = process.env.PORT || 3000;
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN;
@@ -12,7 +24,7 @@ const RELAY_BASE =
   process.env.RELAY_BASE || 'http://127.0.0.1:5001/wa-coexistence/us-central1/relayMessage';
 
 if (!VERIFY_TOKEN) {
-  console.error('Set WEBHOOK_VERIFY_TOKEN (the same value as in functions/.env). See .env.example.');
+  console.error('WEBHOOK_VERIFY_TOKEN is missing. Copy .env.example to .env and fill it in (see README.md).');
   process.exit(1);
 }
 if (!ACCESS_TOKEN) {
@@ -81,6 +93,43 @@ http
   })
   .listen(PORT, () => {
     console.log(`Test chatbot listening on http://localhost:${PORT}/webhook`);
-    console.log('Expose it publicly over HTTPS, then use <public-url>/webhook as your endpoint:');
-    console.log(`  cloudflared tunnel --url http://localhost:${PORT}   (or: ngrok http ${PORT})`);
+    startTunnel().catch((err) => {
+      console.error(`Could not start the tunnel: ${err.message}`);
+      process.exit(1);
+    });
   });
+
+async function startTunnel() {
+  // The npm package downloads the binary on install. If that step was skipped,
+  // fetch it now.
+  if (!fs.existsSync(cloudflared.bin)) {
+    console.log('Downloading cloudflared…');
+    await cloudflared.install(cloudflared.bin);
+  }
+
+  const tunnel = cloudflared.Tunnel.quick(`http://localhost:${PORT}`);
+  let shuttingDown = false;
+
+  tunnel.once('url', (url) => {
+    console.log('\nTunnel is up. Use this as your incoming-message URL:\n');
+    console.log(`  ${url}/webhook\n`);
+  });
+  tunnel.once('error', (err) => {
+    console.error(`\ncloudflared failed: ${err.message}`);
+    process.exit(1);
+  });
+  tunnel.once('exit', (code) => {
+    if (shuttingDown) return;
+    console.error(`\ncloudflared stopped unexpectedly (exit ${code}).`);
+    process.exit(1);
+  });
+
+  const shutdown = () => {
+    shuttingDown = true;
+    tunnel.stop();
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+  process.on('exit', () => tunnel.stop());
+}

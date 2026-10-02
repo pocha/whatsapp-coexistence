@@ -1,76 +1,47 @@
 # Test chatbot
 
-A minimal echo chatbot for trying WA Coexistence end to end when you don't have
-an app of your own that uses the WhatsApp API. It has no dependencies.
+A tiny chatbot for trying WA Coexistence when you don't have an app of your own
+that uses the WhatsApp API. It answers Meta's verification handshake and logs
+every incoming message. Add your access token and it also replies "You said:
+..." to text messages through our relay. It has no dependencies.
 
-It does three things:
+## Setup
 
-- Answers Meta's verification handshake (`GET /webhook`), which is what the
-  "Verify & save" button on a WABA's page calls before it accepts your URL.
-- Logs every event WhatsApp sends to it (`POST /webhook`).
-- Replies "You said: ..." to each text message, through our relay.
+1. Install [Node.js](https://nodejs.org/) 20.6 or newer. npm comes with it.
+2. Run `./install.sh`. It installs the dependencies, including `cloudflared`,
+   which gives the bot its public HTTPS URL, and creates `.env` from
+   `.env.example`. (On Windows without bash, run `npm install` and copy
+   `.env.example` to `.env` yourself.)
+3. Fill in `.env` with the values from the **Using the test chatbot?** box on
+   your WABA's page on Watobot (the page that sent you here).
+4. Run `npm start`. It launches the server and prints your webhook URL:
 
-## Set it up
+   ```
+   Tunnel is up. Use this as your incoming-message URL:
 
-You need Node 24.
+     https://random-words.trycloudflare.com/webhook
+   ```
 
-```bash
-cd test-chatbot
-cp .env.example .env
-```
-
-Edit `.env`:
-
-| Variable | Value |
-|---|---|
-| `WEBHOOK_VERIFY_TOKEN` | The same value as `WEBHOOK_VERIFY_TOKEN` in `functions/.env`. |
-| `ACCESS_TOKEN` | The access token shown once when you onboard a WABA. Leave it empty for now and add it later (see below). |
-| `RELAY_BASE` | Optional. Where replies are sent. The default is the local Functions emulator, `http://127.0.0.1:5001/wa-coexistence/us-central1/relayMessage`, which needs the main app's `npm start` running. For the deployed backend use `https://us-central1-<project-id>.cloudfunctions.net/relayMessage`. |
-
-Start it:
-
-```bash
-npm start
-```
-
-It listens on `http://localhost:3000/webhook`. Without an `ACCESS_TOKEN` it
-still logs messages, but doesn't reply.
-
-## Give it a public HTTPS URL
-
-Meta calls your URL directly from its servers, and we only accept HTTPS URLs, so
-`localhost` won't do. Put a tunnel in front of the bot, in a second terminal:
-
-```bash
-brew install cloudflared            # once
-cloudflared tunnel --url http://localhost:3000
-```
-
-(`ngrok http 3000` works too.) Your incoming-message URL is the printed
-`https://....trycloudflare.com` address plus `/webhook`, for example
-`https://random-words.trycloudflare.com/webhook`. A free tunnel gets a new
-address each time you start it, so update the URL on the WABA's page if you
-restart the tunnel.
+   Enter that URL as the incoming-message URL on the Watobot page. The bot
+   prints `GET /webhook handshake: ok` when Meta checks it.
 
 ## Use it
 
-1. Enter the tunnel URL as the incoming-message URL on the WABA's page
-   (`/waba.html?id=<wabaId>`). The bot's terminal prints
-   `GET /webhook handshake: ok`.
-2. Put the access token in `.env` as `ACCESS_TOKEN` and restart the bot
-   (`Ctrl+C`, then `npm start`) so it can reply.
-3. Send a WhatsApp message to the number from another phone. The bot logs the
-   event and replies "You said: ...".
+Keep the server running. Now send a WhatsApp message to your WABA's registered
+phone number from another phone, and the message shows up in the bot's logs.
+
+To have it reply too, put your access token in `.env` as `ACCESS_TOKEN` and
+restart the bot.
+
+`Ctrl+C` stops the bot and the tunnel. The tunnel address changes each time you
+start it, so update the URL on your WABA's page after a restart.
 
 ## Notes
 
-- Only `text` messages get a reply. Other events are logged and ignored,
-  including `smb_message_echoes` (your own messages sent from the Business
-  app), so the bot never answers itself.
-- The bot answers Meta right away and does its work afterwards, because Meta
-  retries slow responses.
+- Replies go through the relay at `RELAY_BASE`. For a local backend that means
+  the main app's `npm start` must be running.
+- Only text messages get a reply. Other events are logged and ignored, including
+  your own messages sent from the Business app, so the bot never answers itself.
 - Free-form replies only work within 24 hours of the customer's last message.
-  Replying to a message that just arrived is always inside that window.
-- This is a test tool. It has no signature checking on incoming requests and
-  keeps your access token in a local `.env` file (gitignored). Don't expose it
-  longer than you need to.
+- It's a test tool: it doesn't check request signatures, and it keeps your access
+  token in a local, gitignored `.env`.

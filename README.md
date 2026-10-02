@@ -111,7 +111,9 @@ WATOBOT_API_KEY=<your watobot API key>
 
 `WATOBOT_API_KEY` is used to send the login OTP over WhatsApp through
 [watobot](https://github.com/pocha/mudbot). `.env` is gitignored, so don't
-commit it.
+commit it. `WEBHOOK_VERIFY_TOKEN` must also equal the `WEBHOOK_VERIFY_TOKEN` in
+`public/assets/app-config.js`, which the WABA page shows to people setting up the
+test chatbot.
 
 Run the tests, from `functions/`:
 
