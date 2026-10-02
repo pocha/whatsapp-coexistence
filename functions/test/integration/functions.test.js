@@ -110,11 +110,13 @@ test('setWebhook refuses an endpoint that does not answer the handshake', async 
 
 test('relayMessage proxies a send through the stub and records usage against the WABA doc', async () => {
   const phoneNumberId = 'phone-relay-test';
+  const wabaId = 'waba-relay-test';
   const ownerUid = 'owner-for-relay-test';
 
-  await db.collection('wabas').doc(phoneNumberId).set({
+  await db.collection('wabas').doc(wabaId).set({
     ownerUid,
-    wabaId: 'waba-relay-test',
+    wabaId,
+    phoneNumberId,
     overrideUrl: 'https://business.example.com/webhook',
   });
 
@@ -132,7 +134,7 @@ test('relayMessage proxies a send through the stub and records usage against the
   assert.equal(res.status, 200);
   assert.equal(body.messages[0].id, 'wamid.stub-message-id');
 
-  const doc = await db.collection('wabas').doc(phoneNumberId).get();
+  const doc = await db.collection('wabas').doc(wabaId).get();
   const data = doc.data();
   assert.equal(data.lastRelayCall.ok, true);
   assert.equal(data.lastRelayCall.statusCode, 200);

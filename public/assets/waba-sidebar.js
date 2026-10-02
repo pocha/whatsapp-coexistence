@@ -25,7 +25,7 @@ export async function fillSidebar(uid, currentId) {
 
     const name = document.createElement('span');
     name.className = 'font-bold text-on-surface break-all';
-    name.textContent = docSnap.id;
+    name.textContent = `WABA ${docSnap.id}`;
 
     const status = document.createElement('span');
     status.className = 'label-muted';

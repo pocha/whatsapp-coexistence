@@ -3,7 +3,9 @@ import { fillSidebar, hideSidebar } from '/assets/waba-sidebar.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const $ = (id) => document.getElementById(id);
-const phoneNumberId = new URLSearchParams(location.search).get('id');
+const GRAPH = 'https://graph.facebook.com/v21.0';
+// The page is about one WABA, identified by ?id= in the URL.
+const wabaId = new URLSearchParams(location.search).get('id');
 
 // Same date-key algorithm as functions/src/relayMessage.ts, duplicated here
 // (small and pure) so usage lookups match the keys the relay wrote.
@@ -25,21 +27,29 @@ const BODY_TEMPLATE = {
   text: { body: '' },
 };
 
+function updateEndpointLine() {
+  const phone = $('out-phone').value.trim() || '<phone-number-id>';
+  $('endpoint-line').textContent = `POST ${functionsBase()}/relayMessage/${phone}/messages`;
+}
+
 // Reads wabas/{id} only when someone is signed in; the rules let only the
-// owner read it. Anyone else (or a missing doc) simply gets no counts and no
+// owner read it. Anyone else (or a missing record) simply gets no counts and no
 // prefill, and the page works the same for testing.
 async function loadRecord() {
-  if (!auth.currentUser || !phoneNumberId) return;
+  if (!auth.currentUser || !wabaId) return;
   let data;
   try {
-    data = (await getDoc(doc(db, 'wabas', phoneNumberId))).data();
+    data = (await getDoc(doc(db, 'wabas', wabaId))).data();
   } catch {
     return;
   }
   if (!data) return;
 
-  if (data.wabaId && !$('ov-waba-id').value) $('ov-waba-id').value = data.wabaId;
   if (data.overrideUrl && !$('ov-url').value) $('ov-url').value = data.overrideUrl;
+  if (data.phoneNumberId && !$('out-phone').value) {
+    $('out-phone').value = data.phoneNumberId;
+    updateEndpointLine();
+  }
 
   const usage = data.usage;
   if (usage) {
@@ -63,11 +73,10 @@ async function postJson(url, token, body) {
 // --- Override incoming message URL ------------------------------------------
 $('ov-btn').addEventListener('click', async () => {
   const accessToken = $('ov-token').value.trim();
-  const wabaId = $('ov-waba-id').value.trim();
   const overrideCallbackUrl = $('ov-url').value.trim();
   const status = $('ov-status');
-  if (!accessToken || !wabaId || !overrideCallbackUrl) {
-    status.textContent = 'Fill in the access token, WABA ID and your URL.';
+  if (!accessToken || !overrideCallbackUrl) {
+    status.textContent = 'Fill in the access token and your URL.';
     return;
   }
 
@@ -87,17 +96,16 @@ $('ov-btn').addEventListener('click', async () => {
     // Only record it once the function has succeeded, and only for a signed-in user.
     if (!auth.currentUser) {
       status.textContent =
-        'Done: incoming messages now go to your URL. Sign in on the Dashboard to keep this number in your list.';
+        'Done: incoming messages now go to your URL. Sign in on the Dashboard to keep this WABA in your list.';
       return;
     }
     try {
-      await setDoc(
-        doc(db, 'wabas', phoneNumberId),
-        { ownerUid: auth.currentUser.uid, wabaId, overrideUrl: overrideCallbackUrl, activatedAt: Date.now() },
-        { merge: true },
-      );
+      const record = { ownerUid: auth.currentUser.uid, wabaId, overrideUrl: overrideCallbackUrl, activatedAt: Date.now() };
+      const phoneNumberId = $('out-phone').value.trim();
+      if (phoneNumberId) record.phoneNumberId = phoneNumberId;
+      await setDoc(doc(db, 'wabas', wabaId), record, { merge: true });
       status.textContent = 'Done: incoming messages now go to your URL, and it is saved to your account.';
-      fillSidebar(auth.currentUser.uid, phoneNumberId);
+      fillSidebar(auth.currentUser.uid, wabaId);
     } catch (err) {
       status.textContent = `Done with WhatsApp, but we couldn't save it to your account (${err.message}).`;
     }
@@ -109,11 +117,57 @@ $('ov-btn').addEventListener('click', async () => {
 });
 
 // --- Test outgoing message ----------------------------------------------------
+$('out-phone').addEventListener('input', updateEndpointLine);
+
+$('lookup-btn').addEventListener('click', async () => {
+  const token = $('out-token').value.trim();
+  const status = $('lookup-status');
+  if (!token) {
+    status.textContent = 'Paste your access token first.';
+    return;
+  }
+  $('lookup-btn').disabled = true;
+  status.textContent = 'Looking up…';
+  try {
+    const res = await fetch(`${GRAPH}/${encodeURIComponent(wabaId)}/phone_numbers?fields=id,display_phone_number`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      status.textContent = `Look up failed: ${body.error?.message || `HTTP ${res.status}`}`;
+      return;
+    }
+    const numbers = body.data ?? [];
+    const options = $('out-phone-options');
+    options.replaceChildren();
+    for (const n of numbers) {
+      const option = document.createElement('option');
+      option.value = n.id;
+      option.label = n.display_phone_number;
+      options.append(option);
+    }
+    if (numbers.length === 1) {
+      $('out-phone').value = numbers[0].id;
+      updateEndpointLine();
+      status.textContent = `Found ${numbers[0].display_phone_number}.`;
+    } else {
+      status.textContent = numbers.length
+        ? `Found ${numbers.length} numbers. Click the field to choose one.`
+        : 'No phone numbers found on this WABA.';
+    }
+  } catch (err) {
+    status.textContent = `Look up failed: ${err.message}`;
+  } finally {
+    $('lookup-btn').disabled = false;
+  }
+});
+
 $('out-btn').addEventListener('click', async () => {
   const token = $('out-token').value.trim();
+  const phoneNumberId = $('out-phone').value.trim();
   const result = $('out-result');
-  if (!token) {
-    result.textContent = 'Paste your access token first.';
+  if (!token || !phoneNumberId) {
+    result.textContent = 'Fill in the access token and the phone number ID.';
     return;
   }
   let message;
@@ -142,18 +196,18 @@ $('out-btn').addEventListener('click', async () => {
 });
 
 // --- Boot ---------------------------------------------------------------------
-if (!phoneNumberId) {
+if (!wabaId) {
   $('no-id').classList.remove('hidden');
 } else {
-  $('number-id').textContent = `Phone number ID: ${phoneNumberId}`;
-  $('endpoint-line').textContent = `POST ${functionsBase()}/relayMessage/${phoneNumberId}/messages`;
+  $('waba-id-line').textContent = `WABA ID: ${wabaId}`;
   $('out-body').value = JSON.stringify(BODY_TEMPLATE, null, 2);
+  updateEndpointLine();
   $('sections').classList.remove('hidden');
 }
 
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    fillSidebar(user.uid, phoneNumberId);
+    fillSidebar(user.uid, wabaId);
     loadRecord();
   } else {
     hideSidebar();
