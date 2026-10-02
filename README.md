@@ -62,6 +62,19 @@ Then collect three values:
   7. Save, and put the **Configuration ID** in `public/assets/app-config.js` as
      `META_CONFIG_ID`.
 
+### Permissions
+
+Under **Other tools → Permissions and features**, the app only needs
+`whatsapp_business_management` and `whatsapp_business_messaging`. Don't add
+anything else. `business_management`, `email`, `manage_app_solution` and
+`whatsapp_business_manage_events` aren't used. `public_profile` is granted
+automatically.
+
+![Permissions and features page](public/assets/8(2).permissions.png)
+
+The app's own webhook is set up after the backend is deployed (step 4), because
+its URL comes from the deploy.
+
 ### Verification
 
 Meta requires two verifications before the app can act as a Tech Provider, both
@@ -79,13 +92,15 @@ under **Review → Verification** in the app dashboard:
 
 ![Review → Verification page showing business verification as Verified and access verification as In review](public/assets/21.app-verification.png)
 
-Also under **Review → Testing**, make at least one API call that uses each
-permission your use case lists (for example in Graph API Explorer), as
-preparation for App Review. Meta says the results can take up to 24 hours to
-appear. This is separate from the two verifications above and does not block
-local testing.
+Also under **Review → Testing**, make an API call that uses each permission
+your use case lists, as preparation for App Review. Meta says the results can
+take up to 24 hours to appear. Setting a WABA's incoming-message URL from the
+WABA page was enough to complete `whatsapp_business_management` here, and
+sending a message completes `whatsapp_business_messaging`. `public_profile`
+needs no specific count. This is separate from the two verifications above and
+does not block local testing.
 
-![Review → Testing page listing the permissions that need API test calls](public/assets/20.app-testing.png)
+![Review → Testing page with the WhatsApp use case showing Testing complete](public/assets/23.app-testing-complete.png)
 
 Running Embedded Signup for real customers also needs the app to be an
 approved Meta Tech Provider. Until then, only people with a role on the app
@@ -172,14 +187,49 @@ assume it is served from the root of its domain.
    cd functions && npm run deploy            # builds, then deploys the Functions
    ```
 
+**The app's webhook (after the deploy).** When `firebase deploy` finishes it
+prints the URL of each function, including a line like
+`Function URL (webhook(us-central1)): https://...`. That is your webhook URL.
+Meta requires the app itself to have a webhook before a business's
+incoming-URL override can be set. Without one, **Verify & save** on a WABA's
+page fails with "your app must be subscribed to receive messages for WhatsApp
+Business Account".
+
+1. In the app dashboard, go to **Use cases → Customize → Step 2. Production
+   setup → Configure Webhooks** and set:
+   - **Callback URL**: the `webhook` function URL from the deploy output.
+   - **Verify token**: the same value as `WEBHOOK_VERIFY_TOKEN` in
+     `functions/.env` (and in `public/assets/app-config.js`).
+
+   Click **Verify and save**. Meta calls the function to check the token, so
+   it must already be deployed.
+
+   ![Configure Webhooks with the callback URL and verify token filled in](public/assets/8(1).dashboard-webhook-setup.png)
+
+2. Under **Webhook fields**, subscribe to exactly these, and switch the rest
+   off:
+
+   | Field | Why |
+   |---|---|
+   | `messages` | Incoming messages and delivery statuses. |
+   | `smb_message_echoes` | Messages typed in the Business app, so a bot doesn't reply on top of a human. |
+   | `smb_app_state_sync` | Contact and state sync for coexistence. |
+   | `history` | Chat history sync for coexistence. |
+   | `message_template_status_update` | Tells a business when a template is approved or rejected. |
+
+   ![Webhook fields list](public/assets/8(3).dashboard-webhook-fields.png)
+
+   (That screenshot shows Meta's default selection, which is longer than the
+   list above.)
+
 ### 5. Test onboarding a WABA locally
 
-You need the pieces from steps 1 to 3 and a spare phone number registered on
+You need the pieces from steps 1 to 4 and a spare phone number registered on
 the WhatsApp Business app.
 
-1. In the Meta app, confirm Access Verification is cleared and the app has
-   Advanced Access to `whatsapp_business_management` and
-   `whatsapp_business_messaging`. Until then Embedded Signup fails (with "App
+1. In the Meta app, confirm the app's webhook is set up (step 4), Access
+   Verification is cleared, and the app has Advanced Access to
+   `whatsapp_business_management` and `whatsapp_business_messaging`. Until then Embedded Signup fails (with "App
    not active", or the "Partner app lacks required advanced ... permissions"
    error).
 2. If you don't have an app that uses the WhatsApp API,
