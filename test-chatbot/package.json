@@ -6,5 +6,10 @@
   "scripts": {
     "start": "node --env-file=.env server.js"
   },
-  "engines": { "node": ">=24" }
+  "engines": {
+    "node": ">=20.6"
+  },
+  "dependencies": {
+    "cloudflared": "^0.7.3"
+  }
 }

@@ -1,4 +1,5 @@
 import { auth, db, functionsBase, onAuthStateChanged } from '/assets/firebase-init.js';
+import { WEBHOOK_VERIFY_TOKEN } from '/assets/app-config.js';
 import { fillSidebar, hideSidebar } from '/assets/waba-sidebar.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
@@ -71,6 +72,13 @@ async function postJson(url, token, body) {
 }
 
 // --- Override incoming message URL ------------------------------------------
+$('chatbot-env').textContent =
+  `WEBHOOK_VERIFY_TOKEN=${WEBHOOK_VERIFY_TOKEN}\nRELAY_BASE=${functionsBase()}/relayMessage\nACCESS_TOKEN=`;
+$('copy-env-btn').addEventListener('click', async () => {
+  await navigator.clipboard.writeText($('chatbot-env').textContent);
+  $('copy-env-btn').textContent = 'Copied';
+});
+
 $('ov-btn').addEventListener('click', async () => {
   const accessToken = $('ov-token').value.trim();
   const overrideCallbackUrl = $('ov-url').value.trim();

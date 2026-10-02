@@ -44,6 +44,14 @@
             <input id="ov-url" placeholder="https://your-app.example.com/webhook" class="w-full mt-1 mb-3 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"/>
             <button id="ov-btn" class="rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">Verify &amp; save</button>
             <p class="text-on-surface-variant font-body-md text-sm mt-3" id="ov-status"></p>
+            <details class="mt-4">
+              <summary class="label-strong text-on-surface-variant cursor-pointer">Using the test chatbot?</summary>
+              <p class="text-on-surface-variant font-body-md text-sm mt-2">
+                Copy these into the test chatbot's <code>.env</code>, and add your access token as <code>ACCESS_TOKEN</code>.
+              </p>
+              <pre class="bg-surface-container-low rounded-lg p-3 mt-2 text-xs overflow-x-auto whitespace-pre-wrap" id="chatbot-env"></pre>
+              <button id="copy-env-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+            </details>
           </div>
 
           <div class="card p-6">
