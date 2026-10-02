@@ -72,39 +72,8 @@ automatically.
 
 ![Permissions and features page](public/assets/8(2).permissions.png)
 
-The app's own webhook is set up after the backend is deployed (step 4), because
-its URL comes from the deploy.
-
-### Verification
-
-Meta requires two verifications before the app can act as a Tech Provider, both
-under **Review → Verification** in the app dashboard:
-
-- **Business verification** of the portfolio the app is attached to. Complete
-  it with the same name, address and phone number you entered when creating the
-  portfolio, matched to the document you upload. See Meta's
-  [Verify Your Business](https://www.facebook.com/business/help/2058515294227817)
-  guide.
-- **Access verification**, which confirms your business is a Tech Provider. See
-  Meta's [Become a Tech Provider](https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/get-started-for-tech-providers)
-  guide. Review typically takes around 5 business days. While it is pending,
-  Embedded Signup fails with "App not active".
-
-![Review → Verification page showing business verification as Verified and access verification as In review](public/assets/21.app-verification.png)
-
-Also under **Review → Testing**, make an API call that uses each permission
-your use case lists, as preparation for App Review. Meta says the results can
-take up to 24 hours to appear. Setting a WABA's incoming-message URL from the
-WABA page was enough to complete `whatsapp_business_management` here, and
-sending a message completes `whatsapp_business_messaging`. `public_profile`
-needs no specific count. This is separate from the two verifications above and
-does not block local testing.
-
-![Review → Testing page with the WhatsApp use case showing Testing complete](public/assets/23.app-testing-complete.png)
-
-Running Embedded Signup for real customers also needs the app to be an
-approved Meta Tech Provider. Until then, only people with a role on the app
-can use it.
+The app's own webhook, and the verifications Meta requires, come after the
+backend is deployed (step 4).
 
 ### 3. Local setup
 
@@ -221,6 +190,53 @@ Business Account".
 
    (That screenshot shows Meta's default selection, which is longer than the
    list above.)
+
+### Testing and verification
+
+Meta requires the following before the app can act as a Tech Provider.
+
+**Review → Testing.** Meta wants an API call made with each permission your use
+case lists. Do both from the WABA page of the test account that came with your
+app, which needs an incoming-message URL. If you don't have an app, use the
+[test chatbot](test-chatbot/README.md) for one.
+
+1. In **Use cases → Customize → Production setup → Send message**, click
+   **Generate token** and copy the token. Find the test account's WABA ID in
+   Business Settings → Accounts → WhatsApp accounts.
+2. Run the app (step 3) and open
+   `http://localhost:8765/waba.html?id=<test WABA ID>`.
+3. **Override incoming message URL**: enter the token and your app's public
+   HTTPS URL, then click **Verify & save**. This completes the test for
+   `whatsapp_business_management`.
+4. **Test outgoing message**: enter the token, click **Look up** for the phone
+   number ID, fill in `to` and the message text, and click **Test**. This
+   completes the test for `whatsapp_business_messaging`.
+
+![A WABA page with the incoming-message URL saved and an outgoing message ready to test](public/assets/24.waba-page.png)
+
+Meta says the results can take up to 24 hours to appear, and each test stays
+valid for 30 days. `public_profile` needs no specific count. When everything is
+done, the page looks like this:
+
+![Review → Testing page with the WhatsApp use case showing Testing complete](public/assets/23.app-testing-complete.png)
+
+**Review → Verification.** Meta requires two verifications:
+
+- **Business verification** of the portfolio the app is attached to. Complete
+  it with the same name, address and phone number you entered when creating the
+  portfolio, matched to the document you upload. See Meta's
+  [Verify Your Business](https://www.facebook.com/business/help/2058515294227817)
+  guide.
+- **Access verification**, which confirms your business is a Tech Provider. See
+  Meta's [Become a Tech Provider](https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/get-started-for-tech-providers)
+  guide. Review typically takes around 5 business days. While it is pending,
+  Embedded Signup fails with "App not active".
+
+![Review → Verification page showing business verification as Verified and access verification as In review](public/assets/21.app-verification.png)
+
+Running Embedded Signup for real customers also needs the app to be an
+approved Meta Tech Provider. Until then, only people with a role on the app
+can use it.
 
 ### 5. Test onboarding a WABA locally
 
