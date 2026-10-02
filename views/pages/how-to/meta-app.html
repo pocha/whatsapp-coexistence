@@ -159,11 +159,14 @@
           verification request, and your app must answer it correctly.
         </li>
         <li>
-          Check <strong>Permissions and features</strong> (under
-          <strong>Other tools</strong> in the left menu).
-          <code>whatsapp_business_messaging</code> and
-          <code>whatsapp_business_management</code> are the permissions the
-          WhatsApp API uses. You don't need to add any others for this.
+          You can see your app's permissions under <strong>Permissions and
+          features</strong> (under <strong>Other tools</strong> in the left
+          menu). The WhatsApp use case adds them for you:
+          <code>whatsapp_business_messaging</code> sends messages, and
+          <code>whatsapp_business_management</code> is for managing templates
+          and account settings through the API. On your own number they work at
+          Standard Access, so there is nothing to add and no app review. Don't
+          request Advanced Access.
         </li>
       </ol>
       <img src="/assets/8(2).permissions.png" alt="Permissions and features page listing the WhatsApp permissions and their status" class="rounded-xl border border-outline-variant w-full"/>
@@ -185,6 +188,9 @@
           your app. With the test chatbot, you'll see it in its logs.
         </li>
       </ol>
+
+      <img src="/assets/25.chatbot-logs.png" alt="Test chatbot terminal showing the incoming messages webhook event and the reply sent back through the relay" class="rounded-xl border border-outline-variant w-full"/>
+      <p class="text-on-surface-variant font-body-md text-sm text-center -mt-2">The test chatbot's logs: the incoming message event, then its reply going out through the relay.</p>
 
       <div class="card p-6 !bg-amber-100 !border-amber-400 dark:!bg-amber-950 dark:!border-amber-600">
         <p class="label-strong text-amber-900 dark:text-amber-200 mb-1">&#9888; NO COEXISTENCE ON THIS ROUTE</p>
