@@ -44,11 +44,13 @@ Then collect three values:
 
      ![Products step with only WhatsApp Cloud API checked](public/assets/11.choose-products.png)
 
-  4. **Access token**: **User access token**, with expiration **Never**. The
-     business keeps this token and uses it to send messages (we never store it),
-     so a 60-day expiry would break their integration every two months.
+  4. **Access token**: **System-user access token**, with expiration **Never**.
+     Meta says Tech Providers should use business (system-user) tokens, which
+     belong to the customer's business, not to the person who ran the popup,
+     and don't depend on that person staying in the business. The token can't
+     be changed after the Configuration is created.
 
-     ![Access token step: User access token (the screenshot shows 60 days; choose Never)](public/assets/12.access-token-selection.png)
+     ![Access token step: choose System-user access token with expiration Never](public/assets/12.access-token-selection.png)
 
   5. **Assets**: **WhatsApp accounts**, with the task permission **MANAGE**.
 
