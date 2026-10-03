@@ -8,11 +8,10 @@ every incoming message. Add your access token and it also replies "You said:
 ## Setup
 
 1. Install [Node.js](https://nodejs.org/) 20.6 or newer. npm comes with it.
-2. Run `./install.sh`. It installs the dependencies, including `cloudflared`,
-   which gives the bot its public HTTPS URL, and creates `.env` from
-   `.env.example`. (On Windows without bash, run `npm install` and copy
-   `.env.example` to `.env` yourself.)
-3. Fill in `.env` with the values from the **Using the test chatbot?** box on
+2. Run `npm install`. It installs the dependencies, including `cloudflared`,
+   which gives the bot its public HTTPS URL.
+3. Copy `.env.example` to `.env` (`cp .env.example .env`, or `copy` on Windows),
+   and fill it in with the values from the **Using the test chatbot?** box on
    your WABA's page on Watobot (the page that sent you here).
 4. Run `npm start`. It launches the server and prints your webhook URL:
 

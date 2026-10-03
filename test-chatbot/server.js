@@ -13,7 +13,7 @@ let cloudflared;
 try {
   cloudflared = require('cloudflared');
 } catch {
-  console.error('cloudflared is not installed. Run ./install.sh (or npm install) first, then run this again.');
+  console.error('cloudflared is not installed. Run npm install first, then run this again.');
   process.exit(1);
 }
 

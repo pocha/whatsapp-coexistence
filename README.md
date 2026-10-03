@@ -258,6 +258,11 @@ done, the page looks like this:
 
 ![Review → Verification page showing business verification as Verified and access verification as In review](public/assets/21.app-verification.png)
 
-Running Embedded Signup for real customers also needs the app to be an
-approved Meta Tech Provider. Until then, only people with a role on the app
-can use it.
+Embedded Signup does not work until the app has Advanced Access to
+`whatsapp_business_management` and `whatsapp_business_messaging`, which comes
+from App Review. Being an admin of the app does not get around it: the popup
+fails with "Partner app lacks required advanced WhatsApp Business management
+and messaging permissions for onboarding" (error `#2655111`). Until then you can
+test everything except onboarding: the incoming-URL override and sending work
+on any WABA you hold a token for, such as the test account that came with your
+app (see "Review → Testing" above).
