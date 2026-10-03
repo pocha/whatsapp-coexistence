@@ -17,35 +17,46 @@
       </p>
 
       <h2 class="section-title text-on-surface mt-4">What we collect</h2>
-      <p class="text-on-surface-variant font-body-md">
-        During onboarding, Meta's Embedded Signup flow gives us a short-lived access
-        token, your WhatsApp Business Account (WABA) ID, and phone number ID. We use
-        these only to call Meta's Graph API on your behalf to subscribe this app to
-        your WABA's events and, if you request it, configure your own webhook URL to
-        receive them directly ("webhook override").
-      </p>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li><strong>Your phone number</strong>, to sign you in. We send you a one-time code over WhatsApp, using Watobot, a WhatsApp messaging service we operate.</li>
+        <li><strong>From Meta's Embedded Signup:</strong> the access token for your WhatsApp number, your WhatsApp Business Account (WABA) ID and your phone number ID.</li>
+        <li><strong>Per number:</strong> the incoming-message URL you set, and counts of the messages sent through our API (per day, week and month), with the time and outcome of the last call. Never the content of your messages.</li>
+        <li><strong>A hash of your Watobot API key.</strong> The key itself is created in your browser and we never keep it.</li>
+        <li>When you click Join Waitlist, a running total is increased. We store no personal information for that.</li>
+      </ul>
 
       <h2 class="section-title text-on-surface mt-4">How we use it</h2>
       <p class="text-on-surface-variant font-body-md">
-        The access token is used only to complete the onboarding API calls described
-        above. We do not read, store, or process your WhatsApp message content. Once
-        onboarding completes, message delivery goes directly between Meta and either
-        your own webhook (if overridden) or this app's webhook, which only logs
-        events in memory for testing and does not persist them.
+        We use Meta's access token only to act for you when you ask us to: to send
+        messages you submit through our API, to point your number's incoming messages
+        at your own URL, and to manage your message templates.
+      </p>
+      <p class="text-on-surface-variant font-body-md">
+        We store the token <strong>encrypted</strong>, with a key derived from your
+        Watobot API key. We don't keep that key, so we can't open the token ourselves.
+        It is only decrypted, in memory, while we handle a request that includes your
+        API key, and is discarded afterwards. The flip side is that we can't recover
+        a lost key. If you lose it, the stored tokens are deleted and you onboard your
+        numbers again.
+      </p>
+      <p class="text-on-surface-variant font-body-md">
+        Messages you send through our API pass through us on their way to Meta. We
+        don't store or log their content. Messages your customers send you go straight
+        from Meta to your own URL and never pass through us.
       </p>
 
       <h2 class="section-title text-on-surface mt-4">Data retention</h2>
       <p class="text-on-surface-variant font-body-md">
-        Access tokens are held in memory only, for the duration of the onboarding
-        request (and, if test features are enabled, for the life of the server
-        process — see our <a class="text-primary font-bold hover:underline" href="https://github.com/pocha/whatsapp-coexistence#readme" target="_blank" rel="noopener">README</a>
-        for details). We do not write tokens or message content to a database or disk.
+        We keep this data until you delete your account from the Dashboard, which
+        removes your numbers, usage counts and stored tokens. You can also revoke our
+        access from Meta Business Manager at any time.
       </p>
 
       <h2 class="section-title text-on-surface mt-4">Third parties</h2>
       <p class="text-on-surface-variant font-body-md">
-        We share data only with Meta, as required to operate the WhatsApp Business
-        Platform integration itself.
+        Meta, as required to operate the WhatsApp Business Platform integration.
+        Google (Firebase), which hosts our database and servers. Watobot, to send
+        sign-in codes. We don't sell or share your data for any other purpose.
       </p>
 
       <h2 class="section-title text-on-surface mt-4">Your rights</h2>

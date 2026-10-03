@@ -1,17 +1,19 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { config } from './config';
-import { subscribeApp, verifyWabaAccess } from './graphApi';
+import { subscribeApp } from './graphApi';
 import { verifyEndpointChallenge } from './endpointCheck';
+import { authenticateKey } from './accounts';
+import { HttpError } from './auth';
 
 const corsHandler = cors({ origin: true });
 
-// Points a WABA's incoming messages at the business's own endpoint.
+// Points a number's WABA at the business's own incoming-message endpoint.
 //
-// No sign-in: the business's access token is the credential. It is checked
-// against Meta first, so only someone holding a valid token for this WABA can
-// make us fetch the supplied URL (an open version of that would be an SSRF /
-// scanning target). The token is used for this one request and never stored.
+// No sign-in: the Watobot API key is the credential. It is checked against the
+// account first, so only the key's holder can make us fetch the supplied URL (an
+// open version of that would be an SSRF / scanning target). The stored Meta token
+// is decrypted in memory for this one request.
 //
 // Does not write to Firestore. The frontend records the new URL only if this
 // call succeeds and the user is signed in.
@@ -22,30 +24,26 @@ export const setWebhook = onRequest((req, res) => {
       return;
     }
 
-    const { wabaId, accessToken, overrideCallbackUrl } = req.body ?? {};
-    if (!wabaId || !accessToken || !overrideCallbackUrl) {
-      res.status(400).send({ ok: false, error: 'wabaId, accessToken and overrideCallbackUrl are all required' });
+    const { phoneNumberId, apiKey, overrideCallbackUrl } = req.body ?? {};
+    if (!phoneNumberId || !apiKey || !overrideCallbackUrl) {
+      res.status(400).send({ ok: false, error: 'phoneNumberId, apiKey and overrideCallbackUrl are all required' });
       return;
     }
 
     try {
-      await verifyWabaAccess(wabaId, accessToken);
-    } catch (err) {
-      res.status(401).send({ ok: false, error: `That access token can't access this WABA. ${(err as Error).message}` });
-      return;
-    }
+      const { wabaId, accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
 
-    const check = await verifyEndpointChallenge(overrideCallbackUrl, config.webhookVerifyToken);
-    if (!check.ok) {
-      res.status(400).send(check);
-      return;
-    }
+      const check = await verifyEndpointChallenge(overrideCallbackUrl, config.webhookVerifyToken);
+      if (!check.ok) {
+        res.status(400).send(check);
+        return;
+      }
 
-    try {
       await subscribeApp(wabaId, accessToken, overrideCallbackUrl, config.webhookVerifyToken);
       res.status(200).send({ ok: true });
     } catch (err) {
-      res.status(502).send({ ok: false, error: (err as Error).message });
+      const status = err instanceof HttpError ? err.status : 502;
+      res.status(status).send({ ok: false, error: (err as Error).message });
     }
   });
 });

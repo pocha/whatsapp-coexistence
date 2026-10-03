@@ -49,26 +49,32 @@
         </li>
       </ul>
 
-      <h2 class="section-title text-on-surface mt-4">1. Connect it from the Dashboard</h2>
+      <h2 class="section-title text-on-surface mt-4">1. Sign in</h2>
       <p class="text-on-surface-variant font-body-md">
         Sign in to the <a class="text-primary font-bold hover:underline" href="/dashboard/">Dashboard</a>
-        with your WhatsApp number and choose <strong>Onboard a WABA</strong>.
-        A Facebook popup walks you through connecting the number, and you'll
-        pick your business portfolio there. This creates your WhatsApp
-        Business Account (WABA).
+        with your WhatsApp number. We send you a one-time code on WhatsApp.
       </p>
 
-      <h2 class="section-title text-on-surface mt-4">2. Save your access token</h2>
+      <h2 class="section-title text-on-surface mt-4">2. Create your API key and connect your number</h2>
       <p class="text-on-surface-variant font-body-md">
-        We show you an access token for your WABA once. <strong>We don't
-        store it</strong>, so copy it into your app's secrets right away. You'll
-        use it to send messages.
+        Choose <strong>Onboard WABA</strong>. The first time, we create your
+        <strong>Watobot API key</strong> in your browser and show it once. Copy it
+        somewhere safe, such as your app's secrets. We keep only a hash of it, so we
+        can't show it again or recover it. We then sign you out, and you'll need the
+        key to sign in again.
+      </p>
+      <p class="text-on-surface-variant font-body-md">
+        Sign in, choose <strong>Onboard WABA</strong> again and enter your key. A
+        Facebook popup then walks you through connecting the number, and you'll pick
+        your business portfolio there. This creates your WhatsApp Business Account
+        (WABA). We encrypt the access token Meta gives us for it with your API key, so
+        only you can unlock it.
       </p>
 
       <h2 class="section-title text-on-surface mt-4">3. Point incoming messages at your app</h2>
       <p class="text-on-surface-variant font-body-md">
         Open your number's page from the Dashboard and enter your app's
-        incoming-message webhook URL, along with your access token. We check
+        incoming-message webhook URL, along with your Watobot API key. We check
         it responds correctly, then route your WhatsApp messages straight to
         it.
       </p>
@@ -76,7 +82,7 @@
       <h2 class="section-title text-on-surface mt-4">4. Test both directions</h2>
       <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
         <li>Send a message to your number from another phone. It should reach your app.</li>
-        <li>From your app, send a message through our endpoint with your access token. The recipient's phone should receive it.</li>
+        <li>From your app, send a message through our endpoint with <code>Authorization: Bearer &lt;your Watobot API key&gt;</code>. The recipient's phone should receive it.</li>
       </ul>
 
       <div class="card p-6 mt-4">

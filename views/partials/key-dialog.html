@@ -1,0 +1,18 @@
+  <!-- Shows a newly generated Watobot API key once (see assets/key-dialog.js) -->
+  <dialog id="key-dialog" class="bg-white border border-outline-variant rounded-xl shadow-xl p-6 w-[90vw] max-w-lg m-auto text-left backdrop:bg-black/50">
+    <p class="section-title text-on-surface mb-2">Your Watobot API key</p>
+    <p class="text-on-surface-variant font-body-md text-sm mb-3">
+      Copy this key and keep it somewhere safe. <strong>We can't show it again
+      and can't recover it.</strong> It is how your apps call our API, it is
+      needed to sign in, and it protects the access tokens we store for your
+      numbers. If you lose it, your onboarded numbers become useless and you
+      will have to onboard them again.
+    </p>
+    <p id="key-dialog-note" class="text-on-surface font-body-md text-sm mb-3"></p>
+    <div class="flex gap-2 mb-3">
+      <input id="key-dialog-value" type="text" readonly class="flex-1 px-3 py-2 bg-white border border-outline-variant rounded-lg text-xs font-mono"/>
+      <button id="key-dialog-copy" type="button" class="rounded-xl bg-primary text-on-primary px-4 py-2 font-label-md text-label-md font-bold hover:opacity-90 transition-all">Copy</button>
+    </div>
+    <button id="key-dialog-done" type="button" class="rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
+    <p class="text-on-surface-variant font-body-md text-sm mt-3" id="key-dialog-status"></p>
+  </dialog>

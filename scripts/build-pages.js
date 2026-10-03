@@ -30,7 +30,6 @@ const PAGE_MAP = {
   'dashboard.html': 'dashboard/index.html',
   'dashboard-waba.html': 'dashboard/waba.html',
   'waba.html': 'waba.html',
-  'test.html': 'test.html',
   'how-to/create-meta-business-portfolio-add-whatsapp-number.html': 'how-to/create-meta-business-portfolio-add-whatsapp-number.html',
   'how-to/get-whatsapp-api-for-free.html': 'how-to/get-whatsapp-api-for-free.html',
   'how-to/get-whatsapp-api-access-in-5-minutes.html': 'how-to/get-whatsapp-api-access-in-5-minutes.html',

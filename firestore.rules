@@ -3,23 +3,42 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // One doc per onboarded WABA, keyed by wabaId, with the phoneNumberId the
-    // relay looks it up by stored as a field.
+    // One doc per onboarded phone number, keyed by phoneNumberId, with the wabaId and
+    // the owning userId as fields. Created by Functions (Admin SDK, which bypasses
+    // these rules) when a number is onboarded, with its Meta access token encrypted
+    // under the owner's Watobot API key.
     //
-    // Trust boundary: the owner can read/write everything about their own
-    // WABA EXCEPT lastRelayCall and usage — those are written only by the
-    // relay Cloud Function (Admin SDK, bypasses these rules entirely),
-    // because they're the basis for billing and must not be client-editable.
-    match /wabas/{wabaId} {
-      allow read, delete: if isOwner(resource.data.ownerUid);
+    // The owner manages their own records from the browser: they can read them, delete
+    // them, and change overrideUrl, activatedAt and encAccessToken (clearing it when
+    // they reset a lost key; rotating a key goes through the rotateKey Function). They can't
+    // touch anything else: not userId, and not lastRelayCall or usage, which are written
+    // only by the relay and are the basis for billing. The token is useless to anyone
+    // without the owner's key, so a stolen session can at worst break the owner's own
+    // records, never read the token.
+    match /phoneNumbers/{phoneNumberId} {
+      allow read, delete: if isOwner(resource.data.userId);
 
-      allow create: if isOwner(request.resource.data.ownerUid)
-                    && !request.resource.data.keys().hasAny(['lastRelayCall', 'usage']);
-
-      allow update: if isOwner(resource.data.ownerUid)
-                    && request.resource.data.ownerUid == resource.data.ownerUid
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastRelayCall', 'usage']);
+      allow update: if isOwner(resource.data.userId)
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['overrideUrl', 'activatedAt', 'encAccessToken']);
     }
+
+    // The user record is created by Functions at first sign-in. The owner can read it
+    // (the page compares a typed API key with apiKeyHash for instant feedback; the hash
+    // can't decrypt anything) and delete it, and can set or clear apiKeyHash.
+    match /users/{userId} {
+      allow read, delete: if isOwner(userId);
+
+      allow update: if isOwner(userId)
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['apiKeyHash', 'rotatedAt']);
+    }
+
+    // phoneIndex maps a sign-in phone number to its user. Only Functions create it; an
+    // owner can delete their own entry when they delete their account.
+    match /phoneIndex/{phone} {
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // otps/{phone} has no rules, so no browser can read or write it.
 
     // Waitlist click counter: written only by the joinWaitlist Function (Admin
     // SDK, which bypasses rules). Anyone can read the total so pages can show

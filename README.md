@@ -77,6 +77,46 @@ automatically.
 The app's own webhook, and the verifications Meta requires, come after the
 backend is deployed (step 4).
 
+### How customer tokens are handled
+
+Meta requires a Tech Provider to protect, and not share, customers' access tokens, so
+we hold each customer's token and never hand it out.
+
+- Each account has a **Watobot API key**: 32 random bytes, generated in the
+  browser and shown once, when the account first onboards a number. We store only a
+  hash of it, on the user record. The browser doesn't keep it: the user types it
+  whenever it is needed. Whenever a key is created or replaced, the user is signed
+  out, so they have to type it to sign in again and see how much it matters.
+- The key derives (HKDF-SHA256, with separate labels) both that hash and an
+  AES-256-GCM key. The second one encrypts each number's Meta token, on
+  `phoneNumbers/{phoneNumberId}`. The hash can't decrypt anything, and there is no server
+  secret, so the stored data is unreadable without the customer's key.
+- A request that carries the key (a send through the relay, setting the
+  incoming URL, managing templates) lets the backend decrypt the token in memory,
+  use it, and drop it.
+- **Rotating** the key needs the old one. The `rotateKey` function re-encrypts every
+  token under the new key in one batch, so the plaintext token is only ever in server
+  memory, never in the browser. A **lost key can't be recovered**: resetting it (from the
+  sign-in screen, the dashboard or the onboarding page) warns that the onboarded WABAs
+  will be useless, deletes the stored tokens, and gives a new key. Each number must
+  then be onboarded again.
+- **Users manage their own account from the browser** (`public/assets/account.js`):
+  creating and resetting the key, and deleting the account. Functions are for what needs
+  the Meta App Secret or a plaintext token: onboarding, key rotation, the relay, setting
+  the incoming URL, templates, and the sign-in reset.
+
+Data model. Functions create these records; a signed-in user can then read and manage
+only their own, within the limits in `firestore.rules` (they can never change `userId`,
+`usage` or `lastRelayCall`):
+
+| Document | Fields |
+|---|---|
+| `users/{randomUserId}` | `phoneNumber`, `apiKeyHash`, `createdAt`, `rotatedAt` |
+| `phoneIndex/{phone}` | `userId` |
+| `phoneNumbers/{phoneNumberId}` | `userId`, `wabaId`, `phoneNumberId`, `encAccessToken`, `overrideUrl`, `activatedAt`, `lastRelayCall`, `usage` |
+
+The Firebase sign-in `uid` is the random user ID, not the phone number.
+
 ### 3. Local setup
 
 Prerequisites: Node 24 and the Firebase CLI (`npm i -g firebase-tools`).
@@ -232,21 +272,37 @@ Business Account".
 Meta requires the following before the app can act as a Tech Provider.
 
 **Review → Testing.** Meta wants an API call made with each permission your use
-case lists. Do both from the WABA page of the test account that came with your
-app, which needs an incoming-message URL. If you don't have an app, use the
+case lists. Do both from the page of the test number that came with your app. It
+needs an incoming-message URL; if you don't have an app, use the
 [test chatbot](test-chatbot/README.md) for one.
 
+Embedded Signup isn't available yet, so store the test number's token yourself
+with the seed script, the same way onboarding would:
+
 1. In **Use cases → Customize → Production setup → Send message**, click
-   **Generate token** and copy the token. Find the test account's WABA ID in
-   Business Settings → Accounts → WhatsApp accounts.
-2. Run the app (step 3) and open
-   `http://localhost:8765/waba.html?id=<test WABA ID>`.
-3. **Override incoming message URL**: enter the token and your app's public
-   HTTPS URL, then click **Verify & save**. This completes the test for
+   **Generate token** and copy it. Find the test number's phone number ID there,
+   and its WABA ID in Business Settings → Accounts → WhatsApp accounts.
+2. Run the script from the repo root. It creates your account (if needed), makes a
+   Watobot API key and prints it once, and stores the token encrypted under that
+   key:
+
+   ```bash
+   META_ACCESS_TOKEN=<the token> node scripts/seed-test-waba.js \
+     --phone <your WhatsApp number, digits only> \
+     --phone-number-id <test phone number ID> --waba-id <test WABA ID>
+   ```
+
+   (Run `cd functions && npm run build` once first. It writes to production using
+   your gcloud credentials, or to the emulator if `FIRESTORE_EMULATOR_HOST` is set.
+   To add another number to an account that already has a key, pass
+   `--api-key <that key>`.)
+3. Run the app (step 3), sign in, and open
+   `http://localhost:8765/waba.html?id=<test phone number ID>`.
+4. **Override incoming message URL**: enter your Watobot API key and your app's
+   public HTTPS URL, then click **Verify & save**. This completes the test for
    `whatsapp_business_management`.
-4. **Test outgoing message**: enter the token, click **Look up** for the phone
-   number ID, fill in `to` and the message text, and click **Test**. This
-   completes the test for `whatsapp_business_messaging`.
+5. **Test outgoing message**: enter the key, fill in `to` and the message text, and
+   click **Test**. This completes the test for `whatsapp_business_messaging`.
 
 ![A WABA page with the incoming-message URL saved and an outgoing message ready to test](public/assets/24.waba-page.png)
 

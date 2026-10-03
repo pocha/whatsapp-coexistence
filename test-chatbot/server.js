@@ -19,7 +19,7 @@ try {
 
 const PORT = process.env.PORT || 3000;
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN;
-const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
+const WATOBOT_API_KEY = process.env.WATOBOT_API_KEY;
 const RELAY_BASE =
   process.env.RELAY_BASE || 'http://127.0.0.1:5001/wa-coexistence/us-central1/relayMessage';
 
@@ -27,14 +27,14 @@ if (!VERIFY_TOKEN) {
   console.error('WEBHOOK_VERIFY_TOKEN is missing. Copy .env.example to .env and fill it in (see README.md).');
   process.exit(1);
 }
-if (!ACCESS_TOKEN) {
-  console.warn('ACCESS_TOKEN is not set: incoming messages will be logged but not answered.');
+if (!WATOBOT_API_KEY) {
+  console.warn('WATOBOT_API_KEY is not set: incoming messages will be logged but not answered.');
 }
 
 async function reply(phoneNumberId, to, text) {
   const res = await fetch(`${RELAY_BASE}/${phoneNumberId}/messages`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${WATOBOT_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body: text } }),
   });
   console.log(`  reply to ${to}: relay answered ${res.status} ${await res.text()}`);
@@ -48,7 +48,7 @@ async function handleEvent(body) {
       if (change.field !== 'messages') continue;
       const phoneNumberId = change.value?.metadata?.phone_number_id;
       for (const message of change.value?.messages ?? []) {
-        if (message.type !== 'text' || !ACCESS_TOKEN) continue;
+        if (message.type !== 'text' || !WATOBOT_API_KEY) continue;
         await reply(phoneNumberId, message.from, `You said: ${message.text.body}`);
       }
     }
