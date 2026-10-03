@@ -156,6 +156,30 @@ assume it is served from the root of its domain.
    cd functions && npm run deploy            # builds, then deploys the Functions
    ```
 
+**Let `verifyOtp` sign login tokens (once per project).** Login mints a Firebase
+custom token, which the function must sign. In production it signs as its own
+service account, and that account needs permission to do so. Without it, sign-in
+fails with `Permission 'iam.serviceAccounts.signBlob' denied`. Find the account
+the function runs as, then grant it the **Service Account Token Creator** role on
+itself:
+
+```bash
+SA=$(gcloud run services describe verifyotp --region us-central1 \
+  --project <project-id> --format="value(spec.template.spec.serviceAccountName)")
+
+gcloud iam service-accounts add-iam-policy-binding "$SA" \
+  --member="serviceAccount:$SA" \
+  --role="roles/iam.serviceAccountTokenCreator" \
+  --project <project-id>
+```
+
+This is the project's default compute service account
+(`<project-number>-compute@developer.gserviceaccount.com`), and the role is
+granted on that account only, not on the whole project. The IAM Service Account
+Credentials API (`iamcredentials.googleapis.com`) must be enabled, which it
+normally is. The change can take a minute or two to apply. It isn't needed
+locally, where the Auth emulator doesn't check signatures.
+
 **The app's webhook (after the deploy).** When `firebase deploy` finishes it
 prints the URL of each function, including a line like
 `Function URL (webhook(us-central1)): https://...`. That is your webhook URL.
