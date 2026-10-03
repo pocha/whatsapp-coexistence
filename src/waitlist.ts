@@ -1,21 +1,23 @@
 import { db, functionsBase } from '/assets/firebase-init.js';
+import { el } from '/assets/dom.js';
+import type { JoinWaitlistResponse } from '../functions/src/types';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const btn = document.getElementById('join-btn');
-const countEl = document.getElementById('join-count');
-const dialog = document.getElementById('join-dialog');
+const btn = el<HTMLButtonElement>('join-btn');
+const countEl = el('join-count');
+const dialog = el<HTMLDialogElement>('join-dialog');
 const COUNTED_KEY = 'watobot_waitlist_counted';
 
 // The dashboard sends visitors here with ?join-waitlist=true while the app
 // waits for Meta's approval.
 if (new URLSearchParams(location.search).get('join-waitlist') === 'true') {
-  document.getElementById('waitlist-alert').classList.remove('hidden');
-  document.getElementById('waitlist-alert-close').addEventListener('click', () => {
-    document.getElementById('waitlist-alert').classList.add('hidden');
+  el('waitlist-alert').classList.remove('hidden');
+  el('waitlist-alert-close').addEventListener('click', () => {
+    el('waitlist-alert').classList.add('hidden');
   });
 }
 
-function showCount(count) {
+function showCount(count: unknown) {
   if (typeof count !== 'number' || count < 1) return;
   countEl.textContent = `${count.toLocaleString()} ${count === 1 ? 'person' : 'people'} joined`;
   countEl.classList.remove('hidden');
@@ -32,7 +34,7 @@ function showCount(count) {
 })();
 
 // Close the popup with its X, with Esc (built in), or by clicking the backdrop.
-document.getElementById('join-close').addEventListener('click', () => dialog.close());
+el('join-close').addEventListener('click', () => dialog.close());
 dialog.addEventListener('click', (event) => {
   if (event.target === dialog) dialog.close();
 });
@@ -52,7 +54,7 @@ btn.addEventListener('click', async () => {
 
   try {
     const res = await fetch(`${functionsBase()}/joinWaitlist`, { method: 'POST' });
-    const body = await res.json();
+    const body = (await res.json()) as JoinWaitlistResponse;
     if (body.ok) {
       showCount(body.count);
       try {

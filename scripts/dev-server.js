@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Local dev orchestrator: builds the frontend, serves public/ statically,
-// watches views/ for changes, and starts the Firebase emulators — all from
+// watches views/ and src/ for changes, and starts the Firebase emulators — all from
 // one `npm start`. No new dependency for the static server (plain
 // http/fs), and the emulators are spawned async (not spawnSync) on
 // purpose: spawnSync blocks this process's event loop for the emulators'
@@ -14,6 +14,7 @@ const path = require('node:path');
 const ROOT = path.join(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const VIEWS_DIR = path.join(ROOT, 'views');
+const SRC_DIR = path.join(ROOT, 'src');
 const STATIC_PORT = 8765;
 
 const MIME = {
@@ -59,9 +60,9 @@ function serveStatic() {
   });
 }
 
-function watchViewsAndRebuild() {
+function watchAndRebuild() {
   let pending = false;
-  fs.watch(VIEWS_DIR, { recursive: true }, () => {
+  const rebuild = () => {
     if (pending) return;
     pending = true;
     setTimeout(() => {
@@ -72,13 +73,15 @@ function watchViewsAndRebuild() {
         // Build errors already printed by the inherited stdio; keep watching.
       }
     }, 200); // debounce rapid saves
-  });
+  };
+  // Page templates (views/) and the browser TypeScript (src/) both feed build-pages.js.
+  for (const dir of [VIEWS_DIR, SRC_DIR]) fs.watch(dir, { recursive: true }, rebuild);
 }
 
 console.log('Building pages…');
 buildPages();
 serveStatic();
-watchViewsAndRebuild();
+watchAndRebuild();
 
 console.log('Starting Firebase emulators (functions, firestore, auth)…');
 // `npm run serve` spawns `firebase emulators:start`, which itself spawns

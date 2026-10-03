@@ -3,7 +3,7 @@ name: Deploy public/ to GitHub Pages
 on:
   push:
     branches: [main]
-    paths: [public/**, views/**, scripts/build-pages.js]
+    paths: [public/**, views/**, src/**, functions/src/types.ts, scripts/build-pages.js]
   workflow_dispatch:
 
 permissions:
@@ -26,7 +26,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm ci
+      - run: npm install
+      - run: npm run typecheck
       - run: npm run build:pages
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

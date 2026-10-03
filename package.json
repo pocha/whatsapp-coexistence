@@ -5,7 +5,13 @@
   "private": true,
   "scripts": {
     "build:pages": "node scripts/build-pages.js",
+    "typecheck": "tsc --noEmit -p .",
     "start": "node scripts/dev-server.js"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "firebase": "^12.19.0",
+    "typescript": "^7.0.2"
+  }
 }

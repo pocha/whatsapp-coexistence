@@ -2,7 +2,15 @@
 'use strict';
 
 /**
- * Expands the page templates in views/pages/*.html into public/. Templates may:
+ * Builds the static site into public/:
+ *
+ *   1. Compiles the browser TypeScript in src/ to the matching .js files in public/
+ *      (esbuild, one output per source file, no bundling: the pages still import
+ *      Firebase from Google's CDN and each other by absolute URL). Type-checking is
+ *      `npm run typecheck`; esbuild only strips the types.
+ *   2. Expands the page templates in views/pages/*.html into public/.
+ *
+ * Templates may:
  *
  *   - Declare per-page variables with:  <!--#var key="value"-->  (one per line)
  *   - Include a shared fragment from views/partials/<name>.html with:
@@ -16,11 +24,13 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const esbuild = require('esbuild');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const PAGES_DIR = path.join(ROOT_DIR, 'views', 'pages');
 const PARTIALS_DIR = path.join(ROOT_DIR, 'views', 'partials');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
+const SRC_DIR = path.join(ROOT_DIR, 'src');
 
 const PAGE_MAP = {
   'index.html': 'index.html',
@@ -28,8 +38,8 @@ const PAGE_MAP = {
   'tos.html': 'tos.html',
   'data-deletion.html': 'data-deletion.html',
   'dashboard.html': 'dashboard/index.html',
-  'dashboard-waba.html': 'dashboard/waba.html',
-  'waba.html': 'waba.html',
+  'dashboard-waba-create.html': 'dashboard/waba/create.html',
+  'dashboard-waba.html': 'dashboard/waba/index.html',
   'how-to/create-meta-business-portfolio-add-whatsapp-number.html': 'how-to/create-meta-business-portfolio-add-whatsapp-number.html',
   'how-to/get-whatsapp-api-for-free.html': 'how-to/get-whatsapp-api-for-free.html',
   'how-to/get-whatsapp-api-access-in-5-minutes.html': 'how-to/get-whatsapp-api-access-in-5-minutes.html',
@@ -107,8 +117,29 @@ function buildPage(pageFile) {
   return outRelPath;
 }
 
+function sourceFiles(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return sourceFiles(full);
+    return entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts') ? [full] : [];
+  });
+}
+
+function buildScripts() {
+  const entryPoints = sourceFiles(SRC_DIR);
+  esbuild.buildSync({
+    entryPoints,
+    outdir: PUBLIC_DIR,
+    outbase: SRC_DIR,
+    format: 'esm',
+    target: 'es2022',
+    logLevel: 'warning',
+  });
+  return entryPoints.map((file) => path.relative(SRC_DIR, file).replace(/\.ts$/, '.js'));
+}
+
 function main() {
-  const written = [];
+  const written = buildScripts();
   for (const pageFile of Object.keys(PAGE_MAP)) {
     const srcPath = path.join(PAGES_DIR, pageFile);
     if (!fs.existsSync(srcPath)) {

@@ -1,4 +1,5 @@
 import { hkdfSync, createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from 'node:crypto';
+import type { EncryptedToken } from './types';
 
 // The customer's Watobot API key is 32 random bytes as hex, generated in their
 // browser. We never store it. From it we derive two independent values with
@@ -9,11 +10,7 @@ import { hkdfSync, createCipheriv, createDecipheriv, randomBytes, timingSafeEqua
 const AUTH_INFO = 'watobot-api-key-auth-v1';
 const ENC_INFO = 'watobot-api-key-enc-v1';
 
-export interface EncryptedToken {
-  ciphertext: string;
-  iv: string;
-  authTag: string;
-}
+export type { EncryptedToken };
 
 export function isValidApiKey(key: unknown): key is string {
   return typeof key === 'string' && /^[0-9a-f]{64}$/.test(key);

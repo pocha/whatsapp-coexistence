@@ -3,8 +3,10 @@ import cors from 'cors';
 import { config } from './config';
 import { subscribeApp } from './graphApi';
 import { verifyEndpointChallenge } from './endpointCheck';
+import { getFirestore } from 'firebase-admin/firestore';
 import { authenticateKey } from './accounts';
 import { HttpError } from './auth';
+import type { SetWebhookRequest } from './types';
 
 const corsHandler = cors({ origin: true });
 
@@ -15,8 +17,8 @@ const corsHandler = cors({ origin: true });
 // open version of that would be an SSRF / scanning target). The stored Meta token
 // is decrypted in memory for this one request.
 //
-// Does not write to Firestore. The frontend records the new URL only if this
-// call succeeds and the user is signed in.
+// On success the new URL is recorded on the number's record, so the Dashboard can show
+// it. The browser never writes it.
 export const setWebhook = onRequest((req, res) => {
   corsHandler(req, res, async () => {
     if (req.method !== 'POST') {
@@ -24,7 +26,7 @@ export const setWebhook = onRequest((req, res) => {
       return;
     }
 
-    const { phoneNumberId, apiKey, overrideCallbackUrl } = req.body ?? {};
+    const { phoneNumberId, apiKey, overrideCallbackUrl } = (req.body ?? {}) as Partial<SetWebhookRequest>;
     if (!phoneNumberId || !apiKey || !overrideCallbackUrl) {
       res.status(400).send({ ok: false, error: 'phoneNumberId, apiKey and overrideCallbackUrl are all required' });
       return;
@@ -40,6 +42,10 @@ export const setWebhook = onRequest((req, res) => {
       }
 
       await subscribeApp(wabaId, accessToken, overrideCallbackUrl, config.webhookVerifyToken);
+      await getFirestore()
+        .collection('phoneNumbers')
+        .doc(String(phoneNumberId))
+        .update({ overrideUrl: overrideCallbackUrl, activatedAt: Date.now() });
       res.status(200).send({ ok: true });
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;

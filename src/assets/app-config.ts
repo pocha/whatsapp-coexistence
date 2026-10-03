@@ -7,6 +7,6 @@ export const META_CONFIG_ID = '3382824061895514';
 
 // Sent to every business's incoming-message URL during the verification
 // handshake, so it is not a secret. Must equal WEBHOOK_VERIFY_TOKEN in
-// functions/.env (the Functions can't import from public/). Shown on a WABA's
+// functions/.env (the Functions can't import from src/). Shown on a WABA's
 // page so the test chatbot can be configured.
 export const WEBHOOK_VERIFY_TOKEN = 'hail_watobot';
