@@ -3,8 +3,19 @@
 <!--#include partial="head"-->
 <!--#include partial="header"-->
 
+  <!-- Shown when someone is sent here from the dashboard (see waitlist.js) -->
+  <div id="waitlist-alert" role="alert" class="hidden px-gutter md:px-24 pt-6">
+    <div class="max-w-5xl mx-auto rounded-xl border !border-amber-400 !bg-amber-100 dark:!bg-amber-950 p-4 flex justify-between items-start gap-4">
+      <p class="text-amber-950 dark:text-amber-100 font-body-md">
+        We're waiting for Meta's approval, so the app isn't taking registrations
+        yet. Join the waitlist to be informed when we start.
+      </p>
+      <button id="waitlist-alert-close" type="button" aria-label="Dismiss" class="text-amber-900 dark:text-amber-200 font-bold">&times;</button>
+    </div>
+  </div>
+
   <!-- Hero -->
-  <section class="px-gutter md:px-24 py-16 md:py-24 bg-surface-container-low">
+  <section id="waitlist" class="px-gutter md:px-24 py-16 md:py-24 bg-surface-container-low">
     <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-10 md:gap-16">
       <img src="/assets/logo.png" alt="WA Coexistence logo" class="w-56 h-56 md:w-72 md:h-72 flex-shrink-0"/>
       <div class="flex flex-col gap-6 text-center md:text-left items-center md:items-start">
@@ -19,19 +30,32 @@
           using our app.
         </p>
         <div class="flex flex-wrap gap-4 justify-center md:justify-start">
-          <a id="hero-cta" href="/dashboard/" class="inline-flex items-center gap-2 rounded-xl bg-primary-container text-on-primary-container px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Try Now</a>
+          <button id="join-btn" type="button" class="inline-flex flex-col items-center rounded-xl bg-primary-container text-on-primary-container px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">
+            <span>Join Waitlist</span>
+            <span id="join-count" class="hidden text-xs font-normal opacity-80"></span>
+          </button>
           <a href="/how-to/get-whatsapp-api-access-in-5-minutes.html" class="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Know more</a>
         </div>
+        <p class="text-on-surface-variant font-body-md text-sm">Our Tech Provider app is currently waiting Meta's approval.</p>
+
       </div>
     </div>
   </section>
 
-  <script type="module">
-    import { auth, onAuthStateChanged } from '/assets/firebase-init.js';
-    onAuthStateChanged(auth, (user) => {
-      if (user) document.getElementById('hero-cta').textContent = 'Go to Dashboard';
-    });
-  </script>
+  <!-- Join Waitlist popup (opened by waitlist.js) -->
+  <dialog id="join-dialog" class="bg-white border border-outline-variant rounded-xl shadow-xl p-6 w-[90vw] max-w-lg m-auto text-left backdrop:bg-black/50">
+    <div class="flex justify-between items-start gap-4 mb-2">
+      <p class="section-title text-on-surface">Join Watobot Broadcast Google Group</p>
+      <button id="join-close" type="button" aria-label="Close" class="text-on-surface-variant hover:text-on-surface text-2xl leading-none">&times;</button>
+    </div>
+    <p class="my-3">
+      <a class="text-primary font-bold hover:underline break-all" href="https://groups.google.com/g/watobot-broadcast" target="_blank" rel="noopener">https://groups.google.com/g/watobot-broadcast</a>
+    </p>
+    <p class="text-on-surface-variant font-body-md text-sm mt-3">
+      We do NOT want to add your email to a third party or our database so that you are never stuck with unwanted emails.
+      You can leave the group whenever you want &amp; no more emails will reach you.
+    </p>
+  </dialog>
 
   <!-- Why Coexistence -->
   <section class="px-gutter md:px-24 py-16" id="why-coexistence">
@@ -72,14 +96,9 @@
         <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
           <li>The WhatsApp Business app installed, with your phone number registered on it.</li>
           <li>
-            If that number is already connected to another Tech Provider (or
-            your own Meta app), follow the
-            <a class="text-primary font-bold hover:underline" href="/how-to/migrate-existing-whatsapp-api-to-watobot.html">migration steps</a> first.
-          </li>
-          <li>
             An app (a chatbot, for example) that receives incoming messages at
-            a publicly hosted HTTPS endpoint, so we can point WhatsApp at it
-            and you can test outgoing messages through our endpoint.
+            a publicly hosted HTTPS endpoint. Ignore if you need API only for outgoing messages. If you do
+            not have app yet, you can <a class="text-primary font-bold hover:underline" href="https://github.com/pocha/whatsapp-coexistence/tree/main/test-chatbot" target="_blank">setup a test-chatbot</a>
           </li>
         </ul>
       </div>
@@ -108,7 +127,7 @@
           It's the one place we stay involved, purely so we can protect your
           number from getting banned — rate limiting and other anti-spam
           checks are <em>(upcoming)</em>. Everything else — incoming
-          messages — never touches us, and we never store your access token.
+          messages — never touches us, and <b>we never store your access token</b>.
         </p>
       </div>
     </div>
@@ -229,5 +248,7 @@
       </div>
     </div>
   </section>
+
+  <script type="module" src="/waitlist.js"></script>
 
 <!--#include partial="footer"-->

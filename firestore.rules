@@ -21,6 +21,14 @@ service cloud.firestore {
                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastRelayCall', 'usage']);
     }
 
+    // Waitlist click counter: written only by the joinWaitlist Function (Admin
+    // SDK, which bypasses rules). Anyone can read the total so pages can show
+    // it, but a browser can't change it.
+    match /meta/waitlist {
+      allow read: if true;
+      allow write: if false;
+    }
+
     function isOwner(ownerUid) {
       return request.auth != null && request.auth.uid == ownerUid;
     }
