@@ -4,13 +4,12 @@ import { fillSidebar } from '/assets/waba-sidebar.js';
 import { isValidApiKey } from '/assets/api-key.js';
 import '/assets/nav-auth.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { PhoneNumberDoc, SetWebhookRequest } from '../functions/src/types';
+import type { PhoneNumberDoc, SetWebhookRequest } from '../../../functions/src/types';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-// The page for one number, identified by ?id= in the URL (its phone number ID). It works
-// without signing in: everything it does is authorised by the Watobot API key typed at the
-// top, and it never writes to Firestore. Signed in, it also shows the sidebar, the usage
-// counts and the saved incoming-message URL.
+// The page for one number, identified by ?id= in the URL (its phone number ID). Signed-in
+// only: signed-out visitors are sent to the Dashboard's sign-in. What it does to the number
+// is authorised by the Watobot API key typed at the top, and it never writes to Firestore.
 const phoneNumberId = new URLSearchParams(location.search).get('id') ?? '';
 
 const apiKeyInput = el<HTMLInputElement>('api-key');
@@ -31,17 +30,16 @@ function isoWeekKey(d: Date) {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
-// Signed in only: the rules let just the owner read phoneNumbers/{phoneNumberId}. Anyone else
-// (or a missing record) simply gets no counts and no prefill.
-async function loadRecord() {
-  if (!auth.currentUser || !phoneNumberId) return;
+// The rules let just the owner read phoneNumbers/{phoneNumberId}. Returns false if the
+// number isn't in this account.
+async function loadRecord(): Promise<boolean> {
   let data: PhoneNumberDoc | undefined;
   try {
     data = (await getDoc(doc(db, 'phoneNumbers', phoneNumberId))).data() as PhoneNumberDoc | undefined;
   } catch {
-    return;
+    return false;
   }
-  if (!data) return;
+  if (!data) return false;
 
   if (data.wabaId) el('waba-id-line').textContent = `WABA ID: ${data.wabaId}`;
   if (data.overrideUrl && !overrideUrl.value) overrideUrl.value = data.overrideUrl;
@@ -54,6 +52,7 @@ async function loadRecord() {
     el('usage-month').textContent = String(usage.monthly?.[monthlyKey(now)] ?? 0);
     el('counts-card').classList.remove('hidden');
   }
+  return true;
 }
 
 // --- Override incoming message URL ------------------------------------------
@@ -85,9 +84,9 @@ overrideBtn.addEventListener('click', async () => {
       overrideStatus.textContent = `Not saved: ${body.error || `HTTP ${res.status}`}`;
       return;
     }
-    // The function records the URL itself; just refresh what the signed-in sidebar shows.
+    // The function records the URL itself; just refresh the sidebar.
     overrideStatus.textContent = 'Done: incoming messages now go to your URL.';
-    if (auth.currentUser) fillSidebar(auth.currentUser.uid, phoneNumberId);
+    fillSidebar(auth.currentUser!.uid, phoneNumberId);
   } catch (err) {
     overrideStatus.textContent = `Request failed: ${errorMessage(err)}`;
   } finally {
@@ -161,18 +160,18 @@ for (const [button, box] of [
 }
 
 // --- Boot ---------------------------------------------------------------------
-if (!phoneNumberId) {
-  el('no-id').classList.remove('hidden');
-} else {
-  el('number-id-line').textContent = `Phone number ID: ${phoneNumberId}`;
-  renderCommands();
-  el('key-card').classList.remove('hidden');
-  el('sections').classList.remove('hidden');
-}
-
-// Signed out, the sidebar stays hidden and there is nothing to load.
-onAuthStateChanged(auth, (user) => {
-  if (!user) return;
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    location.href = '/dashboard/';
+    return;
+  }
   fillSidebar(user.uid, phoneNumberId);
-  loadRecord();
+  el('number-id-line').textContent = `Phone number ID: ${phoneNumberId}`;
+  if (await loadRecord()) {
+    renderCommands();
+    el('key-card').classList.remove('hidden');
+    el('sections').classList.remove('hidden');
+  } else {
+    el('not-found').classList.remove('hidden');
+  }
 });

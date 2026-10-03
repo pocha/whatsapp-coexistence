@@ -6,7 +6,7 @@ import { FIRST_KEY_NOTE, NEW_KEY_NOTE, saveFirstKey, showNewKey, signOutAfterNew
 import { isValidApiKey } from '/assets/api-key.js';
 import { callAsUser, keyMatchesAccount, resetKey } from '/assets/account.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { ExchangeCodeRequest, UserDoc } from '../../functions/src/types';
+import type { ExchangeCodeRequest, UserDoc } from '../../../functions/src/types';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const fetchBtn = el<HTMLButtonElement>('fetch-btn');
@@ -79,7 +79,7 @@ async function maybeFinish() {
       phoneNumberId,
       apiKey: keyInput.value.trim(),
     } satisfies ExchangeCodeRequest);
-    location.href = `/waba.html?id=${encodeURIComponent(phoneNumberId)}`;
+    location.href = `/dashboard/waba/?id=${encodeURIComponent(phoneNumberId)}`;
   } catch (err) {
     status.textContent = `Failed: ${errorMessage(err)}`;
     exchanging = false;

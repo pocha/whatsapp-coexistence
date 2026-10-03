@@ -10,6 +10,8 @@ start-conversation.pdf
 /public/*.js
 /public/assets/*.js
 /public/dashboard/*.js
+/public/dashboard/waba/*.js
+/public/dashboard/waba/*.html
 /public/*.html
 /public/dashboard/*.html
 /public/how-to/*.html

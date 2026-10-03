@@ -49,7 +49,7 @@ export async function fillSidebar(uid: string, currentId?: string | null): Promi
   const empty = el('waba-sidebar-empty');
 
   // Highlight Onboard WABA while on its page.
-  if (location.pathname === '/dashboard/waba.html') {
+  if (location.pathname === '/dashboard/waba/create.html') {
     markActive(sidebar.querySelector('[data-nav="onboard"]')!);
   }
 
@@ -60,7 +60,7 @@ export async function fillSidebar(uid: string, currentId?: string | null): Promi
     const waba = docSnap.data() as PhoneNumberDoc;
     numbers.push({ id: docSnap.id, ...waba });
     const link = document.createElement('a');
-    link.href = `/waba.html?id=${encodeURIComponent(docSnap.id)}`;
+    link.href = `/dashboard/waba/?id=${encodeURIComponent(docSnap.id)}`;
     link.className = `${LINK} text-on-surface-variant`;
     link.title = `Phone number ID ${docSnap.id}`;
 

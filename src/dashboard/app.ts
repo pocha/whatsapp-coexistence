@@ -192,7 +192,7 @@ function renderCards(numbers: NumberRecord[]) {
 
   for (const waba of numbers) {
     const card = document.createElement('a');
-    card.href = `/waba.html?id=${encodeURIComponent(waba.id)}`;
+    card.href = `/dashboard/waba/?id=${encodeURIComponent(waba.id)}`;
     card.className = 'card p-6 hover:shadow-md transition-all flex flex-col gap-1';
 
     const row = document.createElement('div');
