@@ -10,7 +10,7 @@ Firebase Functions, Firestore and Firebase Auth.
 ### 1. Business Portfolio
 
 Create one by following steps 1 to 3 of the guide:
-[How to Create a Meta Business Portfolio & Add Your WhatsApp Number](https://watobot.com/how-to/business-portfolio.html).
+[How to Create a Meta Business Portfolio & Add Your WhatsApp Number](https://watobot.com/how-to/create-meta-business-portfolio-add-whatsapp-number.html).
 
 Stop after step 3. Skip steps 4 and 5 (adding a WhatsApp account and an app):
 that guide is written for people who are their own provider. Here, the portfolio
@@ -24,7 +24,7 @@ into migration instead of coexistence.
 ### 2. Meta app
 
 Create the app by following
-[How to Get WhatsApp API for Free](https://watobot.com/how-to/meta-app.html)
+[How to Get WhatsApp API for Free](https://watobot.com/how-to/get-whatsapp-api-for-free.html)
 (the app-creation steps; you don't need its access token section).
 
 Then collect three values:

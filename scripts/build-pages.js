@@ -31,11 +31,14 @@ const PAGE_MAP = {
   'dashboard-waba.html': 'dashboard/waba.html',
   'waba.html': 'waba.html',
   'test.html': 'test.html',
-  'how-to/business-portfolio.html': 'how-to/business-portfolio.html',
-  'how-to/meta-app.html': 'how-to/meta-app.html',
-  'how-to/whatsapp-api-access.html': 'how-to/whatsapp-api-access.html',
-  'how-to/migrate-existing-api.html': 'how-to/migrate-existing-api.html',
+  'how-to/create-meta-business-portfolio-add-whatsapp-number.html': 'how-to/create-meta-business-portfolio-add-whatsapp-number.html',
+  'how-to/get-whatsapp-api-for-free.html': 'how-to/get-whatsapp-api-for-free.html',
+  'how-to/get-whatsapp-api-access-in-5-minutes.html': 'how-to/get-whatsapp-api-access-in-5-minutes.html',
+  'how-to/migrate-existing-whatsapp-api-to-watobot.html': 'how-to/migrate-existing-whatsapp-api-to-watobot.html',
 };
+
+// Absolute site URL, used for canonical and Open Graph tags.
+const SITE_URL = 'https://watobot.com';
 
 const VAR_RE = /^<!--#var\s+([a-zA-Z0-9_]+)="([^"]*)"-->\n?/;
 const INCLUDE_RE = /<!--#include\s+partial="([a-zA-Z0-9_-]+)"-->/g;
@@ -91,10 +94,14 @@ function buildPage(pageFile) {
   const srcPath = path.join(PAGES_DIR, pageFile);
   const raw = fs.readFileSync(srcPath, 'utf8');
   const { vars, rest } = extractVars(raw);
+  const outRelPath = PAGE_MAP[pageFile];
+  // Built-in vars available to every template (e.g. the head partial's
+  // canonical and og:url): the page's public URL path, and the site origin.
+  vars.site = SITE_URL;
+  vars.path = outRelPath === 'index.html' ? '/' : `/${outRelPath}`;
   const withIncludes = resolveIncludes(rest, new Set());
   const finalHtml = substitutePlaceholders(withIncludes, vars);
 
-  const outRelPath = PAGE_MAP[pageFile];
   const outPath = path.join(PUBLIC_DIR, outRelPath);
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, finalHtml, 'utf8');
