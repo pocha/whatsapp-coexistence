@@ -1,7 +1,8 @@
 import { auth, functionsBase, onAuthStateChanged, signInWithOtpToken } from '/assets/firebase-init.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
-import { callAsUser, isValidApiKey, keyMatchesAccount } from '/assets/api-key.js';
+import { isValidApiKey, keyMatchesAccount } from '/assets/api-key.js';
+import { resetKey, rotateKey } from '/assets/account.js';
 import { NEW_KEY_NOTE, RESET_KEY_NOTE, saveFirstKey, showNewKey, signOutAfterNewKey } from '/assets/key-dialog.js';
 import { db } from '/assets/firebase-init.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
@@ -164,7 +165,7 @@ rotateBtn.addEventListener('click', async () => {
   showNewKey({
     required: false,
     note: NEW_KEY_NOTE,
-    save: (newApiKey) => callAsUser(auth, `${functionsBase()}/rotateKey`, { oldApiKey, newApiKey }),
+    save: (newApiKey) => rotateKey(auth.currentUser.uid, oldApiKey, newApiKey),
     afterSave: signOutAfterNewKey,
   });
 });
@@ -176,7 +177,7 @@ document.getElementById('reset-key-btn').addEventListener('click', async () => {
   );
   if (!ok) return;
   try {
-    await callAsUser(auth, `${functionsBase()}/resetKey`, {});
+    await resetKey(auth.currentUser.uid);
     showNewKey({ required: true, note: NEW_KEY_NOTE, save: saveFirstKey, afterSave: signOutAfterNewKey });
   } catch (err) {
     rotateStatus.textContent = `Reset failed: ${err.message}`;

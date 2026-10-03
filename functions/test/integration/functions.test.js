@@ -146,39 +146,6 @@ test('templates lists, creates and deletes through the stored token', async () =
   assert.equal(wrong.status, 401);
 });
 
-test('rotating the key keeps every token usable under the new key and kills the old one', async () => {
-  await seedNumber('901', '902');
-  const rotate = await post('/rotateKey', { oldApiKey: KEY, newApiKey: NEW_KEY }, asUser());
-  assert.equal(rotate.status, 200);
-  assert.ok((await rotate.json()).rotated >= 1);
-
-  const stored = (await db.collection('wabas').doc('901').get()).data();
-  assert.equal(decryptToken(stored.encAccessToken, NEW_KEY), META_TOKEN);
-  assert.throws(() => decryptToken(stored.encAccessToken, KEY));
-  assert.equal((await db.collection('users').doc(userId).get()).data().apiKeyHash, hashApiKey(NEW_KEY));
-
-  const oldKeyRelay = await fetch(`${FUNCTIONS_BASE}/relayMessage/901/messages`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
-    body: '{}',
-  });
-  assert.equal(oldKeyRelay.status, 401);
-
-  // Put the original key back for the tests that follow.
-  assert.equal((await post('/rotateKey', { oldApiKey: NEW_KEY, newApiKey: KEY }, asUser())).status, 200);
-});
-
-test('resetting a lost key deletes the stored tokens and the key hash', async () => {
-  await seedNumber('911', '912');
-  const reset = await post('/resetKey', {}, asUser());
-  assert.equal(reset.status, 200);
-
-  const waba = (await db.collection('wabas').doc('911').get()).data();
-  assert.equal(waba.encAccessToken, undefined);
-  assert.equal(waba.wabaId, '912', 'the record stays, only the token goes');
-  assert.equal((await db.collection('users').doc(userId).get()).data().apiKeyHash, undefined);
-});
-
 test('login: a new phone number gets a user, sets a key, and then needs that key to log in', async () => {
   const phone = '919000000099';
   const otp = async () => db.collection('otps').doc(phone).set({ code: '123456', expiresAt: Date.now() + 60_000, attempts: 0, lastSentAt: 0 });
@@ -186,7 +153,6 @@ test('login: a new phone number gets a user, sets a key, and then needs that key
   await otp();
   const first = await (await post('/verifyOtp', { phone, code: '123456' })).json();
   assert.equal(first.ok, true);
-  assert.equal(first.needsKeySetup, true);
   const index = (await db.collection('phoneIndex').doc(phone).get()).data();
   assert.ok(index.userId, 'a user is created with a random id');
   assert.equal((await db.collection('users').doc(index.userId).get()).data().phoneNumber, phone);
@@ -199,8 +165,9 @@ test('login: a new phone number gets a user, sets a key, and then needs that key
   const { idToken: newUserToken } = await signIn.json();
   const signedInAs = JSON.parse(Buffer.from(newUserToken.split('.')[1], 'base64url').toString()).user_id;
   assert.equal(signedInAs, index.userId, 'the Firebase uid is the random user id, not the phone number');
-  assert.equal((await post('/setApiKey', { apiKey: KEY }, { Authorization: `Bearer ${newUserToken}` })).status, 200);
-  assert.equal((await post('/setApiKey', { apiKey: NEW_KEY }, { Authorization: `Bearer ${newUserToken}` })).status, 409);
+  assert.ok(newUserToken, 'the custom token signs in');
+  // The user sets their own key from the browser (rules permit it); simulate that write.
+  await db.collection('users').doc(index.userId).update({ apiKeyHash: hashApiKey(KEY) });
 
   // Next login: right code alone is not enough.
   await otp();
@@ -209,5 +176,4 @@ test('login: a new phone number gets a user, sets a key, and then needs that key
   assert.equal(needsKey.needsApiKey, true);
   const withKey = await (await post('/verifyOtp', { phone, code: '123456', apiKey: KEY })).json();
   assert.equal(withKey.ok, true);
-  assert.equal(withKey.needsKeySetup, false);
 });

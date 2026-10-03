@@ -20,8 +20,6 @@ export interface VerifyOtpResult {
   token?: string;
   /** The code was right, but this account has an API key and none (or a wrong one) was sent. */
   needsApiKey?: boolean;
-  /** The account has no API key yet, so the dashboard should set one up. */
-  needsKeySetup?: boolean;
   error?: string;
 }
 
@@ -79,7 +77,7 @@ export async function verifyOtpCore(
 
   await deps.deleteOtpDoc(normalized);
   const token = await deps.mintToken(user.userId);
-  return { ok: true, token, needsKeySetup: !user.apiKeyHash };
+  return { ok: true, token };
 }
 
 export const verifyOtp = onRequest((req, res) => {

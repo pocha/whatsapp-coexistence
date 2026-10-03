@@ -3,31 +3,42 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // One doc per onboarded phone number, keyed by phoneNumberId, with the
-    // wabaId and the owning userId as fields. Created, and given its encrypted
-    // access token, only by Functions (Admin SDK, which bypasses these rules).
+    // One doc per onboarded phone number, keyed by phoneNumberId, with the wabaId and
+    // the owning userId as fields. Created by Functions (Admin SDK, which bypasses
+    // these rules) when a number is onboarded, with its Meta access token encrypted
+    // under the owner's Watobot API key.
     //
-    // The owner can read their own docs (the encrypted token is unreadable
-    // without their API key) and may change only overrideUrl and activatedAt
-    // themselves. Everything else, including lastRelayCall and usage (the basis
-    // for billing) and the token, is Function-written.
+    // The owner manages their own records from the browser: they can read them, delete
+    // them, and change overrideUrl, activatedAt and encAccessToken (re-encrypting it
+    // when they rotate their key, or clearing it when they reset a lost one). They can't
+    // touch anything else: not userId, and not lastRelayCall or usage, which are written
+    // only by the relay and are the basis for billing. The token is useless to anyone
+    // without the owner's key, so a stolen session can at worst break the owner's own
+    // records, never read the token.
     match /wabas/{phoneNumberId} {
-      allow read: if isOwner(resource.data.userId);
+      allow read, delete: if isOwner(resource.data.userId);
 
       allow update: if isOwner(resource.data.userId)
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['overrideUrl', 'activatedAt']);
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['overrideUrl', 'activatedAt', 'encAccessToken']);
     }
 
-    // A user can read their own doc, so the page can compare a typed API key with
-    // apiKeyHash for instant feedback (the hash can't decrypt anything: it is
-    // derived under a different label than the encryption key). Writes are
-    // Function-only, and the Functions re-check the key themselves every time.
+    // The user record is created by Functions at first sign-in. The owner can read it
+    // (the page compares a typed API key with apiKeyHash for instant feedback; the hash
+    // can't decrypt anything) and delete it, and can set or clear apiKeyHash.
     match /users/{userId} {
-      allow read: if isOwner(userId);
+      allow read, delete: if isOwner(userId);
+
+      allow update: if isOwner(userId)
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['apiKeyHash', 'rotatedAt']);
     }
 
-    // phoneIndex/{phone} and otps/{phone} have no rules, so no browser can read or
-    // write them: they are touched by Functions only.
+    // phoneIndex maps a sign-in phone number to its user. Only Functions create it; an
+    // owner can delete their own entry when they delete their account.
+    match /phoneIndex/{phone} {
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // otps/{phone} has no rules, so no browser can read or write it.
 
     // Waitlist click counter: written only by the joinWaitlist Function (Admin
     // SDK, which bypasses rules). Anyone can read the total so pages can show

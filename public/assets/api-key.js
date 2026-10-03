@@ -8,20 +8,48 @@ export function generateApiKey() {
 
 export const isValidApiKey = (key) => /^[0-9a-f]{64}$/.test(key ?? '');
 
-// Must stay identical to hashApiKey in functions/src/apiKey.ts (a unit test checks
-// that they agree). Used only to give instant feedback on a typed key by comparing
-// it with the user's stored apiKeyHash; the server still checks the key itself.
+// These must stay identical to hashApiKey / encryptToken / decryptToken in
+// functions/src/apiKey.ts (unit tests check both directions). The browser hashes a typed
+// key to compare it with the user's stored apiKeyHash, and re-encrypts the stored Meta
+// tokens when the key is rotated.
 const AUTH_INFO = 'watobot-api-key-auth-v1';
+const ENC_INFO = 'watobot-api-key-enc-v1';
 
-export async function hashApiKey(apiKey) {
-  const bytes = Uint8Array.from(apiKey.match(/../g), (h) => parseInt(h, 16));
-  const ikm = await crypto.subtle.importKey('raw', bytes, 'HKDF', false, ['deriveBits']);
+const hexToBytes = (hex) => Uint8Array.from(hex.match(/../g), (h) => parseInt(h, 16));
+const toBase64 = (bytes) => btoa(String.fromCharCode(...bytes));
+const fromBase64 = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+
+async function derive(apiKey, info, algorithm, usages) {
+  const ikm = await crypto.subtle.importKey('raw', hexToBytes(apiKey), 'HKDF', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits(
-    { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0), info: new TextEncoder().encode(AUTH_INFO) },
+    { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(0), info: new TextEncoder().encode(info) },
     ikm,
     256,
   );
-  return Array.from(new Uint8Array(bits), (b) => b.toString(16).padStart(2, '0')).join('');
+  return algorithm ? crypto.subtle.importKey('raw', bits, algorithm, false, usages) : bits;
+}
+
+export async function hashApiKey(apiKey) {
+  return Array.from(new Uint8Array(await derive(apiKey, AUTH_INFO)), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// The stored form splits AES-GCM's output into ciphertext and authTag (WebCrypto joins them).
+export async function encryptToken(accessToken, apiKey) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await derive(apiKey, ENC_INFO, 'AES-GCM', ['encrypt']);
+  const sealed = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(accessToken)));
+  return {
+    ciphertext: toBase64(sealed.slice(0, -16)),
+    iv: toBase64(iv),
+    authTag: toBase64(sealed.slice(-16)),
+  };
+}
+
+/** Throws if the key is wrong or the data was tampered with. */
+export async function decryptToken(enc, apiKey) {
+  const key = await derive(apiKey, ENC_INFO, 'AES-GCM', ['decrypt']);
+  const sealed = new Uint8Array([...fromBase64(enc.ciphertext), ...fromBase64(enc.authTag)]);
+  return new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromBase64(enc.iv) }, key, sealed));
 }
 
 /** True if `apiKey` matches the signed-in user's stored hash (read from their own user doc). */

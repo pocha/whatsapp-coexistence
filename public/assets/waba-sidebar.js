@@ -1,8 +1,8 @@
 // Fills the shared sidebar (views/partials/waba-sidebar.html) with the signed-in
 // user's onboarded WABAs, wires up its Delete account button, and returns the
 // WABA records. Callers only invoke this when someone is signed in.
-import { auth, db, functionsBase, signOutUser } from './firebase-init.js';
-import { callAsUser } from './api-key.js';
+import { auth, db, signOutUser } from './firebase-init.js';
+import { deleteAccount } from './account.js';
 import {
   collection,
   query,
@@ -27,7 +27,7 @@ function wireDelete() {
     if (!auth.currentUser) return;
     if (!confirm('Delete your account? This removes your numbers and the access tokens we hold for them from our records. It cannot be undone.')) return;
     try {
-      await callAsUser(auth, `${functionsBase()}/deleteMyAccount`, {});
+      await deleteAccount(auth.currentUser.uid);
     } catch (err) {
       alert(`Could not delete your account: ${err.message}`);
       return;

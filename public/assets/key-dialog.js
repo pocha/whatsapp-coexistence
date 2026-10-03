@@ -1,7 +1,8 @@
 // The "here is your new API key" popup, shared by the dashboard and the onboarding
 // page (markup: views/partials/key-dialog.html).
-import { auth, functionsBase, signOutUser } from './firebase-init.js';
-import { callAsUser, generateApiKey } from './api-key.js';
+import { auth, signOutUser } from './firebase-init.js';
+import { generateApiKey } from './api-key.js';
+import { setFirstKey } from './account.js';
 
 /**
  * Generates a key in the browser and shows it. `save(key)` runs when the user clicks
@@ -49,7 +50,7 @@ export const NEW_KEY_NOTE =
 export const RESET_KEY_NOTE = 'Your old key no longer works. Keep this one safe: you will need it to sign in.';
 
 /** Saves the hash of a brand-new key (the account has none yet). */
-export const saveFirstKey = (key) => callAsUser(auth, `${functionsBase()}/setApiKey`, { apiKey: key });
+export const saveFirstKey = (key) => setFirstKey(auth.currentUser.uid, key);
 
 /** After creating or replacing a key, the user is signed out so they must type it to get back in. */
 export const signOutAfterNewKey = () => signOutUser().catch(() => undefined);

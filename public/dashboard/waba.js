@@ -4,6 +4,7 @@ import { fillSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
 import { FIRST_KEY_NOTE, NEW_KEY_NOTE, saveFirstKey, showNewKey, signOutAfterNewKey } from '/assets/key-dialog.js';
 import { callAsUser, isValidApiKey, keyMatchesAccount } from '/assets/api-key.js';
+import { resetKey } from '/assets/account.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const fetchBtn = document.getElementById('fetch-btn');
@@ -52,7 +53,7 @@ document.getElementById('lost-key-btn').addEventListener('click', async () => {
   );
   if (!ok) return;
   try {
-    await callAsUser(auth, `${functionsBase()}/resetKey`, {});
+    await resetKey(auth.currentUser.uid);
     showNewKey({ required: true, note: NEW_KEY_NOTE, save: saveFirstKey, afterSave: signOutAfterNewKey });
   } catch (err) {
     status.textContent = `Reset failed: ${err.message}`;
