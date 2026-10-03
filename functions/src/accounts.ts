@@ -1,15 +1,17 @@
+import { onRequest } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { HttpError } from './auth';
+import cors from 'cors';
+import { HttpError, requireAuth } from './auth';
 import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKey, type EncryptedToken } from './apiKey';
 
 // Data model:
 //   users/{userId}           phoneNumber, apiKeyHash, createdAt, rotatedAt
 //   phoneIndex/{phone}       userId (makes phone -> user creation race-free)
-//   phoneNumbers/{phoneNumberId}    userId, wabaId, phoneNumberId, encAccessToken, ...
-// Functions create these and run the relay, webhook, onboarding and key rotation. The user
-// manages the rest of their account from the browser (see public/assets/account.js and
-// firestore.rules); resetApiKey and setFirstApiKey stay here for the sign-in reset and for
-// scripts/seed-test-waba.js.
+//   phoneNumbers/{phoneNumberId}  userId, wabaId, phoneNumberId, encAccessToken, ...
+// Functions create these and run the relay, webhook, onboarding and key rotation (rotateKey,
+// below). The user manages the rest of their account from the browser (see
+// public/assets/account.js and firestore.rules); resetApiKey and setFirstApiKey stay here for
+// the sign-in reset and for scripts/seed-test-waba.js.
 
 export interface UserRecord {
   userId: string;
@@ -135,3 +137,44 @@ export async function resetApiKey(userId: string): Promise<number> {
   await batch.commit();
   return wiped;
 }
+
+const corsHandler = cors({ origin: true });
+
+// Replaces the signed-in user's API key. Needs the current key; every stored Meta token is
+// re-encrypted under the new one, and the new hash is saved, in one atomic batch. This runs
+// server-side so the plaintext token is only ever in this function's memory, never in the browser.
+export const rotateKey = onRequest((req, res) => {
+  corsHandler(req, res, async () => {
+    if (req.method !== 'POST') {
+      res.status(405).send({ ok: false, error: 'Use POST' });
+      return;
+    }
+
+    try {
+      const userId = await requireAuth(req);
+      const { oldApiKey, newApiKey } = req.body ?? {};
+      await requireUserKey(userId, oldApiKey);
+      if (!isValidApiKey(newApiKey)) throw new HttpError(400, 'That is not a valid new API key.');
+
+      const db = getFirestore();
+      const batch = db.batch();
+      (await numbersOf(userId)).forEach((snap) => {
+        const enc = snap.data().encAccessToken as EncryptedToken | undefined;
+        if (!enc) return;
+        let token: string;
+        try {
+          token = decryptToken(enc, oldApiKey);
+        } catch {
+          throw new HttpError(500, 'Could not decrypt a stored access token.');
+        }
+        batch.update(snap.ref, { encAccessToken: encryptToken(token, newApiKey) });
+      });
+      batch.update(db.collection('users').doc(userId), { apiKeyHash: hashApiKey(newApiKey), rotatedAt: Date.now() });
+      await batch.commit();
+      res.status(200).send({ ok: true });
+    } catch (err) {
+      const status = err instanceof HttpError ? err.status : 502;
+      res.status(status).send({ ok: false, error: (err as Error).message });
+    }
+  });
+});
