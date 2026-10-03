@@ -20,3 +20,6 @@ wa-coexistence-firebase-adminsdk-fbsvc-c3af518531.json
 functions/lib/
 functions/node_modules/
 .firebase/
+
+# Review/screen-recording videos stay local
+*.mov
