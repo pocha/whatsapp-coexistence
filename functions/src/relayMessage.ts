@@ -3,6 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { graphApiBase } from './graphApi';
+import { authenticateKey } from './accounts';
+import { HttpError } from './auth';
 
 export function dailyKey(d: Date): string {
   return d.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -25,33 +27,35 @@ const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json());
 
-// The actual product: a stateless proxy in front of Meta's own
-// /{phone-number-id}/messages endpoint. The caller supplies their OWN
-// permanent WhatsApp access token (via Authorization) on every call — we
-// never store it, just forward it straight through to Meta alongside their
-// message body. That's what keeps this consistent with "no token storage":
-// the token never outlives a single request.
+// The actual product: a proxy in front of Meta's own /{phone-number-id}/messages
+// endpoint. The caller authenticates with their Watobot API key, not a Meta
+// token. We find their number, check the key, decrypt the Meta token we hold for
+// it (in memory, for this request only) and forward the message body untouched.
 //
-// This is intentionally a dumb passthrough for now. Rate limiting and
-// per-recipient serialization (the reasons to route sends through us at
-// all, instead of calling Meta directly) are upcoming — see README.
-//
-// Attribution for billing doesn't need a separate API key: Meta itself only
-// lets a token successfully send through a phoneNumberId it's actually
-// authorized for, so a successful call already proves the caller controls
-// that number. We just look up wabas/{phoneNumberId} to find who to credit.
+// Because every send passes through here, usage is counted reliably, and rate
+// limiting and per-recipient serialization (upcoming, see README) can be added
+// in this one place.
 app.post('/:phoneNumberId/messages', async (req, res) => {
   const { phoneNumberId } = req.params;
   const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    res.status(401).send({ error: 'Missing Authorization: Bearer <your WhatsApp access token>' });
+  const key = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+  if (!key) {
+    res.status(401).send({ error: 'Missing Authorization: Bearer <your Watobot API key>' });
+    return;
+  }
+
+  let accessToken: string;
+  try {
+    ({ accessToken } = await authenticateKey(phoneNumberId, key));
+  } catch (err) {
+    res.status(err instanceof HttpError ? err.status : 502).send({ error: (err as Error).message });
     return;
   }
 
   const metaRes = await fetch(`${graphApiBase()}/${phoneNumberId}/messages`, {
     method: 'POST',
     headers: {
-      Authorization: authHeader,
+      Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(req.body),
@@ -59,15 +63,10 @@ app.post('/:phoneNumberId/messages', async (req, res) => {
   });
   const body = await metaRes.json();
 
-  // Metadata only — timestamp + outcome, never the message content or
-  // token — and only successful sends count toward billable usage.
-  //
-  // Records are keyed by WABA id, so the one for this phone number is found by
-  // its phoneNumberId field. Uses update() rather than set(merge:true) on
-  // purpose: it only touches a record that already exists, so a probe with a
-  // bogus phoneNumberId can't pollute Firestore with orphan ownerUid-less
-  // documents. Any failure is swallowed — bookkeeping is best-effort and
-  // shouldn't affect the response the caller sees.
+  // Metadata only — timestamp + outcome, never the message content or any
+  // token — and only successful sends count toward billable usage. Uses update()
+  // so a failure never creates a record. Any failure is swallowed: bookkeeping
+  // is best-effort and shouldn't affect the response the caller sees.
   const now = new Date();
   const update: Record<string, unknown> = {
     lastRelayCall: { at: now.getTime(), ok: metaRes.ok, statusCode: metaRes.status },
@@ -78,14 +77,9 @@ app.post('/:phoneNumberId/messages', async (req, res) => {
     update[`usage.monthly.${monthlyKey(now)}`] = FieldValue.increment(1);
   }
   try {
-    const match = await getFirestore()
-      .collection('wabas')
-      .where('phoneNumberId', '==', phoneNumberId)
-      .limit(1)
-      .get();
-    if (!match.empty) await match.docs[0].ref.update(update);
+    await getFirestore().collection('wabas').doc(phoneNumberId).update(update);
   } catch {
-    // No record for this number — nothing to record against.
+    // No record to update.
   }
 
   res.status(metaRes.status).send(body);

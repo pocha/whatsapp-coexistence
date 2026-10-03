@@ -3,23 +3,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // One doc per onboarded WABA, keyed by wabaId, with the phoneNumberId the
-    // relay looks it up by stored as a field.
+    // One doc per onboarded phone number, keyed by phoneNumberId, with the
+    // wabaId and the owning userId as fields. Created, and given its encrypted
+    // access token, only by Functions (Admin SDK, which bypasses these rules).
     //
-    // Trust boundary: the owner can read/write everything about their own
-    // WABA EXCEPT lastRelayCall and usage — those are written only by the
-    // relay Cloud Function (Admin SDK, bypasses these rules entirely),
-    // because they're the basis for billing and must not be client-editable.
-    match /wabas/{wabaId} {
-      allow read, delete: if isOwner(resource.data.ownerUid);
+    // The owner can read their own docs (the encrypted token is unreadable
+    // without their API key) and may change only overrideUrl and activatedAt
+    // themselves. Everything else, including lastRelayCall and usage (the basis
+    // for billing) and the token, is Function-written.
+    match /wabas/{phoneNumberId} {
+      allow read: if isOwner(resource.data.userId);
 
-      allow create: if isOwner(request.resource.data.ownerUid)
-                    && !request.resource.data.keys().hasAny(['lastRelayCall', 'usage']);
-
-      allow update: if isOwner(resource.data.ownerUid)
-                    && request.resource.data.ownerUid == resource.data.ownerUid
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastRelayCall', 'usage']);
+      allow update: if isOwner(resource.data.userId)
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['overrideUrl', 'activatedAt']);
     }
+
+    // users/{userId}, phoneIndex/{phone} and otps/{phone} have no rules, so no
+    // browser can read or write them: they are touched by Functions only.
 
     // Waitlist click counter: written only by the joinWaitlist Function (Admin
     // SDK, which bypasses rules). Anyone can read the total so pages can show

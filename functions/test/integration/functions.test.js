@@ -1,24 +1,42 @@
 const { test, before } = require('node:test');
 const assert = require('node:assert/strict');
 
-const fs = require('node:fs');
-const path = require('node:path');
-
 const PROJECT_ID = 'wa-coexistence';
 const AUTH_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9099';
 const FUNCTIONS_BASE = `http://127.0.0.1:5001/${PROJECT_ID}/us-central1`;
 
-// Whatever's actually configured in functions/.env — real or placeholder,
-// this test shouldn't assume one or the other, just match what's there.
-const envFile = fs.readFileSync(path.join(__dirname, '..', '..', '.env'), 'utf8');
-const WEBHOOK_VERIFY_TOKEN = envFile.match(/^WEBHOOK_VERIFY_TOKEN=(.*)$/m)[1].trim();
+const { hashApiKey, encryptToken, decryptToken } = require('../../lib/apiKey');
 
-let idToken;
+const KEY = '0123456789abcdef'.repeat(4);
+const NEW_KEY = 'fedcba9876543210'.repeat(4);
+const BUSINESS_ENDPOINT = 'http://127.0.0.1:9905/business-endpoint';
+const META_TOKEN = 'stub-access-token';
+
 let admin;
 let db;
+let idToken;
+let userId;
+
+const post = (path, body, headers = {}) =>
+  fetch(`${FUNCTIONS_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify(body),
+  });
+
+const asUser = () => ({ Authorization: `Bearer ${idToken}` });
+
+async function seedNumber(phoneNumberId, wabaId, key = KEY) {
+  await db.collection('wabas').doc(phoneNumberId).set({
+    userId,
+    wabaId,
+    phoneNumberId,
+    encAccessToken: encryptToken(META_TOKEN, key),
+  });
+}
 
 before(async () => {
-  // Mint a real ID token against the Auth emulator's REST API.
+  // A signed-in user, via the Auth emulator's REST API.
   const signUp = await fetch(
     `http://${AUTH_HOST}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key`,
     {
@@ -27,118 +45,169 @@ before(async () => {
       body: JSON.stringify({ email: 'test@example.com', password: 'password123', returnSecureToken: true }),
     },
   );
-  const signUpBody = await signUp.json();
-  assert.ok(signUpBody.idToken, `expected idToken in signUp response, got: ${JSON.stringify(signUpBody)}`);
-  idToken = signUpBody.idToken;
+  const body = await signUp.json();
+  assert.ok(body.idToken, `expected idToken, got: ${JSON.stringify(body)}`);
+  idToken = body.idToken;
+  userId = body.localId;
 
   admin = require('firebase-admin');
   admin.initializeApp({ projectId: PROJECT_ID });
   db = admin.firestore();
+  await db.collection('users').doc(userId).set({ phoneNumber: '919000000001', apiKeyHash: hashApiKey(KEY), createdAt: 1 });
 });
 
 test('webhook GET verify handshake echoes the challenge for a matching token', async () => {
-  const url =
-    `${FUNCTIONS_BASE}/webhook?hub.mode=subscribe&hub.verify_token=${WEBHOOK_VERIFY_TOKEN}&hub.challenge=abc123`;
-  const res = await fetch(url);
-  const text = await res.text();
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const env = fs.readFileSync(path.join(__dirname, '..', '..', '.env'), 'utf8');
+  const verifyToken = env.match(/^WEBHOOK_VERIFY_TOKEN=(.*)$/m)[1].trim();
+  const res = await fetch(`${FUNCTIONS_BASE}/webhook?hub.mode=subscribe&hub.verify_token=${verifyToken}&hub.challenge=abc123`);
   assert.equal(res.status, 200);
-  assert.equal(text, 'abc123');
+  assert.equal(await res.text(), 'abc123');
 });
 
-test('exchangeCode returns the access token to a signed-in caller', async () => {
-  const res = await fetch(`${FUNCTIONS_BASE}/exchangeCode`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-    body: JSON.stringify({ code: 'fake-signup-code' }),
-  });
-  assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { ok: true, accessToken: 'stub-access-token' });
-});
-
-test('exchangeCode rejects a caller who is not signed in', async () => {
-  const res = await fetch(`${FUNCTIONS_BASE}/exchangeCode`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: 'fake-signup-code' }),
-  });
-  assert.equal(res.status, 401);
-});
-
-const BUSINESS_ENDPOINT = 'http://127.0.0.1:9905/business-endpoint';
-
-test('setWebhook verifies the token and the endpoint, then subscribes, with no sign-in', async () => {
-  const res = await fetch(`${FUNCTIONS_BASE}/setWebhook`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      wabaId: 'waba-integration-test',
-      accessToken: 'valid-user-token',
-      overrideCallbackUrl: BUSINESS_ENDPOINT,
-    }),
-  });
-  assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { ok: true });
-});
-
-test('setWebhook refuses an access token Meta does not accept', async () => {
-  const res = await fetch(`${FUNCTIONS_BASE}/setWebhook`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      wabaId: 'waba-integration-test',
-      accessToken: 'some-other-token',
-      overrideCallbackUrl: BUSINESS_ENDPOINT,
-    }),
-  });
-  assert.equal(res.status, 401);
-});
-
-test('setWebhook refuses an endpoint that does not answer the handshake', async () => {
-  const res = await fetch(`${FUNCTIONS_BASE}/setWebhook`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      wabaId: 'waba-integration-test',
-      accessToken: 'valid-user-token',
-      overrideCallbackUrl: 'http://127.0.0.1:9905/not-an-endpoint',
-    }),
-  });
-  assert.equal(res.status, 400);
-  const body = await res.json();
-  assert.equal(body.ok, false);
-});
-
-test('relayMessage proxies a send through the stub and records usage against the WABA doc', async () => {
-  const phoneNumberId = 'phone-relay-test';
-  const wabaId = 'waba-relay-test';
-  const ownerUid = 'owner-for-relay-test';
-
-  await db.collection('wabas').doc(wabaId).set({
-    ownerUid,
-    wabaId,
-    phoneNumberId,
-    overrideUrl: 'https://business.example.com/webhook',
-  });
-
-  const res = await fetch(`${FUNCTIONS_BASE}/relayMessage/${phoneNumberId}/messages`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer any-whatsapp-token' },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to: '15551234567',
-      type: 'text',
-      text: { body: 'hello from the integration test' },
-    }),
-  });
+test('exchangeCode stores the Meta token encrypted under the API key and never returns it', async () => {
+  const res = await post(
+    '/exchangeCode',
+    { code: 'fake-signup-code', wabaId: '111', phoneNumberId: '222', apiKey: KEY },
+    asUser(),
+  );
   const body = await res.json();
   assert.equal(res.status, 200);
-  assert.equal(body.messages[0].id, 'wamid.stub-message-id');
+  assert.equal(JSON.stringify(body).includes(META_TOKEN), false, 'the token must not be in the response');
 
-  const doc = await db.collection('wabas').doc(wabaId).get();
-  const data = doc.data();
+  const stored = (await db.collection('wabas').doc('222').get()).data();
+  assert.equal(stored.userId, userId);
+  assert.equal(stored.wabaId, '111');
+  assert.equal(JSON.stringify(stored).includes(META_TOKEN), false, 'the token must not be stored in the clear');
+  assert.equal(decryptToken(stored.encAccessToken, KEY), META_TOKEN);
+  assert.throws(() => decryptToken(stored.encAccessToken, NEW_KEY));
+});
+
+test('exchangeCode refuses a wrong API key and an unauthenticated caller', async () => {
+  const body = { code: 'c', wabaId: '111', phoneNumberId: '223', apiKey: NEW_KEY };
+  assert.equal((await post('/exchangeCode', body, asUser())).status, 401);
+  assert.equal((await post('/exchangeCode', { ...body, apiKey: KEY })).status, 401);
+  assert.equal((await db.collection('wabas').doc('223').get()).exists, false);
+});
+
+test('setWebhook needs the API key, then verifies the endpoint and subscribes, with no sign-in', async () => {
+  await seedNumber('333', '444');
+  const ok = await post('/setWebhook', { phoneNumberId: '333', apiKey: KEY, overrideCallbackUrl: BUSINESS_ENDPOINT });
+  assert.equal(ok.status, 200);
+  assert.deepEqual(await ok.json(), { ok: true });
+
+  const wrongKey = await post('/setWebhook', { phoneNumberId: '333', apiKey: NEW_KEY, overrideCallbackUrl: BUSINESS_ENDPOINT });
+  assert.equal(wrongKey.status, 401);
+
+  const badEndpoint = await post('/setWebhook', {
+    phoneNumberId: '333',
+    apiKey: KEY,
+    overrideCallbackUrl: 'http://127.0.0.1:9905/not-an-endpoint',
+  });
+  assert.equal(badEndpoint.status, 400);
+});
+
+test('relayMessage authenticates with the API key, sends with the decrypted Meta token, and records usage', async () => {
+  await seedNumber('555', '666');
+  const send = (key) =>
+    fetch(`${FUNCTIONS_BASE}/relayMessage/555/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to: '15551234567', type: 'text', text: { body: 'hi' } }),
+    });
+
+  const res = await send(KEY);
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).messages[0].id, 'wamid.stub-message-id');
+  assert.equal((await send(NEW_KEY)).status, 401);
+
+  const data = (await db.collection('wabas').doc('555').get()).data();
   assert.equal(data.lastRelayCall.ok, true);
-  assert.equal(data.lastRelayCall.statusCode, 200);
+  assert.equal(data.usage.daily[new Date().toISOString().slice(0, 10)], 1);
+});
 
-  const today = new Date().toISOString().slice(0, 10);
-  assert.equal(data.usage.daily[today], 1);
+test('templates lists, creates and deletes through the stored token', async () => {
+  await seedNumber('777', '888');
+  const call = (method, query = '', body) =>
+    fetch(`${FUNCTIONS_BASE}/templates/777${query}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+  const list = await call('GET');
+  assert.equal(list.status, 200);
+  assert.equal((await list.json()).data[0].name, 'stub_template');
+  assert.equal((await call('POST', '', { name: 'x', category: 'UTILITY', language: 'en_US', components: [] })).status, 200);
+  assert.equal((await call('DELETE', '?name=x')).status, 200);
+
+  const wrong = await fetch(`${FUNCTIONS_BASE}/templates/777`, { headers: { Authorization: `Bearer ${NEW_KEY}` } });
+  assert.equal(wrong.status, 401);
+});
+
+test('rotating the key keeps every token usable under the new key and kills the old one', async () => {
+  await seedNumber('901', '902');
+  const rotate = await post('/rotateKey', { oldApiKey: KEY, newApiKey: NEW_KEY }, asUser());
+  assert.equal(rotate.status, 200);
+  assert.ok((await rotate.json()).rotated >= 1);
+
+  const stored = (await db.collection('wabas').doc('901').get()).data();
+  assert.equal(decryptToken(stored.encAccessToken, NEW_KEY), META_TOKEN);
+  assert.throws(() => decryptToken(stored.encAccessToken, KEY));
+  assert.equal((await db.collection('users').doc(userId).get()).data().apiKeyHash, hashApiKey(NEW_KEY));
+
+  const oldKeyRelay = await fetch(`${FUNCTIONS_BASE}/relayMessage/901/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
+    body: '{}',
+  });
+  assert.equal(oldKeyRelay.status, 401);
+
+  // Put the original key back for the tests that follow.
+  assert.equal((await post('/rotateKey', { oldApiKey: NEW_KEY, newApiKey: KEY }, asUser())).status, 200);
+});
+
+test('resetting a lost key deletes the stored tokens and the key hash', async () => {
+  await seedNumber('911', '912');
+  const reset = await post('/resetKey', {}, asUser());
+  assert.equal(reset.status, 200);
+
+  const waba = (await db.collection('wabas').doc('911').get()).data();
+  assert.equal(waba.encAccessToken, undefined);
+  assert.equal(waba.wabaId, '912', 'the record stays, only the token goes');
+  assert.equal((await db.collection('users').doc(userId).get()).data().apiKeyHash, undefined);
+});
+
+test('login: a new phone number gets a user, sets a key, and then needs that key to log in', async () => {
+  const phone = '919000000099';
+  const otp = async () => db.collection('otps').doc(phone).set({ code: '123456', expiresAt: Date.now() + 60_000, attempts: 0, lastSentAt: 0 });
+
+  await otp();
+  const first = await (await post('/verifyOtp', { phone, code: '123456' })).json();
+  assert.equal(first.ok, true);
+  assert.equal(first.needsKeySetup, true);
+  const index = (await db.collection('phoneIndex').doc(phone).get()).data();
+  assert.ok(index.userId, 'a user is created with a random id');
+  assert.equal((await db.collection('users').doc(index.userId).get()).data().phoneNumber, phone);
+
+  // The custom token signs in as that user, who can then set their key.
+  const signIn = await fetch(
+    `http://${AUTH_HOST}/identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=fake-api-key`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: first.token, returnSecureToken: true }) },
+  );
+  const { idToken: newUserToken } = await signIn.json();
+  const signedInAs = JSON.parse(Buffer.from(newUserToken.split('.')[1], 'base64url').toString()).user_id;
+  assert.equal(signedInAs, index.userId, 'the Firebase uid is the random user id, not the phone number');
+  assert.equal((await post('/setApiKey', { apiKey: KEY }, { Authorization: `Bearer ${newUserToken}` })).status, 200);
+  assert.equal((await post('/setApiKey', { apiKey: NEW_KEY }, { Authorization: `Bearer ${newUserToken}` })).status, 409);
+
+  // Next login: right code alone is not enough.
+  await otp();
+  const needsKey = await (await post('/verifyOtp', { phone, code: '123456' })).json();
+  assert.equal(needsKey.ok, false);
+  assert.equal(needsKey.needsApiKey, true);
+  const withKey = await (await post('/verifyOtp', { phone, code: '123456', apiKey: KEY })).json();
+  assert.equal(withKey.ok, true);
+  assert.equal(withKey.needsKeySetup, false);
 });
