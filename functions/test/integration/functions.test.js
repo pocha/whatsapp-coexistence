@@ -111,6 +111,8 @@ test('setWebhook needs the API key, then verifies the endpoint and subscribes, w
   const ok = await post('/setWebhook', { phoneNumberId: '333', apiKey: KEY, overrideCallbackUrl: BUSINESS_ENDPOINT });
   assert.equal(ok.status, 200);
   assert.deepEqual(await ok.json(), { ok: true });
+  const saved = (await db.collection('phoneNumbers').doc('333').get()).data();
+  assert.equal(saved.overrideUrl, BUSINESS_ENDPOINT, 'the function records the URL itself');
 
   const wrongKey = await post('/setWebhook', { phoneNumberId: '333', apiKey: NEW_KEY, overrideCallbackUrl: BUSINESS_ENDPOINT });
   assert.equal(wrongKey.status, 401);

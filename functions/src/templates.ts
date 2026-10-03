@@ -9,7 +9,7 @@ const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json());
 
-// Message template create / list / delete for a number's WABA, using the stored
+// Message template list / create / edit / delete for a number's WABA, using the stored
 // Meta token. Same auth as the relay: `Authorization: Bearer <Watobot API key>`.
 // Meta's response and status are returned unchanged.
 async function forward(
@@ -18,6 +18,7 @@ async function forward(
   method: 'GET' | 'POST' | 'DELETE',
   query: string,
   body?: unknown,
+  templateId?: string,
 ) {
   const key = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : undefined;
   if (!key) {
@@ -26,7 +27,9 @@ async function forward(
   }
   try {
     const { wabaId, accessToken } = await authenticateKey(req.params.phoneNumberId, key);
-    const metaRes = await fetch(`${graphApiBase()}/${wabaId}/message_templates${query}`, {
+    // Editing posts to the template's own id; everything else works on the WABA's collection.
+    const target = templateId ?? `${wabaId}/message_templates`;
+    const metaRes = await fetch(`${graphApiBase()}/${target}${query}`, {
       method,
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -42,6 +45,13 @@ app.get('/:phoneNumberId', (req, res) =>
   forward(req, res, 'GET', '?fields=id,name,status,category,language,components&limit=100'),
 );
 app.post('/:phoneNumberId', (req, res) => forward(req, res, 'POST', '', req.body));
+app.post('/:phoneNumberId/:templateId', (req, res) => {
+  if (!/^\d+$/.test(req.params.templateId)) {
+    res.status(400).send({ error: 'The template id is the number from the list response.' });
+    return;
+  }
+  forward(req, res, 'POST', '', req.body, req.params.templateId);
+});
 app.delete('/:phoneNumberId', (req, res) =>
   forward(req, res, 'DELETE', `?name=${encodeURIComponent(String(req.query.name ?? ''))}`),
 );

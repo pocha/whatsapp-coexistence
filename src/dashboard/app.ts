@@ -1,28 +1,28 @@
 import { auth, functionsBase, onAuthStateChanged, signInWithOtpToken } from '/assets/firebase-init.js';
-import { fillSidebar } from '/assets/waba-sidebar.js';
+import { fillSidebar, type NumberRecord } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
-import { isValidApiKey, keyMatchesAccount } from '/assets/api-key.js';
-import { resetKey, rotateKey } from '/assets/account.js';
+import { isValidApiKey } from '/assets/api-key.js';
+import { keyMatchesAccount, resetKey, rotateKey } from '/assets/account.js';
+import { el, errorMessage } from '/assets/dom.js';
+import type { VerifyOtpRequest, VerifyOtpResponse, SendOtpResponse } from '../../functions/src/types';
 import { NEW_KEY_NOTE, RESET_KEY_NOTE, saveFirstKey, showNewKey, signOutAfterNewKey } from '/assets/key-dialog.js';
-import { db } from '/assets/firebase-init.js';
-import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const signedOutEl = document.getElementById('signed-out');
-const signedInEl = document.getElementById('signed-in');
-const phoneStepEl = document.getElementById('phone-step');
-const codeStepEl = document.getElementById('code-step');
-const phoneInput = document.getElementById('phone-input');
-const codeInput = document.getElementById('code-input');
-const sendOtpBtn = document.getElementById('send-otp-btn');
-const verifyOtpBtn = document.getElementById('verify-otp-btn');
-const loginStatus = document.getElementById('login-status');
-const keyStepEl = document.getElementById('key-step');
-const keyInput = document.getElementById('key-input');
-const keyBtn = document.getElementById('key-btn');
-const lostKeyBtn = document.getElementById('lost-key-btn');
+const signedOutEl = el('signed-out');
+const signedInEl = el('signed-in');
+const phoneStepEl = el('phone-step');
+const codeStepEl = el('code-step');
+const phoneInput = el<HTMLInputElement>('phone-input');
+const codeInput = el<HTMLInputElement>('code-input');
+const sendOtpBtn = el<HTMLButtonElement>('send-otp-btn');
+const verifyOtpBtn = el<HTMLButtonElement>('verify-otp-btn');
+const loginStatus = el('login-status');
+const keyStepEl = el('key-step');
+const keyInput = el<HTMLInputElement>('key-input');
+const keyBtn = el<HTMLButtonElement>('key-btn');
+const lostKeyBtn = el('lost-key-btn');
 
-let pendingPhone = null;
-let pendingCode = null;
+let pendingPhone: string | null = null;
+let pendingCode: string | null = null;
 
 // Country-aware phone input: flag dropdown, auto-formatting, and validation
 // against Google's libphonenumber data (loaded lazily via loadUtils).
@@ -50,7 +50,7 @@ sendOtpBtn.addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone }),
     });
-    const body = await res.json();
+    const body = (await res.json()) as SendOtpResponse;
     if (!body.ok) {
       loginStatus.textContent = body.error || 'Failed to send code.';
       return;
@@ -61,7 +61,7 @@ sendOtpBtn.addEventListener('click', async () => {
     loginStatus.textContent = 'Code sent — check WhatsApp.';
     codeInput.focus();
   } catch (err) {
-    loginStatus.textContent = `Failed to send code: ${err.message}`;
+    loginStatus.textContent = `Failed to send code: ${errorMessage(err)}`;
   } finally {
     sendOtpBtn.disabled = false;
     phoneInput.disabled = false;
@@ -69,13 +69,13 @@ sendOtpBtn.addEventListener('click', async () => {
 });
 
 // --- Sign in: OTP first, then the API key if the account has one ---------------
-async function verify({ apiKey, resetApiKey } = {}) {
+async function verify({ apiKey, resetApiKey }: { apiKey?: string; resetApiKey?: boolean } = {}) {
   const res = await fetch(`${functionsBase()}/verifyOtp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone: pendingPhone, code: pendingCode, apiKey, resetApiKey }),
+    body: JSON.stringify({ phone: pendingPhone!, code: pendingCode!, apiKey, resetApiKey } satisfies VerifyOtpRequest),
   });
-  const body = await res.json();
+  const body = (await res.json()) as VerifyOtpResponse;
 
   if (body.needsApiKey) {
     codeStepEl.classList.add('hidden');
@@ -91,7 +91,7 @@ async function verify({ apiKey, resetApiKey } = {}) {
 
   if (resetApiKey) showNewKeyAfterReset = true;
   // The code is spent; the signed-in view takes over from onAuthStateChanged below.
-  await signInWithOtpToken(body.token);
+  await signInWithOtpToken(body.token!);
 }
 
 // Set after a lost-key reset at sign-in: the new key is shown right after signing in.
@@ -109,7 +109,7 @@ verifyOtpBtn.addEventListener('click', async () => {
   try {
     await verify();
   } catch (err) {
-    loginStatus.textContent = `Verification failed: ${err.message}`;
+    loginStatus.textContent = `Verification failed: ${errorMessage(err)}`;
   } finally {
     verifyOtpBtn.disabled = false;
   }
@@ -126,7 +126,7 @@ keyBtn.addEventListener('click', async () => {
   try {
     await verify({ apiKey });
   } catch (err) {
-    loginStatus.textContent = `Sign in failed: ${err.message}`;
+    loginStatus.textContent = `Sign in failed: ${errorMessage(err)}`;
   } finally {
     keyBtn.disabled = false;
   }
@@ -144,20 +144,20 @@ lostKeyBtn.addEventListener('click', async () => {
   try {
     await verify({ resetApiKey: true });
   } catch (err) {
-    loginStatus.textContent = `Reset failed: ${err.message}`;
+    loginStatus.textContent = `Reset failed: ${errorMessage(err)}`;
   }
 });
 
 // --- Rotate and reset (signed in) -------------------------------------------------
-const rotateBtn = document.getElementById('rotate-btn');
-const rotateStatus = document.getElementById('rotate-status');
+const rotateBtn = el<HTMLButtonElement>('rotate-btn');
+const rotateStatus = el('rotate-status');
 rotateBtn.addEventListener('click', async () => {
-  const oldApiKey = document.getElementById('rotate-old').value.trim();
+  const oldApiKey = el<HTMLInputElement>('rotate-old').value.trim();
   if (!isValidApiKey(oldApiKey)) {
     rotateStatus.textContent = 'Enter your current API key first.';
     return;
   }
-  if (!(await keyMatchesAccount(db, getDoc, doc, auth.currentUser.uid, oldApiKey))) {
+  if (!(await keyMatchesAccount(auth.currentUser!.uid, oldApiKey))) {
     rotateStatus.textContent = 'That is not the current key for this account.';
     return;
   }
@@ -170,25 +170,25 @@ rotateBtn.addEventListener('click', async () => {
   });
 });
 
-document.getElementById('reset-key-btn').addEventListener('click', async () => {
+el('reset-key-btn').addEventListener('click', async () => {
   const ok = confirm(
     'Your onboarded WABAs will be useless.\n\n' +
       'Only do this if you lost your key. We will delete the access tokens we hold for your numbers, and each number must be onboarded again before it can send. Continue?',
   );
   if (!ok) return;
   try {
-    await resetKey(auth.currentUser.uid);
+    await resetKey(auth.currentUser!.uid);
     showNewKey({ required: true, note: NEW_KEY_NOTE, save: saveFirstKey, afterSave: signOutAfterNewKey });
   } catch (err) {
-    rotateStatus.textContent = `Reset failed: ${err.message}`;
+    rotateStatus.textContent = `Reset failed: ${errorMessage(err)}`;
   }
 });
 
 // --- The signed-in dashboard --------------------------------------------------------
-function renderCards(numbers) {
-  const cards = document.getElementById('waba-cards');
+function renderCards(numbers: NumberRecord[]) {
+  const cards = el('waba-cards');
   cards.replaceChildren();
-  document.getElementById('waba-cards-empty').classList.toggle('hidden', numbers.length > 0);
+  el('waba-cards-empty').classList.toggle('hidden', numbers.length > 0);
 
   for (const waba of numbers) {
     const card = document.createElement('a');

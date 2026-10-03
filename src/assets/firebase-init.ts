@@ -50,7 +50,7 @@ export function functionsBase() {
 // Meta login product at all — no scopes, no Configuration to fight with.
 // verifyOtp mints a Firebase custom token keyed by the phone number itself;
 // this just finishes that sign-in client-side.
-export function signInWithOtpToken(token) {
+export function signInWithOtpToken(token: string) {
   return signInWithCustomToken(auth, token);
 }
 

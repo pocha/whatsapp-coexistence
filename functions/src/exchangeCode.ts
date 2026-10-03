@@ -4,6 +4,7 @@ import { config } from './config';
 import { exchangeCodeForToken } from './graphApi';
 import { requireAuth, HttpError } from './auth';
 import { requireUserKey, storeWabaToken } from './accounts';
+import type { ExchangeCodeRequest } from './types';
 
 const corsHandler = cors({ origin: true });
 const ID_RE = /^\d{1,32}$/;
@@ -22,14 +23,14 @@ export const exchangeCode = onRequest((req, res) => {
 
     try {
       const userId = await requireAuth(req);
-      const { code, wabaId, phoneNumberId, apiKey } = req.body ?? {};
+      const { code, wabaId, phoneNumberId, apiKey } = (req.body ?? {}) as Partial<ExchangeCodeRequest>;
       if (!code || !ID_RE.test(String(wabaId)) || !ID_RE.test(String(phoneNumberId))) {
         throw new HttpError(400, 'code, wabaId and phoneNumberId are required.');
       }
       await requireUserKey(userId, apiKey);
 
       const accessToken = await exchangeCodeForToken(code, config.metaAppId, config.metaAppSecret);
-      await storeWabaToken({ userId, wabaId: String(wabaId), phoneNumberId: String(phoneNumberId), accessToken, apiKey });
+      await storeWabaToken({ userId, wabaId: String(wabaId), phoneNumberId: String(phoneNumberId), accessToken, apiKey: apiKey as string });
       res.status(200).send({ ok: true, wabaId, phoneNumberId });
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;

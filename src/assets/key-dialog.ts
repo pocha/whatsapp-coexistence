@@ -2,21 +2,27 @@
 // page (markup: views/partials/key-dialog.html).
 import { auth, signOutUser } from './firebase-init.js';
 import { generateApiKey } from './api-key.js';
+import { el, errorMessage } from './dom.js';
 import { setFirstKey } from './account.js';
 
 /**
  * Generates a key in the browser and shows it. `save(key)` runs when the user clicks
  * Next, followed by `afterSave(key)`. `required` stops the popup being dismissed.
  */
-export function showNewKey({ note, required, save, afterSave }) {
-  const dialog = document.getElementById('key-dialog');
-  const done = document.getElementById('key-dialog-done');
-  const status = document.getElementById('key-dialog-status');
-  const copy = document.getElementById('key-dialog-copy');
+export function showNewKey({ note, required, save, afterSave }: {
+  note?: string;
+  required: boolean;
+  save: (key: string) => Promise<unknown>;
+  afterSave?: (key: string) => Promise<unknown> | unknown;
+}) {
+  const dialog = el<HTMLDialogElement>('key-dialog');
+  const done = el<HTMLButtonElement>('key-dialog-done');
+  const status = el('key-dialog-status');
+  const copy = el<HTMLButtonElement>('key-dialog-copy');
 
   const key = generateApiKey();
-  document.getElementById('key-dialog-value').value = key;
-  document.getElementById('key-dialog-note').textContent = note ?? '';
+  el<HTMLInputElement>('key-dialog-value').value = key;
+  el('key-dialog-note').textContent = note ?? '';
   done.disabled = false;
   status.textContent = '';
   copy.textContent = 'Copy';
@@ -36,7 +42,7 @@ export function showNewKey({ note, required, save, afterSave }) {
       dialog.close();
       await afterSave?.(key);
     } catch (err) {
-      status.textContent = `Could not save: ${err.message}`;
+      status.textContent = `Could not save: ${errorMessage(err)}`;
       done.disabled = false;
     }
   };
@@ -50,7 +56,7 @@ export const NEW_KEY_NOTE =
 export const RESET_KEY_NOTE = 'Your old key no longer works. Keep this one safe: you will need it to sign in.';
 
 /** Saves the hash of a brand-new key (the account has none yet). */
-export const saveFirstKey = (key) => setFirstKey(auth.currentUser.uid, key);
+export const saveFirstKey = (key: string) => setFirstKey(auth.currentUser!.uid, key);
 
 /** After creating or replacing a key, the user is signed out so they must type it to get back in. */
 export const signOutAfterNewKey = () => signOutUser().catch(() => undefined);

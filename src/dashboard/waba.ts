@@ -3,19 +3,21 @@ import { META_APP_ID, META_CONFIG_ID } from '/assets/app-config.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
 import { FIRST_KEY_NOTE, NEW_KEY_NOTE, saveFirstKey, showNewKey, signOutAfterNewKey } from '/assets/key-dialog.js';
-import { callAsUser, isValidApiKey, keyMatchesAccount } from '/assets/api-key.js';
-import { resetKey } from '/assets/account.js';
+import { isValidApiKey } from '/assets/api-key.js';
+import { callAsUser, keyMatchesAccount, resetKey } from '/assets/account.js';
+import { el, errorMessage } from '/assets/dom.js';
+import type { ExchangeCodeRequest, UserDoc } from '../../functions/src/types';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const fetchBtn = document.getElementById('fetch-btn');
-const status = document.getElementById('onboarding-status');
-const keyInput = document.getElementById('key-input');
+const fetchBtn = el<HTMLButtonElement>('fetch-btn');
+const status = el('onboarding-status');
+const keyInput = el<HTMLInputElement>('key-input');
 
 let sdkReady = false;
 let keyVerified = false;
-let signupCode = null;
-let wabaId = null;
-let phoneNumberId = null;
+let signupCode: string | null = null;
+let wabaId: string | null = null;
+let phoneNumberId: string | null = null;
 let exchanging = false;
 
 function refreshButton() {
@@ -34,7 +36,7 @@ async function checkKey() {
     status.textContent = 'Enter your API key to continue.';
   } else if (!isValidApiKey(apiKey)) {
     status.textContent = 'An API key is 64 characters of 0-9 and a-f.';
-  } else if (await keyMatchesAccount(db, getDoc, doc, auth.currentUser.uid, apiKey)) {
+  } else if (await keyMatchesAccount(auth.currentUser!.uid, apiKey)) {
     keyVerified = true;
   } else {
     status.textContent = 'That is not the key for this account.';
@@ -44,7 +46,7 @@ async function checkKey() {
 
 keyInput.addEventListener('input', checkKey);
 
-document.getElementById('lost-key-btn').addEventListener('click', async () => {
+el('lost-key-btn').addEventListener('click', async () => {
   const ok = confirm(
     'Your onboarded WABAs will be useless.\n\n' +
       'Without your API key we cannot open the access tokens we hold for your numbers, so we have to delete them. ' +
@@ -53,14 +55,14 @@ document.getElementById('lost-key-btn').addEventListener('click', async () => {
   );
   if (!ok) return;
   try {
-    await resetKey(auth.currentUser.uid);
+    await resetKey(auth.currentUser!.uid);
     showNewKey({ required: true, note: NEW_KEY_NOTE, save: saveFirstKey, afterSave: signOutAfterNewKey });
   } catch (err) {
-    status.textContent = `Reset failed: ${err.message}`;
+    status.textContent = `Reset failed: ${errorMessage(err)}`;
   }
 });
 
-document.getElementById('create-key-btn').addEventListener('click', () =>
+el('create-key-btn').addEventListener('click', () =>
   showNewKey({ required: true, note: FIRST_KEY_NOTE, save: saveFirstKey, afterSave: signOutAfterNewKey }),
 );
 
@@ -71,15 +73,15 @@ async function maybeFinish() {
   exchanging = true;
   status.textContent = 'Connecting your number…';
   try {
-    await callAsUser(auth, `${functionsBase()}/exchangeCode`, {
+    await callAsUser(`${functionsBase()}/exchangeCode`, {
       code: signupCode,
       wabaId,
       phoneNumberId,
       apiKey: keyInput.value.trim(),
-    });
+    } satisfies ExchangeCodeRequest);
     location.href = `/waba.html?id=${encodeURIComponent(phoneNumberId)}`;
   } catch (err) {
-    status.textContent = `Failed: ${err.message}`;
+    status.textContent = `Failed: ${errorMessage(err)}`;
     exchanging = false;
   }
 }
@@ -147,13 +149,13 @@ onAuthStateChanged(auth, async (user) => {
   started = true;
 
   // An account with no API key yet creates one here, before its first onboarding.
-  const hasKey = Boolean((await getDoc(doc(db, 'users', user.uid))).data()?.apiKeyHash);
+  const hasKey = Boolean(((await getDoc(doc(db, 'users', user.uid))).data() as UserDoc | undefined)?.apiKeyHash);
   if (!hasKey) {
-    document.getElementById('create-key-card').classList.remove('hidden');
+    el('create-key-card').classList.remove('hidden');
     status.textContent = '';
     return;
   }
 
-  document.getElementById('intro-card').classList.remove('hidden');
+  el('intro-card').classList.remove('hidden');
   initEmbeddedSignup();
 });

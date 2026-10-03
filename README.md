@@ -1,8 +1,9 @@
 # WhatsApp Coexistence
 
 Lets a business run the WhatsApp Business app and the WhatsApp API on the same
-number at once ("coexistence"). The frontend (`public/`, generated from
-`views/`) is static and deployed to GitHub Pages. The backend (`functions/`) is
+number at once ("coexistence"). The frontend is static and deployed to GitHub Pages: pages are
+generated from `views/` and the browser scripts are TypeScript in `src/`, both built
+into `public/` (`npm run build:pages`; `npm run typecheck` checks the types). The backend (`functions/`) is
 Firebase Functions, Firestore and Firebase Auth.
 
 ## Setup
@@ -30,7 +31,7 @@ Create the app by following
 Then collect three values:
 
 - **App ID** and **App Secret**: in the app, go to **App settings → Basic**.
-  Put the App ID in `public/assets/app-config.js` as `META_APP_ID` and the
+  Put the App ID in `src/assets/app-config.ts` as `META_APP_ID` and the
   App Secret in `functions/.env` (step 3).
 - **Embedded Signup Configuration ID**, created as follows. Configurations live
   under **Facebook Login for Business → Configurations**.
@@ -61,7 +62,7 @@ Then collect three values:
 
      ![Permissions step](public/assets/14.permissions.png)
 
-  7. Save, and put the **Configuration ID** in `public/assets/app-config.js` as
+  7. Save, and put the **Configuration ID** in `src/assets/app-config.ts` as
      `META_CONFIG_ID`.
 
 ### Permissions
@@ -100,7 +101,7 @@ we hold each customer's token and never hand it out.
   sign-in screen, the dashboard or the onboarding page) warns that the onboarded WABAs
   will be useless, deletes the stored tokens, and gives a new key. Each number must
   then be onboarded again.
-- **Users manage their own account from the browser** (`public/assets/account.js`):
+- **Users manage their own account from the browser** (`src/assets/account.ts`):
   creating and resetting the key, and deleting the account. Functions are for what needs
   the Meta App Secret or a plaintext token: onboarding, key rotation, the relay, setting
   the incoming URL, templates, and the sign-in reset.
@@ -138,7 +139,7 @@ WATOBOT_API_KEY=<your watobot API key>
 `WATOBOT_API_KEY` is used to send the login OTP over WhatsApp through
 [watobot](https://github.com/pocha/mudbot). `.env` is gitignored, so don't
 commit it. `WEBHOOK_VERIFY_TOKEN` must also equal the `WEBHOOK_VERIFY_TOKEN` in
-`public/assets/app-config.js`, which the WABA page shows to people setting up the
+`src/assets/app-config.ts`, which the WABA page shows to people setting up the
 test chatbot.
 
 Run the tests, from `functions/`:
@@ -185,9 +186,10 @@ redirect script near the top of `views/pages/dashboard.html` and
 ### 4. Production deployment
 
 **Frontend (GitHub Pages).** In the repo, go to **Settings → Pages → Source:
-GitHub Actions**. Every push to `main` that touches `public/`, `views/` or
-`scripts/build-pages.js` runs `.github/workflows/deploy-pages.yml`, which builds
-the pages and publishes `public/`. The generated HTML is not committed. Set a
+GitHub Actions**. Every push to `main` that touches `public/`, `views/`, `src/` or
+`scripts/build-pages.js` runs `.github/workflows/deploy-pages.yml`, which type-checks,
+builds the pages and scripts, and publishes `public/`. The generated HTML and JS are
+not committed. Set a
 custom domain in the same Pages settings if you want one. The site's links
 assume it is served from the root of its domain.
 
@@ -197,7 +199,7 @@ assume it is served from the root of its domain.
    it to make outbound calls). Enable **Firestore**. Custom-token sign-in needs
    no provider toggle.
 2. Point the repo at your project: set the project id in `.firebaserc`, and the
-   web config and Functions URL in `public/assets/firebase-init.js`.
+   web config and Functions URL in `src/assets/firebase-init.ts`.
 3. Make sure `functions/.env` is filled in. `firebase deploy` packages the file
    as it sits on disk.
 4. Deploy:
@@ -244,7 +246,7 @@ Business Account".
    setup → Configure Webhooks** and set:
    - **Callback URL**: the `webhook` function URL from the deploy output.
    - **Verify token**: the same value as `WEBHOOK_VERIFY_TOKEN` in
-     `functions/.env` (and in `public/assets/app-config.js`).
+     `functions/.env` (and in `src/assets/app-config.ts`).
 
    Click **Verify and save**. Meta calls the function to check the token, so
    it must already be deployed.
@@ -296,15 +298,16 @@ with the seed script, the same way onboarding would:
    your gcloud credentials, or to the emulator if `FIRESTORE_EMULATOR_HOST` is set.
    To add another number to an account that already has a key, pass
    `--api-key <that key>`.)
-3. Run the app (step 3), sign in, and open
-   `http://localhost:8765/waba.html?id=<test phone number ID>`.
-4. **Override incoming message URL**: enter your Watobot API key and your app's
+3. Run the app (step 3) and open `http://localhost:8765/waba.html?id=<test phone number ID>`
+   (signing in first also shows the sidebar and usage counts).
+4. **Override incoming message URL**: enter your Watobot API key (at the top) and your app's
    public HTTPS URL, then click **Verify & save**. This completes the test for
    `whatsapp_business_management`.
-5. **Test outgoing message**: enter the key, fill in `to` and the message text, and
-   click **Test**. This completes the test for `whatsapp_business_messaging`.
+5. **Send a message**: copy the curl command on the page, put in your key and a
+   recipient number, and run it in a terminal. This completes the test for
+   `whatsapp_business_messaging`.
 
-![A WABA page with the incoming-message URL saved and an outgoing message ready to test](public/assets/24.waba-page.png)
+![A WABA page with the incoming-message URL saved](public/assets/24.waba-page.png)
 
 Meta says the results can take up to 24 hours to appear, and each test stays
 valid for 30 days. `public_profile` needs no specific count. When everything is

@@ -1,8 +1,9 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import cors from 'cors';
+import type { PhoneNumberDoc, RotateKeyRequest } from './types';
 import { HttpError, requireAuth } from './auth';
-import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKey, type EncryptedToken } from './apiKey';
+import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKey } from './apiKey';
 
 // Data model:
 //   users/{userId}           phoneNumber, apiKeyHash, createdAt, rotatedAt
@@ -10,7 +11,7 @@ import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKe
 //   phoneNumbers/{phoneNumberId}  userId, wabaId, phoneNumberId, encAccessToken, ...
 // Functions create these and run the relay, webhook, onboarding and key rotation (rotateKey,
 // below). The user manages the rest of their account from the browser (see
-// public/assets/account.js and firestore.rules); resetApiKey and setFirstApiKey stay here for
+// src/assets/account.ts and firestore.rules); resetApiKey and setFirstApiKey stay here for
 // the sign-in reset and for scripts/seed-test-waba.js.
 
 export interface UserRecord {
@@ -79,15 +80,15 @@ export async function authenticateKey(
 ): Promise<{ userId: string; wabaId: string; accessToken: string }> {
   const db = getFirestore();
   const wabaSnap = await db.collection('phoneNumbers').doc(phoneNumberId).get();
-  const waba = wabaSnap.data();
+  const waba = wabaSnap.data() as PhoneNumberDoc | undefined;
   if (!waba) throw new HttpError(404, 'Unknown phone number ID.');
 
-  const user = await requireUserKey(waba.userId as string, apiKey);
-  const enc = waba.encAccessToken as EncryptedToken | undefined;
+  const user = await requireUserKey(waba.userId, apiKey);
+  const enc = waba.encAccessToken;
   if (!enc) throw new HttpError(409, 'This number has no stored access token. Onboard it again.');
 
   try {
-    return { userId: user.userId, wabaId: waba.wabaId as string, accessToken: decryptToken(enc, apiKey as string) };
+    return { userId: user.userId, wabaId: waba.wabaId, accessToken: decryptToken(enc, apiKey as string) };
   } catch {
     throw new HttpError(500, 'Could not decrypt the stored access token.');
   }
@@ -152,18 +153,18 @@ export const rotateKey = onRequest((req, res) => {
 
     try {
       const userId = await requireAuth(req);
-      const { oldApiKey, newApiKey } = req.body ?? {};
+      const { oldApiKey, newApiKey } = (req.body ?? {}) as Partial<RotateKeyRequest>;
       await requireUserKey(userId, oldApiKey);
       if (!isValidApiKey(newApiKey)) throw new HttpError(400, 'That is not a valid new API key.');
 
       const db = getFirestore();
       const batch = db.batch();
       (await numbersOf(userId)).forEach((snap) => {
-        const enc = snap.data().encAccessToken as EncryptedToken | undefined;
+        const enc = (snap.data() as PhoneNumberDoc).encAccessToken;
         if (!enc) return;
         let token: string;
         try {
-          token = decryptToken(enc, oldApiKey);
+          token = decryptToken(enc, oldApiKey as string);
         } catch {
           throw new HttpError(500, 'Could not decrypt a stored access token.');
         }
