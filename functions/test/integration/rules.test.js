@@ -67,15 +67,23 @@ test('another user, or nobody, cannot read a number', async () => {
   await assertFails(testEnv.unauthenticatedContext().firestore().collection('wabas').doc('phone-4').get());
 });
 
-test('users, phoneIndex and otps are not reachable from a browser at all', async () => {
+test('a user can read only their own user doc, and never write it', async () => {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     await ctx.firestore().collection('users').doc('owner-1').set({ phoneNumber: '1', apiKeyHash: 'h' });
+  });
+  const ownerDb = testEnv.authenticatedContext('owner-1').firestore();
+  await assertSucceeds(ownerDb.collection('users').doc('owner-1').get());
+  await assertFails(ownerDb.collection('users').doc('owner-1').update({ apiKeyHash: 'mine' }));
+  await assertFails(testEnv.authenticatedContext('stranger').firestore().collection('users').doc('owner-1').get());
+  await assertFails(testEnv.unauthenticatedContext().firestore().collection('users').doc('owner-1').get());
+});
+
+test('phoneIndex and otps are not reachable from a browser at all', async () => {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
     await ctx.firestore().collection('phoneIndex').doc('1').set({ userId: 'owner-1' });
     await ctx.firestore().collection('otps').doc('1').set({ code: '1' });
   });
   const ownerDb = testEnv.authenticatedContext('owner-1').firestore();
-  await assertFails(ownerDb.collection('users').doc('owner-1').get());
-  await assertFails(ownerDb.collection('users').doc('owner-1').update({ apiKeyHash: 'mine' }));
   await assertFails(ownerDb.collection('phoneIndex').doc('1').get());
   await assertFails(ownerDb.collection('otps').doc('1').get());
 });

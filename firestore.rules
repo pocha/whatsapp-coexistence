@@ -18,8 +18,16 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['overrideUrl', 'activatedAt']);
     }
 
-    // users/{userId}, phoneIndex/{phone} and otps/{phone} have no rules, so no
-    // browser can read or write them: they are touched by Functions only.
+    // A user can read their own doc, so the page can compare a typed API key with
+    // apiKeyHash for instant feedback (the hash can't decrypt anything: it is
+    // derived under a different label than the encryption key). Writes are
+    // Function-only, and the Functions re-check the key themselves every time.
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+    }
+
+    // phoneIndex/{phone} and otps/{phone} have no rules, so no browser can read or
+    // write them: they are touched by Functions only.
 
     // Waitlist click counter: written only by the joinWaitlist Function (Admin
     // SDK, which bypasses rules). Anyone can read the total so pages can show

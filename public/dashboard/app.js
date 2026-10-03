@@ -1,6 +1,17 @@
 import { auth, functionsBase, onAuthStateChanged, signInWithOtpToken } from '/assets/firebase-init.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
+import {
+  callAsUser,
+  clearStoredKey,
+  generateApiKey,
+  getStoredKey,
+  isValidApiKey,
+  keyMatchesAccount,
+  storeKey,
+} from '/assets/api-key.js';
+import { db } from '/assets/firebase-init.js';
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const signedOutEl = document.getElementById('signed-out');
 const signedInEl = document.getElementById('signed-in');
@@ -11,8 +22,13 @@ const codeInput = document.getElementById('code-input');
 const sendOtpBtn = document.getElementById('send-otp-btn');
 const verifyOtpBtn = document.getElementById('verify-otp-btn');
 const loginStatus = document.getElementById('login-status');
+const keyStepEl = document.getElementById('key-step');
+const keyInput = document.getElementById('key-input');
+const keyBtn = document.getElementById('key-btn');
+const lostKeyBtn = document.getElementById('lost-key-btn');
 
 let pendingPhone = null;
+let pendingCode = null;
 
 // Country-aware phone input: flag dropdown, auto-formatting, and validation
 // against Google's libphonenumber data (loaded lazily via loadUtils).
@@ -58,26 +74,49 @@ sendOtpBtn.addEventListener('click', async () => {
   }
 });
 
+// --- Sign in: OTP first, then the API key if the account has one ---------------
+async function verify({ apiKey, resetApiKey } = {}) {
+  const res = await fetch(`${functionsBase()}/verifyOtp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone: pendingPhone, code: pendingCode, apiKey, resetApiKey }),
+  });
+  const body = await res.json();
+
+  if (body.needsApiKey) {
+    codeStepEl.classList.add('hidden');
+    keyStepEl.classList.remove('hidden');
+    loginStatus.textContent = body.error || 'Enter your Watobot API key to continue.';
+    keyInput.focus();
+    return;
+  }
+  if (!body.ok) {
+    loginStatus.textContent = body.error || 'Verification failed.';
+    return;
+  }
+
+  if (apiKey) storeKey(apiKey);
+  if (resetApiKey) clearStoredKey();
+  // The code is spent; the signed-in view (and the key setup, if the account has
+  // no key yet) takes over from onAuthStateChanged below.
+  needsKeySetupAfterSignIn = body.needsKeySetup;
+  await signInWithOtpToken(body.token);
+}
+
+let needsKeySetupAfterSignIn = false;
+
 verifyOtpBtn.addEventListener('click', async () => {
   const code = codeInput.value.trim();
   if (!code) {
     loginStatus.textContent = 'Enter the code you received.';
     return;
   }
+  pendingCode = code;
   verifyOtpBtn.disabled = true;
   loginStatus.textContent = 'Verifying…';
   try {
-    const res = await fetch(`${functionsBase()}/verifyOtp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: pendingPhone, code }),
-    });
-    const body = await res.json();
-    if (!body.ok) {
-      loginStatus.textContent = body.error || 'Verification failed.';
-      return;
-    }
-    await signInWithOtpToken(body.token);
+    // A key remembered in this browser is tried first, so returning users type nothing extra.
+    await verify({ apiKey: getStoredKey() || undefined });
   } catch (err) {
     loginStatus.textContent = `Verification failed: ${err.message}`;
   } finally {
@@ -85,7 +124,124 @@ verifyOtpBtn.addEventListener('click', async () => {
   }
 });
 
+keyBtn.addEventListener('click', async () => {
+  const apiKey = keyInput.value.trim();
+  if (!isValidApiKey(apiKey)) {
+    loginStatus.textContent = 'An API key is 64 characters of 0-9 and a-f.';
+    return;
+  }
+  keyBtn.disabled = true;
+  loginStatus.textContent = 'Signing in…';
+  try {
+    await verify({ apiKey });
+  } catch (err) {
+    loginStatus.textContent = `Sign in failed: ${err.message}`;
+  } finally {
+    keyBtn.disabled = false;
+  }
+});
 
+lostKeyBtn.addEventListener('click', async () => {
+  const ok = confirm(
+    'If you lost your API key, we have to delete the access tokens we hold for your numbers, because they cannot be opened without it. ' +
+      'Your numbers stay in your list, but each one must be onboarded again before it can send. Continue?',
+  );
+  if (!ok) return;
+  loginStatus.textContent = 'Resetting…';
+  try {
+    await verify({ resetApiKey: true });
+  } catch (err) {
+    loginStatus.textContent = `Reset failed: ${err.message}`;
+  }
+});
+
+// --- Showing a new API key, once -------------------------------------------------
+const keyDialog = document.getElementById('key-dialog');
+const keyDialogValue = document.getElementById('key-dialog-value');
+const keyDialogConfirm = document.getElementById('key-dialog-confirm');
+const keyDialogDone = document.getElementById('key-dialog-done');
+const keyDialogStatus = document.getElementById('key-dialog-status');
+
+// Generates a key in the browser, shows it, and only calls `save(key)` once the
+// user pastes it back to prove they copied it. `required` stops the dialog being
+// dismissed (first-time setup needs a key before anything else works).
+function showNewKey({ save, required }) {
+  const key = generateApiKey();
+  keyDialogValue.value = key;
+  keyDialogConfirm.value = '';
+  keyDialogDone.disabled = true;
+  keyDialogStatus.textContent = '';
+  keyDialog.oncancel = (event) => {
+    if (required) event.preventDefault();
+  };
+  keyDialogConfirm.oninput = () => {
+    keyDialogDone.disabled = keyDialogConfirm.value.trim() !== key;
+  };
+  document.getElementById('key-dialog-copy').onclick = async () => {
+    await navigator.clipboard.writeText(key);
+    document.getElementById('key-dialog-copy').textContent = 'Copied';
+  };
+  keyDialogDone.onclick = async () => {
+    keyDialogDone.disabled = true;
+    keyDialogStatus.textContent = 'Saving…';
+    try {
+      await save(key);
+      storeKey(key);
+      keyDialog.close();
+    } catch (err) {
+      keyDialogStatus.textContent = `Could not save: ${err.message}`;
+      keyDialogDone.disabled = false;
+    }
+  };
+  document.getElementById('key-dialog-copy').textContent = 'Copy';
+  keyDialog.showModal();
+}
+
+const setFirstKey = () =>
+  showNewKey({
+    required: true,
+    save: (key) => callAsUser(auth, `${functionsBase()}/setApiKey`, { apiKey: key }),
+  });
+
+// --- Rotate and reset (signed in) -------------------------------------------------
+const rotateBtn = document.getElementById('rotate-btn');
+const rotateStatus = document.getElementById('rotate-status');
+rotateBtn.addEventListener('click', async () => {
+  const oldApiKey = document.getElementById('rotate-old').value.trim() || getStoredKey();
+  if (!isValidApiKey(oldApiKey)) {
+    rotateStatus.textContent = 'Enter your current API key first.';
+    return;
+  }
+  if (!(await keyMatchesAccount(db, getDoc, doc, auth.currentUser.uid, oldApiKey))) {
+    rotateStatus.textContent = 'That is not the current key for this account.';
+    return;
+  }
+  rotateStatus.textContent = '';
+  showNewKey({
+    required: false,
+    save: async (newApiKey) => {
+      await callAsUser(auth, `${functionsBase()}/rotateKey`, { oldApiKey, newApiKey });
+      rotateStatus.textContent = 'Done. Your new key is active and the old one no longer works.';
+      document.getElementById('rotate-old').value = '';
+    },
+  });
+});
+
+document.getElementById('reset-key-btn').addEventListener('click', async () => {
+  const ok = confirm(
+    'Only do this if you lost your key. We will delete the access tokens we hold for your numbers, and each number must be onboarded again before it can send. Continue?',
+  );
+  if (!ok) return;
+  try {
+    await callAsUser(auth, `${functionsBase()}/resetKey`, {});
+    clearStoredKey();
+    setFirstKey();
+  } catch (err) {
+    rotateStatus.textContent = `Reset failed: ${err.message}`;
+  }
+});
+
+// --- The signed-in dashboard --------------------------------------------------------
 function renderCards(wabas) {
   const cards = document.getElementById('waba-cards');
   cards.replaceChildren();
@@ -100,18 +256,20 @@ function renderCards(wabas) {
     row.className = 'flex justify-between items-center gap-4';
     const title = document.createElement('p');
     title.className = 'section-title text-on-surface break-all';
-    title.textContent = `WABA ${waba.id}`;
+    title.textContent = `Phone number ID ${waba.id}`;
     const status = document.createElement('span');
-    status.className = `label-muted whitespace-nowrap ${waba.overrideUrl ? 'text-primary' : 'text-on-surface-variant'}`;
-    status.textContent = waba.overrideUrl ? 'Incoming URL set' : 'Setup incomplete';
+    status.className = 'label-muted whitespace-nowrap';
+    // A number with no stored token (after a key reset) can't send until onboarded again.
+    status.textContent = !waba.encAccessToken ? 'Onboard again' : waba.overrideUrl ? 'Incoming URL set' : 'Setup incomplete';
+    status.classList.add(waba.encAccessToken && waba.overrideUrl ? 'text-primary' : 'text-on-surface-variant');
     row.append(title, status);
     card.append(row);
 
-    if (waba.phoneNumberId) {
-      const phone = document.createElement('p');
-      phone.className = 'text-on-surface-variant font-body-md text-sm';
-      phone.textContent = `Phone number ID ${waba.phoneNumberId}`;
-      card.append(phone);
+    if (waba.wabaId) {
+      const w = document.createElement('p');
+      w.className = 'text-on-surface-variant font-body-md text-sm';
+      w.textContent = `WABA ${waba.wabaId}`;
+      card.append(w);
     }
     cards.append(card);
   }
@@ -122,14 +280,21 @@ onAuthStateChanged(auth, async (user) => {
     signedOutEl.classList.add('hidden');
     signedInEl.classList.remove('hidden');
     renderCards(await fillSidebar(user.uid));
+    if (needsKeySetupAfterSignIn) {
+      needsKeySetupAfterSignIn = false;
+      setFirstKey();
+    }
   } else {
     signedInEl.classList.add('hidden');
     signedOutEl.classList.remove('hidden');
     pendingPhone = null;
+    pendingCode = null;
     codeStepEl.classList.add('hidden');
+    keyStepEl.classList.add('hidden');
     phoneStepEl.classList.remove('hidden');
     iti.setNumber('');
     codeInput.value = '';
+    keyInput.value = '';
     loginStatus.textContent = '';
   }
 });

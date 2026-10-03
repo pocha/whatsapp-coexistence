@@ -2,7 +2,7 @@
 
 A tiny chatbot for trying WA Coexistence when you don't have an app of your own
 that uses the WhatsApp API. It answers Meta's verification handshake and logs
-every incoming message. Add your access token and it also replies "You said:
+every incoming message. Add your Watobot API key and it also replies "You said:
 ..." to text messages through our relay. It has no dependencies.
 
 ## Setup
@@ -29,7 +29,7 @@ every incoming message. Add your access token and it also replies "You said:
 Keep the server running. Now send a WhatsApp message to your WABA's registered
 phone number from another phone, and the message shows up in the bot's logs.
 
-To have it reply too, put your access token in `.env` as `ACCESS_TOKEN` and
+To have it reply too, put your Watobot API key in `.env` as `WATOBOT_API_KEY` and
 restart the bot.
 
 `Ctrl+C` stops the bot and the tunnel. The tunnel address changes each time you

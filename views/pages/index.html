@@ -107,7 +107,7 @@
         <div class="card p-6">
           <p class="label-strong text-primary mb-2">STEP 1</p>
           <p class="section-title text-on-surface mb-2">Connect your number &amp; activate Coexistence</p>
-          <p class="text-on-surface-variant font-body-md">Open the <a class="text-primary font-bold hover:underline" href="/dashboard/">Dashboard</a> and connect your WhatsApp Business app number through Meta's popup. We show you an access token once. Save it, because we don't store it.</p>
+          <p class="text-on-surface-variant font-body-md">Open the <a class="text-primary font-bold hover:underline" href="/dashboard/">Dashboard</a> and create your Watobot API key and connect your WhatsApp Business app number through Meta's popup. We show the key once, so save it: we keep only a hash of it.</p>
         </div>
         <div class="card p-6">
           <p class="label-strong text-primary mb-2">STEP 2</p>
@@ -127,7 +127,7 @@
           It's the one place we stay involved, purely so we can protect your
           number from getting banned — rate limiting and other anti-spam
           checks are <em>(upcoming)</em>. Everything else — incoming
-          messages — never touches us, and <b>we never store your access token</b>.
+          messages — never touches us, and your Meta access token stays <b>encrypted with a key only you hold</b>.
         </p>
       </div>
     </div>
@@ -139,8 +139,8 @@
       <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-10">Features</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="card p-6">
-          <p class="section-title text-on-surface mb-2">🔒 No token storage</p>
-          <p class="text-on-surface-variant font-body-md">Your WABA access token lives in memory only, for as long as setup takes. Nothing is written to a database or disk, so there's nothing durable to leak.</p>
+          <p class="section-title text-on-surface mb-2">🔒 Your tokens, locked with your key</p>
+          <p class="text-on-surface-variant font-body-md">We store your WhatsApp access token encrypted with your Watobot API key, which we never keep, so we can't read it. It is only unlocked, in memory, while a request carrying your key is handled.</p>
         </div>
         <div class="card p-6">
           <p class="section-title text-on-surface mb-2">⚡ Low latency</p>

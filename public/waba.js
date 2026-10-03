@@ -2,12 +2,12 @@ import { auth, db, functionsBase, onAuthStateChanged } from '/assets/firebase-in
 import { WEBHOOK_VERIFY_TOKEN } from '/assets/app-config.js';
 import { fillSidebar, hideSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
-import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+import { getStoredKey } from '/assets/api-key.js';
+import { doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const $ = (id) => document.getElementById(id);
-const GRAPH = 'https://graph.facebook.com/v21.0';
-// The page is about one WABA, identified by ?id= in the URL.
-const wabaId = new URLSearchParams(location.search).get('id');
+// The page is about one number, identified by ?id= in the URL (its phone number ID).
+const phoneNumberId = new URLSearchParams(location.search).get('id');
 
 // Same date-key algorithm as functions/src/relayMessage.ts, duplicated here
 // (small and pure) so usage lookups match the keys the relay wrote.
@@ -29,29 +29,21 @@ const BODY_TEMPLATE = {
   text: { body: '' },
 };
 
-function updateEndpointLine() {
-  const phone = $('out-phone').value.trim() || '<phone-number-id>';
-  $('endpoint-line').textContent = `POST ${functionsBase()}/relayMessage/${phone}/messages`;
-}
-
-// Reads wabas/{id} only when someone is signed in; the rules let only the
-// owner read it. Anyone else (or a missing record) simply gets no counts and no
-// prefill, and the page works the same for testing.
+// Reads wabas/{phoneNumberId} only when someone is signed in; the rules let only
+// the owner read it. Anyone else (or a missing record) simply gets no counts and
+// no prefill, and the page works the same for testing.
 async function loadRecord() {
-  if (!auth.currentUser || !wabaId) return;
+  if (!auth.currentUser || !phoneNumberId) return;
   let data;
   try {
-    data = (await getDoc(doc(db, 'wabas', wabaId))).data();
+    data = (await getDoc(doc(db, 'wabas', phoneNumberId))).data();
   } catch {
     return;
   }
   if (!data) return;
 
+  if (data.wabaId) $('waba-id-line').textContent = `WABA ID: ${data.wabaId}`;
   if (data.overrideUrl && !$('ov-url').value) $('ov-url').value = data.overrideUrl;
-  if (data.phoneNumberId && !$('out-phone').value) {
-    $('out-phone').value = data.phoneNumberId;
-    updateEndpointLine();
-  }
 
   const usage = data.usage;
   if (usage) {
@@ -63,10 +55,10 @@ async function loadRecord() {
   }
 }
 
-async function postJson(url, token, body) {
+async function postJson(url, apiKey, body) {
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: { 'Content-Type': 'application/json', ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) },
     body: JSON.stringify(body),
   });
   return { res, body: await res.json().catch(() => ({})) };
@@ -74,18 +66,18 @@ async function postJson(url, token, body) {
 
 // --- Override incoming message URL ------------------------------------------
 $('chatbot-env').textContent =
-  `WEBHOOK_VERIFY_TOKEN=${WEBHOOK_VERIFY_TOKEN}\nRELAY_BASE=${functionsBase()}/relayMessage\nACCESS_TOKEN=`;
+  `WEBHOOK_VERIFY_TOKEN=${WEBHOOK_VERIFY_TOKEN}\nRELAY_BASE=${functionsBase()}/relayMessage\nWATOBOT_API_KEY=`;
 $('copy-env-btn').addEventListener('click', async () => {
   await navigator.clipboard.writeText($('chatbot-env').textContent);
   $('copy-env-btn').textContent = 'Copied';
 });
 
 $('ov-btn').addEventListener('click', async () => {
-  const accessToken = $('ov-token').value.trim();
+  const apiKey = $('ov-key').value.trim();
   const overrideCallbackUrl = $('ov-url').value.trim();
   const status = $('ov-status');
-  if (!accessToken || !overrideCallbackUrl) {
-    status.textContent = 'Fill in the access token and your URL.';
+  if (!apiKey || !overrideCallbackUrl) {
+    status.textContent = 'Fill in your API key and your URL.';
     return;
   }
 
@@ -93,8 +85,8 @@ $('ov-btn').addEventListener('click', async () => {
   status.textContent = 'Checking your URL and updating WhatsApp…';
   try {
     const { res, body } = await postJson(`${functionsBase()}/setWebhook`, null, {
-      wabaId,
-      accessToken,
+      phoneNumberId,
+      apiKey,
       overrideCallbackUrl,
     });
     if (!res.ok || !body.ok) {
@@ -105,16 +97,13 @@ $('ov-btn').addEventListener('click', async () => {
     // Only record it once the function has succeeded, and only for a signed-in user.
     if (!auth.currentUser) {
       status.textContent =
-        'Done: incoming messages now go to your URL. Sign in on the Dashboard to keep this WABA in your list.';
+        'Done: incoming messages now go to your URL. Sign in on the Dashboard to keep this number in your list.';
       return;
     }
     try {
-      const record = { ownerUid: auth.currentUser.uid, wabaId, overrideUrl: overrideCallbackUrl, activatedAt: Date.now() };
-      const phoneNumberId = $('out-phone').value.trim();
-      if (phoneNumberId) record.phoneNumberId = phoneNumberId;
-      await setDoc(doc(db, 'wabas', wabaId), record, { merge: true });
+      await updateDoc(doc(db, 'wabas', phoneNumberId), { overrideUrl: overrideCallbackUrl, activatedAt: Date.now() });
       status.textContent = 'Done: incoming messages now go to your URL, and it is saved to your account.';
-      fillSidebar(auth.currentUser.uid, wabaId);
+      fillSidebar(auth.currentUser.uid, phoneNumberId);
     } catch (err) {
       status.textContent = `Done with WhatsApp, but we couldn't save it to your account (${err.message}).`;
     }
@@ -126,57 +115,11 @@ $('ov-btn').addEventListener('click', async () => {
 });
 
 // --- Test outgoing message ----------------------------------------------------
-$('out-phone').addEventListener('input', updateEndpointLine);
-
-$('lookup-btn').addEventListener('click', async () => {
-  const token = $('out-token').value.trim();
-  const status = $('lookup-status');
-  if (!token) {
-    status.textContent = 'Paste your access token first.';
-    return;
-  }
-  $('lookup-btn').disabled = true;
-  status.textContent = 'Looking up…';
-  try {
-    const res = await fetch(`${GRAPH}/${encodeURIComponent(wabaId)}/phone_numbers?fields=id,display_phone_number`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      status.textContent = `Look up failed: ${body.error?.message || `HTTP ${res.status}`}`;
-      return;
-    }
-    const numbers = body.data ?? [];
-    const options = $('out-phone-options');
-    options.replaceChildren();
-    for (const n of numbers) {
-      const option = document.createElement('option');
-      option.value = n.id;
-      option.label = n.display_phone_number;
-      options.append(option);
-    }
-    if (numbers.length === 1) {
-      $('out-phone').value = numbers[0].id;
-      updateEndpointLine();
-      status.textContent = `Found ${numbers[0].display_phone_number}.`;
-    } else {
-      status.textContent = numbers.length
-        ? `Found ${numbers.length} numbers. Click the field to choose one.`
-        : 'No phone numbers found on this WABA.';
-    }
-  } catch (err) {
-    status.textContent = `Look up failed: ${err.message}`;
-  } finally {
-    $('lookup-btn').disabled = false;
-  }
-});
-
 $('out-btn').addEventListener('click', async () => {
-  const token = $('out-token').value.trim();
-  const phoneNumberId = $('out-phone').value.trim();
+  const apiKey = $('out-key').value.trim();
   const result = $('out-result');
-  if (!token || !phoneNumberId) {
-    result.textContent = 'Fill in the access token and the phone number ID.';
+  if (!apiKey) {
+    result.textContent = 'Fill in your API key first.';
     return;
   }
   let message;
@@ -192,7 +135,7 @@ $('out-btn').addEventListener('click', async () => {
   try {
     const { res, body } = await postJson(
       `${functionsBase()}/relayMessage/${encodeURIComponent(phoneNumberId)}/messages`,
-      token,
+      apiKey,
       message,
     );
     result.textContent = `HTTP ${res.status}\n${JSON.stringify(body, null, 2)}`;
@@ -205,18 +148,24 @@ $('out-btn').addEventListener('click', async () => {
 });
 
 // --- Boot ---------------------------------------------------------------------
-if (!wabaId) {
+if (!phoneNumberId) {
   $('no-id').classList.remove('hidden');
 } else {
-  $('waba-id-line').textContent = `WABA ID: ${wabaId}`;
+  $('number-id-line').textContent = `Phone number ID: ${phoneNumberId}`;
+  $('endpoint-line').textContent = `POST ${functionsBase()}/relayMessage/${phoneNumberId}/messages`;
   $('out-body').value = JSON.stringify(BODY_TEMPLATE, null, 2);
-  updateEndpointLine();
+  // A key remembered in this browser is filled in for convenience.
+  const remembered = getStoredKey();
+  if (remembered) {
+    $('ov-key').value = remembered;
+    $('out-key').value = remembered;
+  }
   $('sections').classList.remove('hidden');
 }
 
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    fillSidebar(user.uid, wabaId);
+    fillSidebar(user.uid, phoneNumberId);
     loadRecord();
   } else {
     hideSidebar();

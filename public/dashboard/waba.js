@@ -2,51 +2,77 @@ import { auth, db, functionsBase, onAuthStateChanged } from '/assets/firebase-in
 import { META_APP_ID, META_CONFIG_ID } from '/assets/app-config.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
-import { doc, setDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+import { callAsUser, clearStoredKey, getStoredKey, isValidApiKey, keyMatchesAccount, storeKey } from '/assets/api-key.js';
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const fetchBtn = document.getElementById('fetch-btn');
 const status = document.getElementById('onboarding-status');
-const tokenCard = document.getElementById('token-card');
+const keyInput = document.getElementById('key-input');
 
+let sdkReady = false;
+let keyVerified = false;
 let signupCode = null;
 let wabaId = null;
 let phoneNumberId = null;
 let exchanging = false;
 
-// Both halves of Embedded Signup must arrive: the code (from FB.login's
-// callback) and the WABA and phone number ids (from a window message).
+function refreshButton() {
+  fetchBtn.disabled = !(sdkReady && keyVerified);
+  if (sdkReady && keyVerified) status.textContent = 'Ready.';
+}
+
+// The key is checked here, in the browser, as it is typed, against the hash on the
+// user's own record, so a wrong key is caught before Meta's popup opens. (The popup
+// itself must open straight from a click.) The server checks the key again when the
+// token is stored, which is the check that counts.
+async function checkKey() {
+  const apiKey = keyInput.value.trim();
+  keyVerified = false;
+  if (!apiKey) {
+    status.textContent = 'Enter your API key to continue.';
+  } else if (!isValidApiKey(apiKey)) {
+    status.textContent = 'An API key is 64 characters of 0-9 and a-f.';
+  } else if (await keyMatchesAccount(db, getDoc, doc, auth.currentUser.uid, apiKey)) {
+    storeKey(apiKey);
+    keyVerified = true;
+  } else {
+    status.textContent = 'That is not the key for this account.';
+  }
+  refreshButton();
+}
+
+keyInput.addEventListener('input', checkKey);
+
+document.getElementById('lost-key-btn').addEventListener('click', async () => {
+  const ok = confirm(
+    'If you lost your API key, we have to delete the access tokens we hold for your numbers, because they cannot be opened without it. ' +
+      'Each number must be onboarded again before it can send. Continue?',
+  );
+  if (!ok) return;
+  try {
+    await callAsUser(auth, `${functionsBase()}/resetKey`, {});
+    clearStoredKey();
+    alert('Your old tokens were deleted. Create a new API key on the Dashboard, then come back to onboard.');
+    location.href = '/dashboard/';
+  } catch (err) {
+    status.textContent = `Reset failed: ${err.message}`;
+  }
+});
+
+// Both halves of Embedded Signup must arrive: the code (from FB.login's callback)
+// and the WABA and phone number ids (from a window message).
 async function maybeFinish() {
   if (exchanging || !(signupCode && wabaId && phoneNumberId)) return;
   exchanging = true;
-  status.textContent = 'Getting your access token…';
-
+  status.textContent = 'Connecting your number…';
   try {
-    const idToken = await auth.currentUser.getIdToken();
-    const res = await fetch(`${functionsBase()}/exchangeCode`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-      body: JSON.stringify({ code: signupCode }),
+    await callAsUser(auth, `${functionsBase()}/exchangeCode`, {
+      code: signupCode,
+      wabaId,
+      phoneNumberId,
+      apiKey: keyInput.value.trim(),
     });
-    const body = await res.json();
-    if (!res.ok || !body.ok) throw new Error(body.error || 'Could not get an access token.');
-
-    // Shown once, kept only in this page. Never written to Firestore or storage.
-    document.getElementById('token-value').value = body.accessToken;
-    document.getElementById('intro-card').classList.add('hidden');
-    tokenCard.classList.remove('hidden');
-
-    const connected = document.getElementById('connected-status');
-    try {
-      await setDoc(
-        doc(db, 'wabas', wabaId),
-        { ownerUid: auth.currentUser.uid, wabaId, phoneNumberId },
-        { merge: true },
-      );
-      connected.textContent = `Connected: WABA ${wabaId}, phone number ID ${phoneNumberId}.`;
-      fillSidebar(auth.currentUser.uid);
-    } catch (err) {
-      connected.textContent = `Connected, but we couldn't save it to your dashboard (${err.message}). WABA ${wabaId}, phone number ID ${phoneNumberId}.`;
-    }
+    location.href = `/waba.html?id=${encodeURIComponent(phoneNumberId)}`;
   } catch (err) {
     status.textContent = `Failed: ${err.message}`;
     exchanging = false;
@@ -56,8 +82,9 @@ async function maybeFinish() {
 function initEmbeddedSignup() {
   window.fbAsyncInit = function () {
     FB.init({ appId: META_APP_ID, cookie: true, xfbml: false, version: 'v21.0' });
-    status.textContent = 'Ready.';
-    fetchBtn.disabled = false;
+    sdkReady = true;
+    if (!keyVerified) status.textContent = 'Enter your API key to continue.';
+    refreshButton();
   };
   const script = document.createElement('script');
   script.src = 'https://connect.facebook.net/en_US/sdk.js';
@@ -104,15 +131,6 @@ function initEmbeddedSignup() {
   });
 }
 
-document.getElementById('copy-token-btn').addEventListener('click', async () => {
-  await navigator.clipboard.writeText(document.getElementById('token-value').value);
-  document.getElementById('copy-token-btn').textContent = 'Copied';
-});
-
-document.getElementById('saved-btn').addEventListener('click', () => {
-  location.href = `/waba.html?id=${encodeURIComponent(wabaId)}`;
-});
-
 let started = false;
 onAuthStateChanged(auth, (user) => {
   if (!user) {
@@ -123,5 +141,11 @@ onAuthStateChanged(auth, (user) => {
   if (!started) {
     started = true;
     initEmbeddedSignup();
+    // A key remembered in this browser is checked straight away.
+    const remembered = getStoredKey();
+    if (remembered) {
+      keyInput.value = remembered;
+      checkKey();
+    }
   }
 });

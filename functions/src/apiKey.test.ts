@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKey } from './apiKey';
 
 const KEY = '0123456789abcdef'.repeat(4);
@@ -39,4 +41,13 @@ test('the stored hash is not the encryption key: it cannot open a token', () => 
   const enc = encryptToken('EAAB-secret-token', KEY);
   // Presenting the stored hash as if it were the API key must not decrypt.
   assert.throws(() => decryptToken(enc, hashApiKey(KEY)));
+});
+
+test('the browser module computes exactly the same hash as the server', async () => {
+  // Load the page's ES module with a native dynamic import (this file compiles to CommonJS).
+  const url = pathToFileURL(path.resolve(__dirname, '../../public/assets/api-key.js')).href;
+  const nativeImport = new Function('u', 'return import(u)') as (u: string) => Promise<{ hashApiKey: (k: string) => Promise<string> }>;
+  const browser = await nativeImport(url);
+  assert.equal(await browser.hashApiKey(KEY), hashApiKey(KEY));
+  assert.equal(await browser.hashApiKey(OTHER), hashApiKey(OTHER));
 });

@@ -1,13 +1,13 @@
 // Fills the shared sidebar (views/partials/waba-sidebar.html) with the signed-in
 // user's onboarded WABAs, wires up its Delete account button, and returns the
 // WABA records. Callers only invoke this when someone is signed in.
-import { auth, db } from './firebase-init.js';
+import { auth, db, functionsBase, signOutUser } from './firebase-init.js';
+import { callAsUser, clearStoredKey } from './api-key.js';
 import {
   collection,
   query,
   where,
   getDocs,
-  writeBatch,
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const ACTIVE = ['bg-primary-container', 'text-on-primary-container', 'font-bold'];
@@ -24,16 +24,17 @@ function wireDelete() {
   if (deleteWired) return;
   deleteWired = true;
   document.getElementById('delete-account-btn').addEventListener('click', async () => {
-    const user = auth.currentUser;
-    if (!user) return;
-    if (!confirm('Delete all your onboarded WABAs from our records? This cannot be undone.')) return;
-
-    const snapshot = await getDocs(query(collection(db, 'wabas'), where('ownerUid', '==', user.uid)));
-    const batch = writeBatch(db);
-    snapshot.forEach((docSnap) => batch.delete(docSnap.ref));
-    await batch.commit();
-
-    alert('Your WABAs have been deleted.');
+    if (!auth.currentUser) return;
+    if (!confirm('Delete your account? This removes your numbers and the access tokens we hold for them from our records. It cannot be undone.')) return;
+    try {
+      await callAsUser(auth, `${functionsBase()}/deleteMyAccount`, {});
+    } catch (err) {
+      alert(`Could not delete your account: ${err.message}`);
+      return;
+    }
+    clearStoredKey();
+    await signOutUser().catch(() => undefined);
+    alert('Your account has been deleted.');
     location.href = '/dashboard/';
   });
 }
@@ -48,7 +49,7 @@ export async function fillSidebar(uid, currentId) {
     markActive(sidebar.querySelector('[data-nav="onboard"]'));
   }
 
-  const snapshot = await getDocs(query(collection(db, 'wabas'), where('ownerUid', '==', uid)));
+  const snapshot = await getDocs(query(collection(db, 'wabas'), where('userId', '==', uid)));
   const wabas = [];
   list.replaceChildren();
   snapshot.forEach((docSnap) => {
@@ -57,15 +58,15 @@ export async function fillSidebar(uid, currentId) {
     const link = document.createElement('a');
     link.href = `/waba.html?id=${encodeURIComponent(docSnap.id)}`;
     link.className = `${LINK} text-on-surface-variant`;
-    link.title = `WABA ${docSnap.id}`;
+    link.title = `Phone number ID ${docSnap.id}`;
 
     const icon = document.createElement('span');
     icon.className = 'material-symbols-outlined text-[22px] flex-shrink-0';
-    icon.textContent = waba.overrideUrl ? 'chat' : 'chat_bubble_outline';
+    icon.textContent = waba.overrideUrl && waba.encAccessToken ? 'chat' : 'chat_bubble_outline';
 
     const label = document.createElement('span');
     label.className = 'hidden lg:inline truncate';
-    label.textContent = `WABA ${docSnap.id}`;
+    label.textContent = `Number ${docSnap.id}`;
 
     link.append(icon, label);
     if (docSnap.id === currentId) markActive(link);
