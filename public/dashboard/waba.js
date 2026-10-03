@@ -2,6 +2,7 @@ import { auth, db, functionsBase, onAuthStateChanged } from '/assets/firebase-in
 import { META_APP_ID, META_CONFIG_ID } from '/assets/app-config.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
+import { FIRST_KEY_NOTE, NEW_KEY_NOTE, saveFirstKey, showNewKey, signOutToRememberKey } from '/assets/key-dialog.js';
 import { callAsUser, clearStoredKey, getStoredKey, isValidApiKey, keyMatchesAccount, storeKey } from '/assets/api-key.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
@@ -45,19 +46,24 @@ keyInput.addEventListener('input', checkKey);
 
 document.getElementById('lost-key-btn').addEventListener('click', async () => {
   const ok = confirm(
-    'If you lost your API key, we have to delete the access tokens we hold for your numbers, because they cannot be opened without it. ' +
-      'Each number must be onboarded again before it can send. Continue?',
+    'Your onboarded WABAs will be useless.\n\n' +
+      'Without your API key we cannot open the access tokens we hold for your numbers, so we have to delete them. ' +
+      'Each number must be onboarded again before it can send.\n\n' +
+      "You'll then get a new API key to note down. Continue?",
   );
   if (!ok) return;
   try {
     await callAsUser(auth, `${functionsBase()}/resetKey`, {});
     clearStoredKey();
-    alert('Your old tokens were deleted. Create a new API key on the Dashboard, then come back to onboard.');
-    location.href = '/dashboard/';
+    showNewKey({ required: true, note: NEW_KEY_NOTE, save: saveFirstKey, afterSave: signOutToRememberKey });
   } catch (err) {
     status.textContent = `Reset failed: ${err.message}`;
   }
 });
+
+document.getElementById('create-key-btn').addEventListener('click', () =>
+  showNewKey({ required: true, note: FIRST_KEY_NOTE, save: saveFirstKey, afterSave: signOutToRememberKey }),
+);
 
 // Both halves of Embedded Signup must arrive: the code (from FB.login's callback)
 // and the WABA and phone number ids (from a window message).
@@ -132,20 +138,29 @@ function initEmbeddedSignup() {
 }
 
 let started = false;
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   if (!user) {
     location.href = '/dashboard/';
     return;
   }
   fillSidebar(user.uid);
-  if (!started) {
-    started = true;
-    initEmbeddedSignup();
-    // A key remembered in this browser is checked straight away.
-    const remembered = getStoredKey();
-    if (remembered) {
-      keyInput.value = remembered;
-      checkKey();
-    }
+  if (started) return;
+  started = true;
+
+  // An account with no API key yet creates one here, before its first onboarding.
+  const hasKey = Boolean((await getDoc(doc(db, 'users', user.uid))).data()?.apiKeyHash);
+  if (!hasKey) {
+    document.getElementById('create-key-card').classList.remove('hidden');
+    status.textContent = '';
+    return;
+  }
+
+  document.getElementById('intro-card').classList.remove('hidden');
+  initEmbeddedSignup();
+  // A key remembered in this browser is checked straight away.
+  const remembered = getStoredKey();
+  if (remembered) {
+    keyInput.value = remembered;
+    checkKey();
   }
 });

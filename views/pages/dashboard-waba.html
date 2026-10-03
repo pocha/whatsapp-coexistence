@@ -24,7 +24,18 @@
       <div class="max-w-4xl mx-auto flex flex-col gap-6 w-full">
         <h1 class="font-headline-lg text-headline-lg text-on-surface">Onboard a WABA</h1>
 
-        <div id="intro-card" class="card p-6">
+        <!-- First time: the account has no API key yet, so create one before onboarding -->
+        <div id="create-key-card" class="hidden card p-6">
+          <p class="section-title text-on-surface mb-1">First, create your Watobot API key</p>
+          <p class="text-on-surface-variant font-body-md">
+            We encrypt the access token Meta gives us for your number with a
+            Watobot API key that only you hold. We'll show you the key once, so
+            you can note it down.
+          </p>
+          <button id="create-key-btn" type="button" class="mt-4 self-start rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Create my API key</button>
+        </div>
+
+        <div id="intro-card" class="hidden card p-6">
           <p class="text-on-surface-variant font-body-md">
             If you haven't already, create a Business Portfolio, connect your
             phone number on the WhatsApp Business app, and add it under
@@ -33,23 +44,24 @@
             walks through it.
           </p>
           <p class="text-on-surface-variant font-body-md mt-3">
-            We encrypt the access token Meta gives us for your number with your
-            Watobot API key. Enter it first, so we can check it before you go
-            through Meta's popup.
+            Enter your Watobot API key, so we can check it before you go through
+            Meta's popup.
           </p>
           <label class="label-strong text-on-surface-variant block mt-4" for="key-input">Your Watobot API key</label>
           <input id="key-input" type="password" autocomplete="off" placeholder="64 characters" class="w-full mt-1 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-xs"/>
-          <button id="lost-key-btn" type="button" class="self-start mt-2 text-error font-body-md text-sm hover:underline">I lost my API key</button>
+          <button id="lost-key-btn" type="button" class="self-start mt-2 text-error font-body-md text-sm hover:underline">I forgot my API key</button>
 
           <p class="text-on-surface-variant font-body-md mt-4">
             Then click the button below to get API access with coexistence.
           </p>
           <button id="fetch-btn" disabled class="mt-3 self-start rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">Fetch my WABAs</button>
-          <p class="text-on-surface-variant font-body-md text-sm mt-3" id="onboarding-status">Loading…</p>
         </div>
+        <p class="text-on-surface-variant font-body-md text-sm" id="onboarding-status">Loading…</p>
       </div>
     </section>
   </div>
+
+<!--#include partial="key-dialog"-->
 
   <script type="module" src="/dashboard/waba.js"></script>
 

@@ -4,12 +4,12 @@ import '/assets/nav-auth.js';
 import {
   callAsUser,
   clearStoredKey,
-  generateApiKey,
   getStoredKey,
   isValidApiKey,
   keyMatchesAccount,
   storeKey,
 } from '/assets/api-key.js';
+import { NEW_KEY_NOTE, keepSignedInWith, saveFirstKey, showNewKey, signOutToRememberKey } from '/assets/key-dialog.js';
 import { db } from '/assets/firebase-init.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
@@ -96,14 +96,16 @@ async function verify({ apiKey, resetApiKey } = {}) {
   }
 
   if (apiKey) storeKey(apiKey);
-  if (resetApiKey) clearStoredKey();
-  // The code is spent; the signed-in view (and the key setup, if the account has
-  // no key yet) takes over from onAuthStateChanged below.
-  needsKeySetupAfterSignIn = body.needsKeySetup;
+  if (resetApiKey) {
+    clearStoredKey();
+    showNewKeyAfterReset = true;
+  }
+  // The code is spent; the signed-in view takes over from onAuthStateChanged below.
   await signInWithOtpToken(body.token);
 }
 
-let needsKeySetupAfterSignIn = false;
+// Set after a lost-key reset at sign-in: the new key is shown right after signing in.
+let showNewKeyAfterReset = false;
 
 verifyOtpBtn.addEventListener('click', async () => {
   const code = codeInput.value.trim();
@@ -143,8 +145,10 @@ keyBtn.addEventListener('click', async () => {
 
 lostKeyBtn.addEventListener('click', async () => {
   const ok = confirm(
-    'If you lost your API key, we have to delete the access tokens we hold for your numbers, because they cannot be opened without it. ' +
-      'Your numbers stay in your list, but each one must be onboarded again before it can send. Continue?',
+    'Your onboarded WABAs will be useless.\n\n' +
+      'Without your API key we cannot open the access tokens we hold for your numbers, so we have to delete them. ' +
+      'Your numbers stay in your list, but each one must be onboarded again before it can send.\n\n' +
+      "You'll then get a new API key to note down. Continue?",
   );
   if (!ok) return;
   loginStatus.textContent = 'Resetting…';
@@ -154,54 +158,6 @@ lostKeyBtn.addEventListener('click', async () => {
     loginStatus.textContent = `Reset failed: ${err.message}`;
   }
 });
-
-// --- Showing a new API key, once -------------------------------------------------
-const keyDialog = document.getElementById('key-dialog');
-const keyDialogValue = document.getElementById('key-dialog-value');
-const keyDialogConfirm = document.getElementById('key-dialog-confirm');
-const keyDialogDone = document.getElementById('key-dialog-done');
-const keyDialogStatus = document.getElementById('key-dialog-status');
-
-// Generates a key in the browser, shows it, and only calls `save(key)` once the
-// user pastes it back to prove they copied it. `required` stops the dialog being
-// dismissed (first-time setup needs a key before anything else works).
-function showNewKey({ save, required }) {
-  const key = generateApiKey();
-  keyDialogValue.value = key;
-  keyDialogConfirm.value = '';
-  keyDialogDone.disabled = true;
-  keyDialogStatus.textContent = '';
-  keyDialog.oncancel = (event) => {
-    if (required) event.preventDefault();
-  };
-  keyDialogConfirm.oninput = () => {
-    keyDialogDone.disabled = keyDialogConfirm.value.trim() !== key;
-  };
-  document.getElementById('key-dialog-copy').onclick = async () => {
-    await navigator.clipboard.writeText(key);
-    document.getElementById('key-dialog-copy').textContent = 'Copied';
-  };
-  keyDialogDone.onclick = async () => {
-    keyDialogDone.disabled = true;
-    keyDialogStatus.textContent = 'Saving…';
-    try {
-      await save(key);
-      storeKey(key);
-      keyDialog.close();
-    } catch (err) {
-      keyDialogStatus.textContent = `Could not save: ${err.message}`;
-      keyDialogDone.disabled = false;
-    }
-  };
-  document.getElementById('key-dialog-copy').textContent = 'Copy';
-  keyDialog.showModal();
-}
-
-const setFirstKey = () =>
-  showNewKey({
-    required: true,
-    save: (key) => callAsUser(auth, `${functionsBase()}/setApiKey`, { apiKey: key }),
-  });
 
 // --- Rotate and reset (signed in) -------------------------------------------------
 const rotateBtn = document.getElementById('rotate-btn');
@@ -219,23 +175,22 @@ rotateBtn.addEventListener('click', async () => {
   rotateStatus.textContent = '';
   showNewKey({
     required: false,
-    save: async (newApiKey) => {
-      await callAsUser(auth, `${functionsBase()}/rotateKey`, { oldApiKey, newApiKey });
-      rotateStatus.textContent = 'Done. Your new key is active and the old one no longer works.';
-      document.getElementById('rotate-old').value = '';
-    },
+    note: NEW_KEY_NOTE,
+    save: (newApiKey) => callAsUser(auth, `${functionsBase()}/rotateKey`, { oldApiKey, newApiKey }),
+    afterSave: signOutToRememberKey,
   });
 });
 
 document.getElementById('reset-key-btn').addEventListener('click', async () => {
   const ok = confirm(
-    'Only do this if you lost your key. We will delete the access tokens we hold for your numbers, and each number must be onboarded again before it can send. Continue?',
+    'Your onboarded WABAs will be useless.\n\n' +
+      'Only do this if you lost your key. We will delete the access tokens we hold for your numbers, and each number must be onboarded again before it can send. Continue?',
   );
   if (!ok) return;
   try {
     await callAsUser(auth, `${functionsBase()}/resetKey`, {});
     clearStoredKey();
-    setFirstKey();
+    showNewKey({ required: true, note: NEW_KEY_NOTE, save: saveFirstKey, afterSave: signOutToRememberKey });
   } catch (err) {
     rotateStatus.textContent = `Reset failed: ${err.message}`;
   }
@@ -280,9 +235,14 @@ onAuthStateChanged(auth, async (user) => {
     signedOutEl.classList.add('hidden');
     signedInEl.classList.remove('hidden');
     renderCards(await fillSidebar(user.uid));
-    if (needsKeySetupAfterSignIn) {
-      needsKeySetupAfterSignIn = false;
-      setFirstKey();
+    if (showNewKeyAfterReset) {
+      showNewKeyAfterReset = false;
+      showNewKey({
+        required: true,
+        note: 'Your old key no longer works. Keep this one safe: you will need it to sign in.',
+        save: saveFirstKey,
+        afterSave: keepSignedInWith,
+      });
     }
   } else {
     signedInEl.classList.add('hidden');

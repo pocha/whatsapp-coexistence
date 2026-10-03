@@ -67,7 +67,8 @@
             The key your apps use to call our API. We keep only a hash of it, and
             it encrypts the Meta access tokens we store for your numbers, so we
             can't read them without it. To replace it, enter the current key:
-            nothing breaks, and every number keeps working with the new key.
+            nothing breaks, and every number keeps working with the new key. We
+            sign you out afterwards, so you need the new key to sign in.
           </p>
           <label class="label-strong text-on-surface-variant block" for="rotate-old">Current API key</label>
           <input id="rotate-old" type="password" autocomplete="off" class="w-full mt-1 mb-3 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-xs"/>
@@ -80,24 +81,7 @@
     </section>
   </div>
 
-  <!-- Shows a newly generated API key once (first setup, or after rotating) -->
-  <dialog id="key-dialog" class="bg-white border border-outline-variant rounded-xl shadow-xl p-6 w-[90vw] max-w-lg m-auto text-left backdrop:bg-black/50">
-    <p class="section-title text-on-surface mb-2">Your Watobot API key</p>
-    <p class="text-on-surface-variant font-body-md text-sm mb-3">
-      Copy this key and keep it somewhere safe. <strong>We can't show it again
-      and can't recover it.</strong> It is how your apps call our API, and it
-      protects the access tokens we store for your numbers. If you lose it, you
-      will have to onboard your numbers again.
-    </p>
-    <div class="flex gap-2 mb-3">
-      <input id="key-dialog-value" type="text" readonly class="flex-1 px-3 py-2 bg-white border border-outline-variant rounded-lg text-xs font-mono"/>
-      <button id="key-dialog-copy" type="button" class="rounded-xl bg-primary text-on-primary px-4 py-2 font-label-md text-label-md font-bold hover:opacity-90 transition-all">Copy</button>
-    </div>
-    <label class="label-strong text-on-surface-variant block" for="key-dialog-confirm">Paste the key here to confirm you saved it</label>
-    <input id="key-dialog-confirm" type="text" autocomplete="off" class="w-full mt-1 mb-3 px-3 py-2 bg-white border border-outline-variant rounded-lg text-xs font-mono"/>
-    <button id="key-dialog-done" disabled type="button" class="rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed">I've saved it</button>
-    <p class="text-on-surface-variant font-body-md text-sm mt-3" id="key-dialog-status"></p>
-  </dialog>
+<!--#include partial="key-dialog"-->
 
   <script type="module" src="/dashboard/app.js"></script>
 

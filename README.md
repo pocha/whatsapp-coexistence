@@ -83,7 +83,10 @@ Meta requires a Tech Provider to protect, and not share, customers' access token
 we hold each customer's token and never hand it out.
 
 - Each account has a **Watobot API key**: 32 random bytes, generated in the
-  browser and shown once. We store only a hash of it, on the user record.
+  browser and shown once, when the account first onboards a number. We store only a
+  hash of it, on the user record. Whenever a key is created or replaced, the user is
+  signed out (and any copy kept in the browser is cleared), so they have to type it
+  to sign in again and see how much it matters.
 - The key derives (HKDF-SHA256, with separate labels) both that hash and an
   AES-256-GCM key. The second one encrypts each number's Meta token, on
   `wabas/{phoneNumberId}`. The hash can't decrypt anything, and there is no server
@@ -92,8 +95,9 @@ we hold each customer's token and never hand it out.
   incoming URL, managing templates) lets the backend decrypt the token in memory,
   use it, and drop it.
 - **Rotating** the key needs the old one and re-encrypts every token. A **lost key
-  can't be recovered**: resetting it deletes the stored tokens, and each number must
-  be onboarded again.
+  can't be recovered**: resetting it (from the sign-in screen, the dashboard or the
+  onboarding page) warns that the onboarded WABAs will be useless, deletes the stored
+  tokens, and gives a new key. Each number must then be onboarded again.
 
 Data model (all writes to `users`, `phoneIndex` and the token fields are by Functions
 only; see `firestore.rules`):
