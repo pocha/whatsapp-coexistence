@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { decryptToken, encryptToken, hashApiKey, type EncryptedToken } from './apiKey';
+import { decryptToken, encryptToken, hashApiKey } from './apiKey';
 
 const KEY = '0123456789abcdef'.repeat(4);
 const OTHER = 'fedcba9876543210'.repeat(4);
@@ -24,8 +24,6 @@ async function browserModule() {
   const url = pathToFileURL(path.resolve(__dirname, '../../public/assets/api-key.js')).href;
   const nativeImport = new Function('u', 'return import(u)') as (u: string) => Promise<{
     hashApiKey: (k: string) => Promise<string>;
-    encryptToken: (t: string, k: string) => Promise<EncryptedToken>;
-    decryptToken: (e: EncryptedToken, k: string) => Promise<string>;
   }>;
   return nativeImport(url);
 }
@@ -35,10 +33,3 @@ test('the browser module computes exactly the same hash as the server', async ()
   assert.equal(await browser.hashApiKey(KEY), hashApiKey(KEY));
   assert.equal(await browser.hashApiKey(OTHER), hashApiKey(OTHER));
 });
-
-test('a token the browser encrypted opens on the server, and the other way round', async () => {
-  const browser = await browserModule();
-  assert.equal(decryptToken(await browser.encryptToken('EAAB-from-browser', KEY), KEY), 'EAAB-from-browser');
-  assert.equal(await browser.decryptToken(encryptToken('EAAB-from-server', KEY), KEY), 'EAAB-from-server');
-});
-

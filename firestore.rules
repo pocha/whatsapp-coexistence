@@ -9,8 +9,8 @@ service cloud.firestore {
     // under the owner's Watobot API key.
     //
     // The owner manages their own records from the browser: they can read them, delete
-    // them, and change overrideUrl, activatedAt and encAccessToken (re-encrypting it
-    // when they rotate their key, or clearing it when they reset a lost one). They can't
+    // them, and change overrideUrl, activatedAt and encAccessToken (clearing it when
+    // they reset a lost key; rotating a key goes through the rotateKey Function). They can't
     // touch anything else: not userId, and not lastRelayCall or usage, which are written
     // only by the relay and are the basis for billing. The token is useless to anyone
     // without the owner's key, so a stolen session can at worst break the owner's own

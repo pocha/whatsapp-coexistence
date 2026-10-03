@@ -91,6 +91,21 @@ test('exchangeCode refuses a wrong API key and an unauthenticated caller', async
   assert.equal((await db.collection('wabas').doc('223').get()).exists, false);
 });
 
+test('rotateKey re-encrypts the tokens under the new key and replaces the hash', async () => {
+  await seedNumber('555', '666');
+  assert.equal((await post('/rotateKey', { oldApiKey: NEW_KEY, newApiKey: KEY }, asUser())).status, 401);
+
+  const res = await post('/rotateKey', { oldApiKey: KEY, newApiKey: NEW_KEY }, asUser());
+  assert.equal(res.status, 200);
+  const stored = (await db.collection('wabas').doc('555').get()).data();
+  assert.equal(decryptToken(stored.encAccessToken, NEW_KEY), META_TOKEN);
+  assert.throws(() => decryptToken(stored.encAccessToken, KEY));
+  assert.equal((await db.collection('users').doc(userId).get()).data().apiKeyHash, hashApiKey(NEW_KEY));
+
+  // Put the original key back so the tests below still use KEY.
+  assert.equal((await post('/rotateKey', { oldApiKey: NEW_KEY, newApiKey: KEY }, asUser())).status, 200);
+});
+
 test('setWebhook needs the API key, then verifies the endpoint and subscribes, with no sign-in', async () => {
   await seedNumber('333', '444');
   const ok = await post('/setWebhook', { phoneNumberId: '333', apiKey: KEY, overrideCallbackUrl: BUSINESS_ENDPOINT });

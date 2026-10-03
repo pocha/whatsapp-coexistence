@@ -165,7 +165,7 @@ rotateBtn.addEventListener('click', async () => {
   showNewKey({
     required: false,
     note: NEW_KEY_NOTE,
-    save: (newApiKey) => rotateKey(auth.currentUser.uid, oldApiKey, newApiKey),
+    save: (newApiKey) => rotateKey(oldApiKey, newApiKey),
     afterSave: signOutAfterNewKey,
   });
 });

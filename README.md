@@ -94,14 +94,15 @@ we hold each customer's token and never hand it out.
 - A request that carries the key (a send through the relay, setting the
   incoming URL, managing templates) lets the backend decrypt the token in memory,
   use it, and drop it.
-- **Rotating** the key needs the old one, and the browser re-encrypts every token under
-  the new key in one batch. A **lost key can't be recovered**: resetting it (from the
+- **Rotating** the key needs the old one. The `rotateKey` function re-encrypts every
+  token under the new key in one batch, so the plaintext token is only ever in server
+  memory, never in the browser. A **lost key can't be recovered**: resetting it (from the
   sign-in screen, the dashboard or the onboarding page) warns that the onboarded WABAs
   will be useless, deletes the stored tokens, and gives a new key. Each number must
   then be onboarded again.
 - **Users manage their own account from the browser** (`public/assets/account.js`):
-  creating, rotating and resetting the key, and deleting the account. Functions are only
-  for what needs the Meta App Secret or the stored token: onboarding, the relay, setting
+  creating and resetting the key, and deleting the account. Functions are for what needs
+  the Meta App Secret or a plaintext token: onboarding, key rotation, the relay, setting
   the incoming URL, templates, and the sign-in reset.
 
 Data model. Functions create these records; a signed-in user can then read and manage

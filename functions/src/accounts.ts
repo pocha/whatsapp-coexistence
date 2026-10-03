@@ -6,10 +6,10 @@ import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKe
 //   users/{userId}           phoneNumber, apiKeyHash, createdAt, rotatedAt
 //   phoneIndex/{phone}       userId (makes phone -> user creation race-free)
 //   wabas/{phoneNumberId}    userId, wabaId, phoneNumberId, encAccessToken, ...
-// Functions create these and run the relay, webhook and onboarding calls. The user manages
-// their own key and records from the browser (see public/assets/account.js and
-// firestore.rules); resetApiKey and setFirstApiKey stay here for the sign-in reset and
-// for scripts/seed-test-waba.js.
+// Functions create these and run the relay, webhook and onboarding calls, and rotate the key
+// (the only thing that needs a plaintext Meta token besides those calls). The user manages the
+// rest of their account from the browser (see public/assets/account.js and firestore.rules);
+// resetApiKey and setFirstApiKey stay here for the sign-in reset and for scripts/seed-test-waba.js.
 
 export interface UserRecord {
   userId: string;
@@ -115,6 +115,32 @@ export async function storeWabaToken(args: {
 
 async function wabasOf(userId: string) {
   return getFirestore().collection('wabas').where('userId', '==', userId).get();
+}
+
+/**
+ * Replaces the API key: re-encrypts every stored Meta token under the new key and stores
+ * the new hash, in one atomic batch. The plaintext tokens only exist in memory here, never
+ * in the browser.
+ */
+export async function rotateApiKey(userId: string, oldKey: unknown, newKey: unknown): Promise<void> {
+  await requireUserKey(userId, oldKey);
+  if (!isValidApiKey(newKey)) throw new HttpError(400, 'That is not a valid new API key.');
+
+  const db = getFirestore();
+  const batch = db.batch();
+  (await wabasOf(userId)).forEach((snap) => {
+    const enc = snap.data().encAccessToken as EncryptedToken | undefined;
+    if (!enc) return;
+    let token: string;
+    try {
+      token = decryptToken(enc, oldKey as string);
+    } catch {
+      throw new HttpError(500, 'Could not decrypt a stored access token.');
+    }
+    batch.update(snap.ref, { encAccessToken: encryptToken(token, newKey) });
+  });
+  batch.update(db.collection('users').doc(userId), { apiKeyHash: hashApiKey(newKey), rotatedAt: Date.now() });
+  await batch.commit();
 }
 
 /**

@@ -4,6 +4,7 @@ import { initializeApp } from 'firebase-admin/app';
 initializeApp();
 
 export { exchangeCode } from './exchangeCode';
+export { rotateKey } from './rotateKey';
 export { setWebhook } from './setWebhook';
 export { relayMessage } from './relayMessage';
 export { webhook } from './webhook';

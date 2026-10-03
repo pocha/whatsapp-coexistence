@@ -1,8 +1,10 @@
 // What a signed-in user does to their own account, straight from the browser. The
-// Firestore rules limit each of these to the user's own records. Nothing here uses a
-// Function: the user holds the key, so the user does it.
+// Firestore rules limit each of these to the user's own records. The browser never handles
+// a plaintext Meta token, so rotating the key (which re-encrypts the tokens) goes through
+// a Function instead.
 import { auth, db } from './firebase-init.js';
-import { decryptToken, encryptToken, hashApiKey } from './api-key.js';
+import { callAsUser, hashApiKey } from './api-key.js';
+import { functionsBase } from './firebase-init.js';
 import {
   collection,
   deleteField,
@@ -24,22 +26,9 @@ export async function setFirstKey(uid, apiKey) {
   await updateDoc(userRef(uid), { apiKeyHash: await hashApiKey(apiKey), rotatedAt: Date.now() });
 }
 
-/**
- * Replaces the key: re-encrypts every stored Meta token under the new key and stores
- * the new hash, in one atomic batch. Needs the current key, so nothing is lost.
- */
-export async function rotateKey(uid, oldKey, newKey) {
-  const stored = (await getDoc(userRef(uid))).data()?.apiKeyHash;
-  if (!stored || stored !== (await hashApiKey(oldKey))) throw new Error('That is not the current key for this account.');
-
-  const batch = writeBatch(db);
-  for (const snap of (await numbersOf(uid)).docs) {
-    const enc = snap.data().encAccessToken;
-    if (enc) batch.update(snap.ref, { encAccessToken: await encryptToken(await decryptToken(enc, oldKey), newKey) });
-  }
-  batch.update(userRef(uid), { apiKeyHash: await hashApiKey(newKey), rotatedAt: Date.now() });
-  await batch.commit();
-}
+/** Replaces the key. The server re-encrypts every stored token, so the old key is needed. */
+export const rotateKey = (oldKey, newKey) =>
+  callAsUser(auth, `${functionsBase()}/rotateKey`, { oldApiKey: oldKey, newApiKey: newKey });
 
 /**
  * For a lost key: the stored tokens can't be opened without it, so they are deleted
