@@ -1,6 +1,15 @@
-<aside id="waba-sidebar" class="hidden w-full md:w-64 shrink-0 flex flex-col gap-3">
-  <a href="/dashboard/waba.html" class="rounded-xl bg-primary text-on-primary px-4 py-3 text-center font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">+ Onboard WABA</a>
-  <p class="label-muted mt-2">Your WABAs</p>
-  <nav id="waba-sidebar-list" class="flex flex-col gap-2"></nav>
-  <p id="waba-sidebar-empty" class="hidden text-on-surface-variant font-body-md text-sm">No WABAs onboarded yet.</p>
+<aside id="waba-sidebar" class="hidden w-16 lg:w-64 flex-shrink-0 border-r border-outline-variant bg-surface-container-lowest flex-col gap-1 py-4 px-2">
+  <p class="hidden lg:block label-muted px-3 mb-1">Your WABAs</p>
+  <nav id="waba-sidebar-list" class="flex flex-col gap-1"></nav>
+  <p id="waba-sidebar-empty" class="hidden lg:block text-on-surface-variant font-body-md text-sm px-3">No WABAs onboarded yet.</p>
+
+  <a href="/dashboard/waba.html" data-nav="onboard" title="Onboard WABA" class="mt-2 flex items-center gap-3 px-2 lg:px-3 py-2.5 rounded-lg font-label-md text-sm font-bold text-primary hover:bg-surface-container transition-colors justify-center lg:justify-start">
+    <span class="material-symbols-outlined text-[22px] flex-shrink-0">add_circle</span>
+    <span class="hidden lg:inline truncate">Onboard WABA</span>
+  </a>
+
+  <button id="delete-account-btn" title="Delete account" class="mt-auto flex items-center gap-3 px-2 lg:px-3 py-2.5 rounded-lg font-label-md text-sm text-error hover:bg-error/10 transition-colors justify-center lg:justify-start">
+    <span class="material-symbols-outlined text-[22px] flex-shrink-0">delete</span>
+    <span class="hidden lg:inline truncate">Delete account</span>
+  </button>
 </aside>

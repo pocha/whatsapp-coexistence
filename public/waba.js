@@ -1,6 +1,7 @@
 import { auth, db, functionsBase, onAuthStateChanged } from '/assets/firebase-init.js';
 import { WEBHOOK_VERIFY_TOKEN } from '/assets/app-config.js';
 import { fillSidebar, hideSidebar } from '/assets/waba-sidebar.js';
+import '/assets/nav-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const $ = (id) => document.getElementById(id);
