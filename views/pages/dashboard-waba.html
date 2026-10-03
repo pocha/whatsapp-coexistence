@@ -3,6 +3,20 @@
 <!--#include partial="head"-->
 <!--#include partial="header"-->
 
+  <script>
+    // While the app waits for Meta's approval, visitors go to the landing page's waitlist. The
+    // dashboard stays reachable on localhost, and anywhere after opening it once
+    // with ?preview=1 (remembered in this browser).
+    (function () {
+      var open = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      try {
+        if (new URLSearchParams(location.search).get('preview') === '1') localStorage.setItem('watobot_preview', '1');
+        open = open || localStorage.getItem('watobot_preview') === '1';
+      } catch (e) {}
+      if (!open) location.replace('/?join-waitlist=true');
+    })();
+  </script>
+
   <div class="flex w-full flex-1">
     <!--#include partial="waba-sidebar"-->
 

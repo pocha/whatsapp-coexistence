@@ -9,3 +9,4 @@ export { relayMessage } from './relayMessage';
 export { webhook } from './webhook';
 export { sendOtp } from './sendOtp';
 export { verifyOtp } from './verifyOtp';
+export { joinWaitlist } from './joinWaitlist';
