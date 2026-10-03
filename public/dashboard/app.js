@@ -185,12 +185,12 @@ document.getElementById('reset-key-btn').addEventListener('click', async () => {
 });
 
 // --- The signed-in dashboard --------------------------------------------------------
-function renderCards(wabas) {
+function renderCards(numbers) {
   const cards = document.getElementById('waba-cards');
   cards.replaceChildren();
-  document.getElementById('waba-cards-empty').classList.toggle('hidden', wabas.length > 0);
+  document.getElementById('waba-cards-empty').classList.toggle('hidden', numbers.length > 0);
 
-  for (const waba of wabas) {
+  for (const waba of numbers) {
     const card = document.createElement('a');
     card.href = `/waba.html?id=${encodeURIComponent(waba.id)}`;
     card.className = 'card p-6 hover:shadow-md transition-all flex flex-col gap-1';

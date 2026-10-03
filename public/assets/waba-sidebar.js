@@ -48,12 +48,12 @@ export async function fillSidebar(uid, currentId) {
     markActive(sidebar.querySelector('[data-nav="onboard"]'));
   }
 
-  const snapshot = await getDocs(query(collection(db, 'wabas'), where('userId', '==', uid)));
-  const wabas = [];
+  const snapshot = await getDocs(query(collection(db, 'phoneNumbers'), where('userId', '==', uid)));
+  const numbers = [];
   list.replaceChildren();
   snapshot.forEach((docSnap) => {
     const waba = docSnap.data();
-    wabas.push({ id: docSnap.id, ...waba });
+    numbers.push({ id: docSnap.id, ...waba });
     const link = document.createElement('a');
     link.href = `/waba.html?id=${encodeURIComponent(docSnap.id)}`;
     link.className = `${LINK} text-on-surface-variant`;
@@ -77,7 +77,7 @@ export async function fillSidebar(uid, currentId) {
   sidebar.classList.remove('hidden');
   sidebar.classList.add('flex');
   wireDelete();
-  return wabas;
+  return numbers;
 }
 
 export function hideSidebar() {

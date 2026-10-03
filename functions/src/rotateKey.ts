@@ -25,7 +25,7 @@ export const rotateKey = onRequest((req, res) => {
 
       const db = getFirestore();
       const batch = db.batch();
-      (await db.collection('wabas').where('userId', '==', userId).get()).forEach((snap) => {
+      (await db.collection('phoneNumbers').where('userId', '==', userId).get()).forEach((snap) => {
         const enc = snap.data().encAccessToken as EncryptedToken | undefined;
         if (!enc) return;
         let token: string;

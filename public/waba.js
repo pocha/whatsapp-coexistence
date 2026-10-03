@@ -28,14 +28,14 @@ const BODY_TEMPLATE = {
   text: { body: '' },
 };
 
-// Reads wabas/{phoneNumberId} only when someone is signed in; the rules let only
+// Reads phoneNumbers/{phoneNumberId} only when someone is signed in; the rules let only
 // the owner read it. Anyone else (or a missing record) simply gets no counts and
 // no prefill, and the page works the same for testing.
 async function loadRecord() {
   if (!auth.currentUser || !phoneNumberId) return;
   let data;
   try {
-    data = (await getDoc(doc(db, 'wabas', phoneNumberId))).data();
+    data = (await getDoc(doc(db, 'phoneNumbers', phoneNumberId))).data();
   } catch {
     return;
   }
@@ -100,7 +100,7 @@ $('ov-btn').addEventListener('click', async () => {
       return;
     }
     try {
-      await updateDoc(doc(db, 'wabas', phoneNumberId), { overrideUrl: overrideCallbackUrl, activatedAt: Date.now() });
+      await updateDoc(doc(db, 'phoneNumbers', phoneNumberId), { overrideUrl: overrideCallbackUrl, activatedAt: Date.now() });
       status.textContent = 'Done: incoming messages now go to your URL, and it is saved to your account.';
       fillSidebar(auth.currentUser.uid, phoneNumberId);
     } catch (err) {

@@ -19,7 +19,7 @@ import {
 import { deleteUser } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 
 const userRef = (uid) => doc(db, 'users', uid);
-const numbersOf = (uid) => getDocs(query(collection(db, 'wabas'), where('userId', '==', uid)));
+const numbersOf = (uid) => getDocs(query(collection(db, 'phoneNumbers'), where('userId', '==', uid)));
 
 /** Saves the hash of a brand-new key (the account has none yet). */
 export async function setFirstKey(uid, apiKey) {

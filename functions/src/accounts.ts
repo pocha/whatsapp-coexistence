@@ -5,7 +5,7 @@ import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKe
 // Data model:
 //   users/{userId}           phoneNumber, apiKeyHash, createdAt, rotatedAt
 //   phoneIndex/{phone}       userId (makes phone -> user creation race-free)
-//   wabas/{phoneNumberId}    userId, wabaId, phoneNumberId, encAccessToken, ...
+//   phoneNumbers/{phoneNumberId}    userId, wabaId, phoneNumberId, encAccessToken, ...
 // Functions create these and run the relay, webhook, onboarding and key rotation. The user
 // manages the rest of their account from the browser (see public/assets/account.js and
 // firestore.rules); resetApiKey and setFirstApiKey stay here for the sign-in reset and for
@@ -76,7 +76,7 @@ export async function authenticateKey(
   apiKey: unknown,
 ): Promise<{ userId: string; wabaId: string; accessToken: string }> {
   const db = getFirestore();
-  const wabaSnap = await db.collection('wabas').doc(phoneNumberId).get();
+  const wabaSnap = await db.collection('phoneNumbers').doc(phoneNumberId).get();
   const waba = wabaSnap.data();
   if (!waba) throw new HttpError(404, 'Unknown phone number ID.');
 
@@ -100,7 +100,7 @@ export async function storeWabaToken(args: {
   apiKey: string;
 }): Promise<void> {
   await getFirestore()
-    .collection('wabas')
+    .collection('phoneNumbers')
     .doc(args.phoneNumberId)
     .set(
       {
@@ -113,8 +113,8 @@ export async function storeWabaToken(args: {
     );
 }
 
-async function wabasOf(userId: string) {
-  return getFirestore().collection('wabas').where('userId', '==', userId).get();
+async function numbersOf(userId: string) {
+  return getFirestore().collection('phoneNumbers').where('userId', '==', userId).get();
 }
 
 /**
@@ -124,10 +124,10 @@ async function wabasOf(userId: string) {
  */
 export async function resetApiKey(userId: string): Promise<number> {
   const db = getFirestore();
-  const wabas = await wabasOf(userId);
+  const numbers = await numbersOf(userId);
   const batch = db.batch();
   let wiped = 0;
-  wabas.forEach((snap) => {
+  numbers.forEach((snap) => {
     if (snap.data().encAccessToken) wiped += 1;
     batch.update(snap.ref, { encAccessToken: FieldValue.delete() });
   });

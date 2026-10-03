@@ -89,7 +89,7 @@ we hold each customer's token and never hand it out.
   out, so they have to type it to sign in again and see how much it matters.
 - The key derives (HKDF-SHA256, with separate labels) both that hash and an
   AES-256-GCM key. The second one encrypts each number's Meta token, on
-  `wabas/{phoneNumberId}`. The hash can't decrypt anything, and there is no server
+  `phoneNumbers/{phoneNumberId}`. The hash can't decrypt anything, and there is no server
   secret, so the stored data is unreadable without the customer's key.
 - A request that carries the key (a send through the relay, setting the
   incoming URL, managing templates) lets the backend decrypt the token in memory,
@@ -113,7 +113,7 @@ only their own, within the limits in `firestore.rules` (they can never change `u
 |---|---|
 | `users/{randomUserId}` | `phoneNumber`, `apiKeyHash`, `createdAt`, `rotatedAt` |
 | `phoneIndex/{phone}` | `userId` |
-| `wabas/{phoneNumberId}` | `userId`, `wabaId`, `phoneNumberId`, `encAccessToken`, `overrideUrl`, `activatedAt`, `lastRelayCall`, `usage` |
+| `phoneNumbers/{phoneNumberId}` | `userId`, `wabaId`, `phoneNumberId`, `encAccessToken`, `overrideUrl`, `activatedAt`, `lastRelayCall`, `usage` |
 
 The Firebase sign-in `uid` is the random user ID, not the phone number.
 

@@ -15,7 +15,7 @@ service cloud.firestore {
     // only by the relay and are the basis for billing. The token is useless to anyone
     // without the owner's key, so a stolen session can at worst break the owner's own
     // records, never read the token.
-    match /wabas/{phoneNumberId} {
+    match /phoneNumbers/{phoneNumberId} {
       allow read, delete: if isOwner(resource.data.userId);
 
       allow update: if isOwner(resource.data.userId)

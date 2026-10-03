@@ -77,7 +77,7 @@ app.post('/:phoneNumberId/messages', async (req, res) => {
     update[`usage.monthly.${monthlyKey(now)}`] = FieldValue.increment(1);
   }
   try {
-    await getFirestore().collection('wabas').doc(phoneNumberId).update(update);
+    await getFirestore().collection('phoneNumbers').doc(phoneNumberId).update(update);
   } catch {
     // No record to update.
   }

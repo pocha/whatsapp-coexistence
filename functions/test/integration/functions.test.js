@@ -27,7 +27,7 @@ const post = (path, body, headers = {}) =>
 const asUser = () => ({ Authorization: `Bearer ${idToken}` });
 
 async function seedNumber(phoneNumberId, wabaId, key = KEY) {
-  await db.collection('wabas').doc(phoneNumberId).set({
+  await db.collection('phoneNumbers').doc(phoneNumberId).set({
     userId,
     wabaId,
     phoneNumberId,
@@ -76,7 +76,7 @@ test('exchangeCode stores the Meta token encrypted under the API key and never r
   assert.equal(res.status, 200);
   assert.equal(JSON.stringify(body).includes(META_TOKEN), false, 'the token must not be in the response');
 
-  const stored = (await db.collection('wabas').doc('222').get()).data();
+  const stored = (await db.collection('phoneNumbers').doc('222').get()).data();
   assert.equal(stored.userId, userId);
   assert.equal(stored.wabaId, '111');
   assert.equal(JSON.stringify(stored).includes(META_TOKEN), false, 'the token must not be stored in the clear');
@@ -88,7 +88,7 @@ test('exchangeCode refuses a wrong API key and an unauthenticated caller', async
   const body = { code: 'c', wabaId: '111', phoneNumberId: '223', apiKey: NEW_KEY };
   assert.equal((await post('/exchangeCode', body, asUser())).status, 401);
   assert.equal((await post('/exchangeCode', { ...body, apiKey: KEY })).status, 401);
-  assert.equal((await db.collection('wabas').doc('223').get()).exists, false);
+  assert.equal((await db.collection('phoneNumbers').doc('223').get()).exists, false);
 });
 
 test('rotateKey re-encrypts the tokens under the new key and replaces the hash', async () => {
@@ -97,7 +97,7 @@ test('rotateKey re-encrypts the tokens under the new key and replaces the hash',
 
   const res = await post('/rotateKey', { oldApiKey: KEY, newApiKey: NEW_KEY }, asUser());
   assert.equal(res.status, 200);
-  const stored = (await db.collection('wabas').doc('555').get()).data();
+  const stored = (await db.collection('phoneNumbers').doc('555').get()).data();
   assert.equal(decryptToken(stored.encAccessToken, NEW_KEY), META_TOKEN);
   assert.throws(() => decryptToken(stored.encAccessToken, KEY));
   assert.equal((await db.collection('users').doc(userId).get()).data().apiKeyHash, hashApiKey(NEW_KEY));
@@ -137,7 +137,7 @@ test('relayMessage authenticates with the API key, sends with the decrypted Meta
   assert.equal((await res.json()).messages[0].id, 'wamid.stub-message-id');
   assert.equal((await send(NEW_KEY)).status, 401);
 
-  const data = (await db.collection('wabas').doc('555').get()).data();
+  const data = (await db.collection('phoneNumbers').doc('555').get()).data();
   assert.equal(data.lastRelayCall.ok, true);
   assert.equal(data.usage.daily[new Date().toISOString().slice(0, 10)], 1);
 });
