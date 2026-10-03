@@ -25,3 +25,6 @@ functions/node_modules/
 
 # Review/screen-recording videos stay local
 *.mov
+
+# Not committed: CI and local installs resolve fresh from package.json
+/package-lock.json
