@@ -1,9 +1,11 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import cors from 'cors';
-import type { PhoneNumberDoc, RotateKeyRequest } from './types';
-import { HttpError, requireAuth } from './auth';
-import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKey } from './apiKey';
+import { config } from './helpers/config';
+import { exchangeCodeForToken } from './helpers/graphApi';
+import type { ExchangeCodeRequest, PhoneNumberDoc, RotateKeyRequest } from './helpers/types';
+import { HttpError, requireAuth } from './helpers/auth';
+import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKey } from './helpers/apiKey';
 
 // Data model:
 //   users/{userId}           phoneNumber, apiKeyHash, createdAt, rotatedAt
@@ -173,6 +175,38 @@ export const rotateKey = onRequest((req, res) => {
       batch.update(db.collection('users').doc(userId), { apiKeyHash: hashApiKey(newApiKey), rotatedAt: Date.now() });
       await batch.commit();
       res.status(200).send({ ok: true });
+    } catch (err) {
+      const status = err instanceof HttpError ? err.status : 502;
+      res.status(status).send({ ok: false, error: (err as Error).message });
+    }
+  });
+});
+
+const ID_RE = /^\d{1,32}$/;
+
+// Exchanges the Embedded Signup `code` for the customer's Meta access token and
+// stores it encrypted under the signed-in user's Watobot API key. The App Secret
+// is needed for the exchange, which is why this runs server-side. The plaintext
+// token only lives in memory for this request: it is never returned, stored or
+// logged in the clear.
+export const exchangeCode = onRequest((req, res) => {
+  corsHandler(req, res, async () => {
+    if (req.method !== 'POST') {
+      res.status(405).send({ ok: false, error: 'Use POST' });
+      return;
+    }
+
+    try {
+      const userId = await requireAuth(req);
+      const { code, wabaId, phoneNumberId, apiKey } = (req.body ?? {}) as Partial<ExchangeCodeRequest>;
+      if (!code || !ID_RE.test(String(wabaId)) || !ID_RE.test(String(phoneNumberId))) {
+        throw new HttpError(400, 'code, wabaId and phoneNumberId are required.');
+      }
+      await requireUserKey(userId, apiKey);
+
+      const accessToken = await exchangeCodeForToken(code, config.metaAppId, config.metaAppSecret);
+      await storeWabaToken({ userId, wabaId: String(wabaId), phoneNumberId: String(phoneNumberId), accessToken, apiKey: apiKey as string });
+      res.status(200).send({ ok: true, wabaId, phoneNumberId });
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;
       res.status(status).send({ ok: false, error: (err as Error).message });

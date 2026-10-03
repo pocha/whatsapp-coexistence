@@ -1,6 +1,6 @@
 import { db, functionsBase } from '/assets/firebase-init.js';
 import { el } from '/assets/dom.js';
-import type { JoinWaitlistResponse } from '../functions/src/types';
+import type { JoinWaitlistResponse } from '../functions/src/helpers/types';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const btn = el<HTMLButtonElement>('join-btn');

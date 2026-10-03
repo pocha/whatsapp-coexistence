@@ -4,7 +4,7 @@ import { fillSidebar } from '/assets/waba-sidebar.js';
 import { isValidApiKey } from '/assets/api-key.js';
 import '/assets/nav-auth.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { PhoneNumberDoc, SetWebhookRequest } from '../../../functions/src/types';
+import type { PhoneNumberDoc, SetWebhookRequest } from '../../../functions/src/helpers/types';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 // The page for one number, identified by ?id= in the URL (its phone number ID). Signed-in
@@ -17,7 +17,7 @@ const overrideUrl = el<HTMLInputElement>('ov-url');
 const overrideBtn = el<HTMLButtonElement>('ov-btn');
 const overrideStatus = el('ov-status');
 
-// Same date-key algorithm as functions/src/relayMessage.ts, duplicated here
+// Same date-key algorithm as functions/src/wabaManager.ts, duplicated here
 // (small and pure) so usage lookups match the keys the relay wrote.
 const dailyKey = (d: Date) => d.toISOString().slice(0, 10);
 const monthlyKey = (d: Date) => d.toISOString().slice(0, 7);

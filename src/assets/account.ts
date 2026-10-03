@@ -15,7 +15,7 @@ import {
   where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
-import type { ApiResponse, RotateKeyRequest, UserDoc } from '../../functions/src/types';
+import type { ApiResponse, RotateKeyRequest, UserDoc } from '../../functions/src/helpers/types';
 import { deleteUser } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 
 const userRef = (uid: string) => doc(db, 'users', uid);

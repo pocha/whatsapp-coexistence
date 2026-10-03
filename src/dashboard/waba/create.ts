@@ -6,7 +6,7 @@ import { FIRST_KEY_NOTE, NEW_KEY_NOTE, saveFirstKey, showNewKey, signOutAfterNew
 import { isValidApiKey } from '/assets/api-key.js';
 import { callAsUser, keyMatchesAccount, resetKey } from '/assets/account.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { ExchangeCodeRequest, UserDoc } from '../../../functions/src/types';
+import type { ExchangeCodeRequest, UserDoc } from '../../../functions/src/helpers/types';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const fetchBtn = el<HTMLButtonElement>('fetch-btn');

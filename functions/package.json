@@ -7,7 +7,7 @@
     "build": "tsc",
     "serve": "npm run build && firebase emulators:start --only functions,firestore,auth",
     "deploy": "npm run build && firebase deploy --only functions",
-    "test:unit": "npm run build && node --test lib/**/*.test.js",
+    "test:unit": "npm run build && node --test \"lib/**/*.test.js\"",
     "test:integration": "npm run build && node test/run-integration.js",
     "test": "npm run test:unit && npm run test:integration"
   },

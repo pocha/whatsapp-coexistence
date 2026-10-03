@@ -8,7 +8,7 @@ export function generateApiKey(): string {
 
 export const isValidApiKey = (key: unknown): key is string => typeof key === 'string' && /^[0-9a-f]{64}$/.test(key);
 
-// Must stay identical to hashApiKey in functions/src/apiKey.ts (a unit test checks it). The
+// Must stay identical to hashApiKey in functions/src/helpers/apiKey.ts (a unit test checks it). The
 // browser hashes a typed key to compare it with the user's stored apiKeyHash. It never
 // encrypts or decrypts Meta tokens: only the server does.
 const hexToBytes = (hex: string) => Uint8Array.from(hex.match(/../g) ?? [], (h) => parseInt(h, 16));

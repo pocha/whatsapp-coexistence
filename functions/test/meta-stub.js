@@ -1,5 +1,5 @@
 // A minimal stand-in for graph.facebook.com, used only in tests via the
-// GRAPH_API_BASE env override (see src/graphApi.ts). Lets integration tests
+// GRAPH_API_BASE env override (see src/helpers/graphApi.ts). Lets integration tests
 // exercise the real HTTP functions end-to-end without hitting real Meta.
 const http = require('node:http');
 

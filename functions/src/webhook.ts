@@ -1,10 +1,10 @@
 import { onRequest } from 'firebase-functions/v2/https';
-import { config } from './config';
+import { config } from './helpers/config';
 
 // Meta requires an app-level webhook URL to be configured regardless of
 // whether any given WABA overrides it — this is that fallback. In the real
 // coexistence flow every onboarded WABA sets override_callback_uri (see
-// setWebhook.ts), so Meta delivers incoming events straight to the
+// wabaManager.ts), so Meta delivers incoming events straight to the
 // business's own server and this handler never sees them.
 export const webhook = onRequest((req, res) => {
   if (req.method === 'GET') {

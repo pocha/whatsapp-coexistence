@@ -3,7 +3,7 @@ name: Deploy public/ to GitHub Pages
 on:
   push:
     branches: [main]
-    paths: [public/**, views/**, src/**, functions/src/types.ts, scripts/build-pages.js]
+    paths: [public/**, views/**, src/**, functions/src/helpers/types.ts, scripts/build-pages.js]
   workflow_dispatch:
 
 permissions:

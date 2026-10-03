@@ -4,7 +4,7 @@
 import { auth, db, signOutUser } from './firebase-init.js';
 import { deleteAccount } from './account.js';
 import { el, errorMessage } from './dom.js';
-import type { PhoneNumberDoc } from '../../functions/src/types';
+import type { PhoneNumberDoc } from '../../functions/src/helpers/types';
 import {
   collection,
   query,

@@ -4,7 +4,7 @@ import '/assets/nav-auth.js';
 import { isValidApiKey } from '/assets/api-key.js';
 import { keyMatchesAccount, resetKey, rotateKey } from '/assets/account.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { VerifyOtpRequest, VerifyOtpResponse, SendOtpResponse } from '../../functions/src/types';
+import type { VerifyOtpRequest, VerifyOtpResponse, SendOtpResponse } from '../../functions/src/helpers/types';
 import { NEW_KEY_NOTE, RESET_KEY_NOTE, saveFirstKey, showNewKey, signOutAfterNewKey } from '/assets/key-dialog.js';
 
 const signedOutEl = el('signed-out');

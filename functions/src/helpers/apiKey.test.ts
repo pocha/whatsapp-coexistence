@@ -21,7 +21,7 @@ test('the stored hash is not the encryption key: it cannot open a token', () => 
 
 async function browserModule() {
   // Load the page's ES module with a native dynamic import (this file compiles to CommonJS).
-  const url = pathToFileURL(path.resolve(__dirname, '../../src/assets/api-key.ts')).href;
+  const url = pathToFileURL(path.resolve(__dirname, '../../../src/assets/api-key.ts')).href;
   const nativeImport = new Function('u', 'return import(u)') as (u: string) => Promise<{
     hashApiKey: (k: string) => Promise<string>;
   }>;

@@ -5,7 +5,7 @@ const PROJECT_ID = 'wa-coexistence';
 const AUTH_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9099';
 const FUNCTIONS_BASE = `http://127.0.0.1:5001/${PROJECT_ID}/us-central1`;
 
-const { hashApiKey, encryptToken, decryptToken } = require('../../lib/apiKey');
+const { hashApiKey, encryptToken, decryptToken } = require('../../lib/helpers/apiKey');
 
 const KEY = '0123456789abcdef'.repeat(4);
 const NEW_KEY = 'fedcba9876543210'.repeat(4);

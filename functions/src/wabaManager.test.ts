@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dailyKey, isoWeekKey, monthlyKey } from './relayMessage';
+import { dailyKey, isoWeekKey, monthlyKey } from './wabaManager';
 
 // ISO week numbers below are cross-checked independently via `date -j -f
 // "%Y-%m-%d" <date> "+%G-W%V"` (macOS BSD date's own ISO-8601 week

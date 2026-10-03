@@ -19,7 +19,7 @@ const functionsDir = path.join(__dirname, '..', 'functions');
 // Load firebase-admin the way the Functions code does, so both share one app.
 const { initializeApp } = createRequire(path.join(functionsDir, 'package.json'))('firebase-admin/app');
 const accounts = require(path.join(functionsDir, 'lib', 'accounts'));
-const { isValidApiKey } = require(path.join(functionsDir, 'lib', 'apiKey'));
+const { isValidApiKey } = require(path.join(functionsDir, 'lib', 'helpers', 'apiKey'));
 
 function arg(name) {
   const i = process.argv.indexOf(`--${name}`);
