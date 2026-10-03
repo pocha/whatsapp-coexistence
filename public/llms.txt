@@ -1,6 +1,6 @@
 # WA Coexistence (Watobot)
 
-> Get WhatsApp API access on a phone number you already use with the WhatsApp Business app, without a verified business. Coexistence lets you keep using the app normally while also building a chatbot on the API, through a WhatsApp Business Account (WABA). We are a Meta Tech Provider (approval pending), so you don't need to create your own Meta app. Free for the first 10 users.
+> Get WhatsApp API access on a phone number you already use with the WhatsApp Business app, without a verified business. Coexistence lets you keep using the app normally while also building a chatbot on the API, through a WhatsApp Business Account (WABA). We are a Meta Tech Provider (approval pending), so you don't need to create your own Meta app. Free for the first 10 numbers.
 
 Prerequisites: a phone number registered on the WhatsApp Business app, and an app (such as a chatbot) hosted at a public HTTPS URL that receives incoming messages. We never store your access token, and incoming messages go straight from WhatsApp to your app.
 

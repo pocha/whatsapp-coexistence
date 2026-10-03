@@ -1,5 +1,5 @@
 <!--#var title="Get WhatsApp API Access with Coexistence — WA Coexistence"-->
-<!--#var description="Get WhatsApp API access on a number you already use with the WhatsApp Business app, without a verified business. Keep using the app and plug in your chatbot within 5 minutes. Free for the first 10 users."-->
+<!--#var description="Get WhatsApp API access on a number you already use with the WhatsApp Business app, without a verified business. Keep using the app and plug in your chatbot within 5 minutes. Free for the first 10 numbers."-->
 <!--#include partial="head"-->
 <!--#include partial="header"-->
 
@@ -23,7 +23,7 @@
         <p class="text-on-surface-variant font-body-md text-lg">
           Coexistence gives you WhatsApp API access, on a number you already use with
           the WhatsApp Business app. Anybody can get access, without a
-          verified business. <br/><b>Free for the first 10 users.</b>
+          verified business. <br/><b>Free for the first 10 numbers.</b>
         </p>
         <p class="text-on-surface-variant font-body-md text-sm">
           Already have WhatsApp API access? You can still enable coexistence
@@ -168,21 +168,43 @@
       <h2 class="font-headline-lg text-headline-lg text-on-surface text-center mb-10">Pricing</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="card p-6">
-          <p class="label-strong text-primary mb-2">FIRST 10 USERS</p>
+          <p class="label-strong text-primary mb-2">FIRST 10 NUMBERS</p>
           <p class="font-headline-lg text-headline-lg text-on-surface mb-2">Free</p>
-          <p class="text-on-surface-variant font-body-md">No cost for your first 10 users.</p>
+          <p class="text-on-surface-variant font-body-md">No cost for your first 10 numbers.</p>
         </div>
         <div class="card p-6">
-          <p class="label-strong text-primary mb-2">USERS 11 TO 100</p>
-          <p class="font-headline-lg text-headline-lg text-on-surface mb-2">$1 <span class="text-body-md font-body-md text-on-surface-variant">/ user / month</span></p>
-          <p class="text-on-surface-variant font-body-md">Users 11 through 100.</p>
+          <p class="label-strong text-primary mb-2">NUMBERS 11 TO 100</p>
+          <p class="font-headline-lg text-headline-lg text-on-surface mb-2">$1 <span class="text-body-md font-body-md text-on-surface-variant">/ number / month</span></p>
+          <p class="text-on-surface-variant font-body-md">Numbers 11 through 100.</p>
         </div>
         <div class="card p-6">
-          <p class="label-strong text-primary mb-2">BEYOND 100 USERS</p>
-          <p class="font-headline-lg text-headline-lg text-on-surface mb-2">$5 <span class="text-body-md font-body-md text-on-surface-variant">/ user / month</span></p>
-          <p class="text-on-surface-variant font-body-md">Every user past 100.</p>
+          <p class="label-strong text-primary mb-2">BEYOND 100 NUMBERS</p>
+          <p class="font-headline-lg text-headline-lg text-on-surface mb-2">$5 <span class="text-body-md font-body-md text-on-surface-variant">/ number / month</span></p>
+          <p class="text-on-surface-variant font-body-md">Every number past 100.</p>
         </div>
       </div>
+      <p class="text-on-surface-variant font-body-md text-center mt-8">
+        For comparison, the cheapest WhatsApp API with coexistence we know of is
+        <a class="text-primary font-bold hover:underline" href="https://msg91.com/help/whatsapp/whatsapp-coexistence" target="_blank" rel="noopener">MSG91</a>,
+        at ₹500 (about $6) per month per number.
+      </p>
+      <div class="max-w-3xl mx-auto mt-12 flex flex-col gap-4">
+        <h3 class="section-title text-on-surface">Your total cost to use WhatsApp Messaging API</h3>
+        <p class="text-on-surface-variant font-body-md">
+          Watobot's price is above. On top of that, you pay Meta directly for
+          the messages you send, so you need to attach a payment method to your
+          Meta account. Meta charges per delivered message, by the customer's
+          country, and never for messages customers send you. What you pay
+          depends on the type of message:
+        </p>
+        <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+          <li><strong>Marketing template</strong> (promotions): the highest rate.</li>
+          <li><strong>Utility template</strong> (order updates, reminders): a lower rate.</li>
+          <li><strong>Authentication / service</strong> (login code templates; free-form replies after your free monthly quota): Meta lists these as separate categories, but they have exactly the same rate as utility in every country.</li>
+        </ul>
+        <!--#include partial="whatsapp-limits"-->
+      </div>
+
     </div>
   </section>
 
