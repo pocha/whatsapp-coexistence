@@ -1,15 +1,8 @@
 import { auth, functionsBase, onAuthStateChanged, signInWithOtpToken } from '/assets/firebase-init.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
-import {
-  callAsUser,
-  clearStoredKey,
-  getStoredKey,
-  isValidApiKey,
-  keyMatchesAccount,
-  storeKey,
-} from '/assets/api-key.js';
-import { NEW_KEY_NOTE, keepSignedInWith, saveFirstKey, showNewKey, signOutToRememberKey } from '/assets/key-dialog.js';
+import { callAsUser, isValidApiKey, keyMatchesAccount } from '/assets/api-key.js';
+import { NEW_KEY_NOTE, RESET_KEY_NOTE, saveFirstKey, showNewKey, signOutAfterNewKey } from '/assets/key-dialog.js';
 import { db } from '/assets/firebase-init.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
@@ -95,11 +88,7 @@ async function verify({ apiKey, resetApiKey } = {}) {
     return;
   }
 
-  if (apiKey) storeKey(apiKey);
-  if (resetApiKey) {
-    clearStoredKey();
-    showNewKeyAfterReset = true;
-  }
+  if (resetApiKey) showNewKeyAfterReset = true;
   // The code is spent; the signed-in view takes over from onAuthStateChanged below.
   await signInWithOtpToken(body.token);
 }
@@ -117,8 +106,7 @@ verifyOtpBtn.addEventListener('click', async () => {
   verifyOtpBtn.disabled = true;
   loginStatus.textContent = 'Verifying…';
   try {
-    // A key remembered in this browser is tried first, so returning users type nothing extra.
-    await verify({ apiKey: getStoredKey() || undefined });
+    await verify();
   } catch (err) {
     loginStatus.textContent = `Verification failed: ${err.message}`;
   } finally {
@@ -163,7 +151,7 @@ lostKeyBtn.addEventListener('click', async () => {
 const rotateBtn = document.getElementById('rotate-btn');
 const rotateStatus = document.getElementById('rotate-status');
 rotateBtn.addEventListener('click', async () => {
-  const oldApiKey = document.getElementById('rotate-old').value.trim() || getStoredKey();
+  const oldApiKey = document.getElementById('rotate-old').value.trim();
   if (!isValidApiKey(oldApiKey)) {
     rotateStatus.textContent = 'Enter your current API key first.';
     return;
@@ -177,7 +165,7 @@ rotateBtn.addEventListener('click', async () => {
     required: false,
     note: NEW_KEY_NOTE,
     save: (newApiKey) => callAsUser(auth, `${functionsBase()}/rotateKey`, { oldApiKey, newApiKey }),
-    afterSave: signOutToRememberKey,
+    afterSave: signOutAfterNewKey,
   });
 });
 
@@ -189,8 +177,7 @@ document.getElementById('reset-key-btn').addEventListener('click', async () => {
   if (!ok) return;
   try {
     await callAsUser(auth, `${functionsBase()}/resetKey`, {});
-    clearStoredKey();
-    showNewKey({ required: true, note: NEW_KEY_NOTE, save: saveFirstKey, afterSave: signOutToRememberKey });
+    showNewKey({ required: true, note: NEW_KEY_NOTE, save: saveFirstKey, afterSave: signOutAfterNewKey });
   } catch (err) {
     rotateStatus.textContent = `Reset failed: ${err.message}`;
   }
@@ -239,9 +226,8 @@ onAuthStateChanged(auth, async (user) => {
       showNewKeyAfterReset = false;
       showNewKey({
         required: true,
-        note: 'Your old key no longer works. Keep this one safe: you will need it to sign in.',
+        note: RESET_KEY_NOTE,
         save: saveFirstKey,
-        afterSave: keepSignedInWith,
       });
     }
   } else {

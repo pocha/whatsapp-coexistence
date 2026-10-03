@@ -2,7 +2,7 @@
 // user's onboarded WABAs, wires up its Delete account button, and returns the
 // WABA records. Callers only invoke this when someone is signed in.
 import { auth, db, functionsBase, signOutUser } from './firebase-init.js';
-import { callAsUser, clearStoredKey } from './api-key.js';
+import { callAsUser } from './api-key.js';
 import {
   collection,
   query,
@@ -32,7 +32,6 @@ function wireDelete() {
       alert(`Could not delete your account: ${err.message}`);
       return;
     }
-    clearStoredKey();
     await signOutUser().catch(() => undefined);
     alert('Your account has been deleted.');
     location.href = '/dashboard/';

@@ -84,9 +84,9 @@ we hold each customer's token and never hand it out.
 
 - Each account has a **Watobot API key**: 32 random bytes, generated in the
   browser and shown once, when the account first onboards a number. We store only a
-  hash of it, on the user record. Whenever a key is created or replaced, the user is
-  signed out (and any copy kept in the browser is cleared), so they have to type it
-  to sign in again and see how much it matters.
+  hash of it, on the user record. The browser doesn't keep it: the user types it
+  whenever it is needed. Whenever a key is created or replaced, the user is signed
+  out, so they have to type it to sign in again and see how much it matters.
 - The key derives (HKDF-SHA256, with separate labels) both that hash and an
   AES-256-GCM key. The second one encrypts each number's Meta token, on
   `wabas/{phoneNumberId}`. The hash can't decrypt anything, and there is no server

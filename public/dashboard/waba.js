@@ -2,8 +2,8 @@ import { auth, db, functionsBase, onAuthStateChanged } from '/assets/firebase-in
 import { META_APP_ID, META_CONFIG_ID } from '/assets/app-config.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
-import { FIRST_KEY_NOTE, NEW_KEY_NOTE, saveFirstKey, showNewKey, signOutToRememberKey } from '/assets/key-dialog.js';
-import { callAsUser, clearStoredKey, getStoredKey, isValidApiKey, keyMatchesAccount, storeKey } from '/assets/api-key.js';
+import { FIRST_KEY_NOTE, NEW_KEY_NOTE, saveFirstKey, showNewKey, signOutAfterNewKey } from '/assets/key-dialog.js';
+import { callAsUser, isValidApiKey, keyMatchesAccount } from '/assets/api-key.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const fetchBtn = document.getElementById('fetch-btn');
@@ -34,7 +34,6 @@ async function checkKey() {
   } else if (!isValidApiKey(apiKey)) {
     status.textContent = 'An API key is 64 characters of 0-9 and a-f.';
   } else if (await keyMatchesAccount(db, getDoc, doc, auth.currentUser.uid, apiKey)) {
-    storeKey(apiKey);
     keyVerified = true;
   } else {
     status.textContent = 'That is not the key for this account.';
@@ -54,15 +53,14 @@ document.getElementById('lost-key-btn').addEventListener('click', async () => {
   if (!ok) return;
   try {
     await callAsUser(auth, `${functionsBase()}/resetKey`, {});
-    clearStoredKey();
-    showNewKey({ required: true, note: NEW_KEY_NOTE, save: saveFirstKey, afterSave: signOutToRememberKey });
+    showNewKey({ required: true, note: NEW_KEY_NOTE, save: saveFirstKey, afterSave: signOutAfterNewKey });
   } catch (err) {
     status.textContent = `Reset failed: ${err.message}`;
   }
 });
 
 document.getElementById('create-key-btn').addEventListener('click', () =>
-  showNewKey({ required: true, note: FIRST_KEY_NOTE, save: saveFirstKey, afterSave: signOutToRememberKey }),
+  showNewKey({ required: true, note: FIRST_KEY_NOTE, save: saveFirstKey, afterSave: signOutAfterNewKey }),
 );
 
 // Both halves of Embedded Signup must arrive: the code (from FB.login's callback)
@@ -157,10 +155,4 @@ onAuthStateChanged(auth, async (user) => {
 
   document.getElementById('intro-card').classList.remove('hidden');
   initEmbeddedSignup();
-  // A key remembered in this browser is checked straight away.
-  const remembered = getStoredKey();
-  if (remembered) {
-    keyInput.value = remembered;
-    checkKey();
-  }
 });

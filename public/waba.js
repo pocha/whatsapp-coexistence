@@ -2,7 +2,6 @@ import { auth, db, functionsBase, onAuthStateChanged } from '/assets/firebase-in
 import { WEBHOOK_VERIFY_TOKEN } from '/assets/app-config.js';
 import { fillSidebar, hideSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
-import { getStoredKey } from '/assets/api-key.js';
 import { doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const $ = (id) => document.getElementById(id);
@@ -154,12 +153,6 @@ if (!phoneNumberId) {
   $('number-id-line').textContent = `Phone number ID: ${phoneNumberId}`;
   $('endpoint-line').textContent = `POST ${functionsBase()}/relayMessage/${phoneNumberId}/messages`;
   $('out-body').value = JSON.stringify(BODY_TEMPLATE, null, 2);
-  // A key remembered in this browser is filled in for convenience.
-  const remembered = getStoredKey();
-  if (remembered) {
-    $('ov-key').value = remembered;
-    $('out-key').value = remembered;
-  }
   $('sections').classList.remove('hidden');
 }
 
