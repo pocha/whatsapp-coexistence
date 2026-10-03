@@ -3,11 +3,11 @@
 <!--#include partial="head"-->
 <!--#include partial="header"-->
 
-  <section class="px-gutter md:px-24 py-12">
-    <div class="max-w-5xl mx-auto flex flex-col md:flex-row gap-8 items-start">
-      <!--#include partial="waba-sidebar"-->
+  <div class="flex w-full flex-1">
+    <!--#include partial="waba-sidebar"-->
 
-      <div class="flex-1 flex flex-col gap-6 w-full">
+    <section class="flex-1 min-w-0 px-gutter md:px-10 py-12">
+      <div class="max-w-4xl mx-auto flex flex-col gap-6 w-full">
         <h1 class="font-headline-lg text-headline-lg text-on-surface">Onboard a WABA</h1>
 
         <div id="intro-card" class="card p-6">
@@ -41,8 +41,8 @@
           <button id="saved-btn" class="mt-4 rounded-xl border border-outline-variant bg-white px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">I've saved my token &mdash; continue</button>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
+  </div>
 
   <script type="module" src="/dashboard/waba.js"></script>
 

@@ -1,12 +1,6 @@
-import { auth, db, functionsBase, onAuthStateChanged, signInWithOtpToken, signOutUser } from '/assets/firebase-init.js';
+import { auth, functionsBase, onAuthStateChanged, signInWithOtpToken } from '/assets/firebase-init.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  writeBatch,
-} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+import '/assets/nav-auth.js';
 
 const signedOutEl = document.getElementById('signed-out');
 const signedInEl = document.getElementById('signed-in');
@@ -17,8 +11,6 @@ const codeInput = document.getElementById('code-input');
 const sendOtpBtn = document.getElementById('send-otp-btn');
 const verifyOtpBtn = document.getElementById('verify-otp-btn');
 const loginStatus = document.getElementById('login-status');
-const logoutBtn = document.getElementById('logout-btn');
-const deleteAccountBtn = document.getElementById('delete-account-btn');
 
 let pendingPhone = null;
 
@@ -93,27 +85,43 @@ verifyOtpBtn.addEventListener('click', async () => {
   }
 });
 
-logoutBtn.addEventListener('click', () => signOutUser());
 
-deleteAccountBtn.addEventListener('click', async () => {
-  const user = auth.currentUser;
-  if (!user) return;
-  if (!confirm('Delete all your onboarded WABAs from our records? This cannot be undone.')) return;
+function renderCards(wabas) {
+  const cards = document.getElementById('waba-cards');
+  cards.replaceChildren();
+  document.getElementById('waba-cards-empty').classList.toggle('hidden', wabas.length > 0);
 
-  const snapshot = await getDocs(query(collection(db, 'wabas'), where('ownerUid', '==', user.uid)));
-  const batch = writeBatch(db);
-  snapshot.forEach((docSnap) => batch.delete(docSnap.ref));
-  await batch.commit();
+  for (const waba of wabas) {
+    const card = document.createElement('a');
+    card.href = `/waba.html?id=${encodeURIComponent(waba.id)}`;
+    card.className = 'card p-6 hover:shadow-md transition-all flex flex-col gap-1';
 
-  await fillSidebar(user.uid);
-  alert('Your WABAs have been deleted.');
-});
+    const row = document.createElement('div');
+    row.className = 'flex justify-between items-center gap-4';
+    const title = document.createElement('p');
+    title.className = 'section-title text-on-surface break-all';
+    title.textContent = `WABA ${waba.id}`;
+    const status = document.createElement('span');
+    status.className = `label-muted whitespace-nowrap ${waba.overrideUrl ? 'text-primary' : 'text-on-surface-variant'}`;
+    status.textContent = waba.overrideUrl ? 'Incoming URL set' : 'Setup incomplete';
+    row.append(title, status);
+    card.append(row);
 
-onAuthStateChanged(auth, (user) => {
+    if (waba.phoneNumberId) {
+      const phone = document.createElement('p');
+      phone.className = 'text-on-surface-variant font-body-md text-sm';
+      phone.textContent = `Phone number ID ${waba.phoneNumberId}`;
+      card.append(phone);
+    }
+    cards.append(card);
+  }
+}
+
+onAuthStateChanged(auth, async (user) => {
   if (user) {
     signedOutEl.classList.add('hidden');
     signedInEl.classList.remove('hidden');
-    fillSidebar(user.uid);
+    renderCards(await fillSidebar(user.uid));
   } else {
     signedInEl.classList.add('hidden');
     signedOutEl.classList.remove('hidden');

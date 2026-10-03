@@ -1,6 +1,7 @@
 import { auth, db, functionsBase, onAuthStateChanged } from '/assets/firebase-init.js';
 import { META_APP_ID, META_CONFIG_ID } from '/assets/app-config.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
+import '/assets/nav-auth.js';
 import { doc, setDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const fetchBtn = document.getElementById('fetch-btn');

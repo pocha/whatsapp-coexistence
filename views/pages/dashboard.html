@@ -5,8 +5,11 @@
 <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@29.5/dist/js/intlTelInput.min.js"></script>
 <!--#include partial="header"-->
 
-  <section class="px-gutter md:px-24 py-12">
-    <div class="max-w-5xl mx-auto flex flex-col gap-6">
+  <div class="flex w-full flex-1">
+    <!--#include partial="waba-sidebar"-->
+
+    <section class="flex-1 min-w-0 px-gutter md:px-10 py-12">
+    <div class="max-w-4xl mx-auto flex flex-col gap-6">
 
       <!-- Signed-out view -->
       <div id="signed-out" class="hidden card p-8 max-w-xl mx-auto w-full">
@@ -28,37 +31,18 @@
       </div>
 
       <!-- Signed-in view -->
-      <div id="signed-in" class="hidden flex flex-col md:flex-row gap-8 items-start">
-        <!--#include partial="waba-sidebar"-->
-
-        <div class="flex-1 flex flex-col gap-6 w-full">
-          <div class="flex justify-between items-center">
-            <h1 class="font-headline-lg text-headline-lg text-on-surface">Dashboard</h1>
-            <button id="logout-btn" class="text-on-surface-variant font-body-md text-sm hover:text-primary transition-colors">Log out</button>
-          </div>
-
-          <div class="card p-6">
-            <p class="section-title text-on-surface mb-1">Your WhatsApp numbers</p>
-            <p class="text-on-surface-variant font-body-md text-sm">
-              Pick a number from the list to set where its incoming messages
-              go and to test sending. To connect a new number, click
-              <strong>Onboard WABA</strong>.
-            </p>
-          </div>
-
-          <div class="card p-6">
-            <p class="section-title text-on-surface mb-1">Delete account</p>
-            <p class="text-on-surface-variant font-body-md text-sm mb-3">
-              Removes all WABAs you've onboarded from our records. Doesn't log
-              you out or revoke Meta's access. Do that separately from Meta
-              Business Manager if you want to fully disconnect.
-            </p>
-            <button id="delete-account-btn" class="rounded-xl border border-error text-error px-6 py-3 font-label-md text-label-md font-bold hover:bg-error/10 transition-all">Delete account</button>
-          </div>
+      <div id="signed-in" class="hidden flex flex-col gap-6">
+        <div class="flex justify-between items-center gap-4">
+          <h1 class="font-headline-lg text-headline-lg text-on-surface">Your WABAs</h1>
+          <a href="/dashboard/waba.html" class="rounded-xl bg-primary-container text-on-primary-container px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all whitespace-nowrap">Onboard new WABA</a>
         </div>
+
+        <div id="waba-cards" class="flex flex-col gap-4"></div>
+        <p id="waba-cards-empty" class="hidden text-on-surface-variant font-body-md">No WABAs onboarded yet.</p>
       </div>
     </div>
-  </section>
+    </section>
+  </div>
 
   <script type="module" src="/dashboard/app.js"></script>
 
