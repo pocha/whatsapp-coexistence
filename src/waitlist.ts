@@ -3,6 +3,25 @@ import { el } from '/assets/dom.js';
 import type { JoinWaitlistResponse } from '../functions/src/helpers/types';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
+// Scroll reveal: sections fade in as they enter the view, then drop their reveal classes so
+// hover effects work. Without JS, or with reduced motion, everything is simply visible.
+if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  document.documentElement.classList.add('reveal-ready');
+  const seen = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const node = entry.target;
+        seen.unobserve(node);
+        node.classList.add('in');
+        setTimeout(() => node.classList.remove('reveal', 'in'), 900);
+      }
+    },
+    { threshold: 0.15 },
+  );
+  document.querySelectorAll('.reveal').forEach((node) => seen.observe(node));
+}
+
 const btn = el<HTMLButtonElement>('join-btn');
 const countEl = el('join-count');
 const dialog = el<HTMLDialogElement>('join-dialog');
