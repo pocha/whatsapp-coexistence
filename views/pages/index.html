@@ -78,8 +78,9 @@
       <div class="flex flex-col gap-5 text-center md:text-left items-center md:items-start md:w-5/12">
         <h1 class="font-headline-lg text-headline-lg"><span style="color:#46bc6a">Get WhatsApp API Access</span> <strong style="color:#5e5e5e">with Coexistence</strong></h1>
         <p class="text-on-surface-variant font-body-md text-lg">
-          WhatsApp API access on the number you already use with the WhatsApp
-          Business app. No verified business needed.
+          You can get WhatsApp API access for free. But if you get it through
+          us (or any Tech Provider), you also get <strong>Coexistence</strong>:
+          the API on the number you already use with the WhatsApp Business app.
           <br/><b>Free for the first 10 numbers.</b>
         </p>
         <div class="flex flex-wrap gap-4 justify-center md:justify-start">
@@ -87,7 +88,7 @@
             <span>Join Waitlist</span>
             <span id="join-count" class="hidden text-xs font-normal opacity-80"></span>
           </button>
-          <a href="/how-to/get-whatsapp-api-access-in-5-minutes.html" class="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Know more</a>
+          <a href="/how-to/get-whatsapp-api-for-free.html" class="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Get free API access</a>
         </div>
         <p class="text-on-surface-variant font-body-md text-sm">
           Already have WhatsApp API access? You can still enable coexistence
@@ -186,12 +187,7 @@
   <!-- Why Coexistence -->
   <section class="px-gutter md:px-24 py-16" id="why-coexistence">
     <div class="max-w-5xl mx-auto">
-      <h2 class="reveal font-headline-lg text-headline-lg text-on-surface text-center mb-2">Why Coexistence?</h2>
-      <p class="reveal text-on-surface-variant font-body-md text-center max-w-2xl mx-auto mb-10">
-        Normally it's the WhatsApp Business app (people on the phone) <em>or</em>
-        the API (automation). Coexistence runs both on the <strong>same
-        number</strong>, and Meta keeps them in sync, not us.
-      </p>
+      <h2 class="reveal font-headline-lg text-headline-lg text-on-surface text-center mb-10">What is Coexistence?</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
         <div class="reveal card p-6 gap-4 lift">
@@ -243,7 +239,13 @@
   <!-- Getting Started -->
   <section class="px-gutter md:px-24 py-16 bg-surface-container-low" id="getting-started">
     <div class="max-w-5xl mx-auto">
-      <h2 class="reveal font-headline-lg text-headline-lg text-on-surface text-center mb-6">WhatsApp API Access in 3 Steps</h2>
+      <h2 class="reveal font-headline-lg text-headline-lg text-on-surface text-center mb-3">Get WhatsApp API Access with Coexistence in 5 minutes</h2>
+      <p class="reveal text-on-surface-variant font-body-md text-center max-w-3xl mx-auto mb-6">
+        Getting free access on your own means
+        <a class="text-primary font-bold hover:underline" href="/how-to/get-whatsapp-api-for-free.html">going through a maze</a>,
+        and it will <strong>NOT</strong> get you Coexistence. Via us you get access within
+        5 minutes, and <strong>no verified business is needed</strong>.
+      </p>
 
       <div class="reveal flex flex-wrap items-center justify-center gap-3 mb-10">
         <span class="label-strong text-primary">YOU NEED</span>
@@ -278,11 +280,14 @@
       <div class="reveal card p-5 mt-8 whatsapp-border !flex-row items-start gap-4">
         <div class="tile"><span class="material-symbols-outlined">shield</span></div>
         <div>
-          <p class="label-strong text-primary mb-1">WHY WE GATEKEEP OUTGOING MESSAGES</p>
+          <p class="label-strong text-primary mb-1">WHY OUTGOING MESSAGES GO THROUGH US</p>
           <p class="text-on-surface-variant font-body-md">
-            To protect your number from bans: rate limiting and other anti-spam
-            checks are <em>(upcoming)</em>. Incoming messages never touch us, and
-            your Meta access token stays <b>encrypted with a key only you hold</b>.
+            Meta doesn't let a Tech Provider hand the access token over to the
+            end user. So we hold it for you, and your app sends messages through
+            our endpoint, where we use the token on your behalf. That is the only
+            place we sit in the path: incoming messages go straight from WhatsApp
+            to your app. It also lets us protect your number with rate limiting
+            <em>(upcoming)</em>.
           </p>
         </div>
       </div>
@@ -293,11 +298,19 @@
   <section class="px-gutter md:px-24 py-16" id="features">
     <div class="max-w-5xl mx-auto">
       <h2 class="reveal font-headline-lg text-headline-lg text-on-surface text-center mb-10">Features</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="reveal card p-6 gap-3 lift">
-          <div class="tile"><span class="material-symbols-outlined">lock</span></div>
-          <p class="section-title text-on-surface">Tokens locked with your key</p>
-          <p class="text-on-surface-variant font-body-md">Your WhatsApp access token is encrypted with a Watobot API key we never keep. We unlock it in memory only while a request carrying your key is handled.</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="reveal card p-8 gap-4 lift md:col-span-2 !border-2 !border-primary-container !bg-[#effcf3] !flex-col md:!flex-row md:items-center">
+          <div class="tile !w-16 !h-16 !rounded-2xl !bg-primary-container !text-white flex-shrink-0 pulse"><span class="material-symbols-outlined !text-[34px]">lock</span></div>
+          <div class="flex flex-col gap-2">
+            <p class="label-strong text-primary">PRIVACY · VERY FEW TECH PROVIDERS DO THIS</p>
+            <p class="section-title text-on-surface" style="font-size:24px;line-height:32px">Your token is zero-knowledge encrypted</p>
+            <p class="text-on-surface-variant font-body-md">
+              We value your privacy. Your WhatsApp access token is encrypted with your
+              Watobot API key, and we do <strong>NOT</strong> store that key on our server,
+              only a hash that can't open anything. We can't read your token: it is
+              unlocked in memory only while a request carrying your key is handled.
+            </p>
+          </div>
         </div>
         <div class="reveal d1 card p-6 gap-3 lift">
           <div class="tile"><span class="material-symbols-outlined">bolt</span></div>
@@ -309,7 +322,7 @@
           <p class="section-title text-on-surface">Open source</p>
           <p class="text-on-surface-variant font-body-md">Every line is on GitHub and self-hostable. Read it, fork it, run your own copy.</p>
         </div>
-        <div class="reveal card p-6 gap-3 lift opacity-80 md:col-start-1">
+        <div class="reveal card p-6 gap-3 lift opacity-80">
           <div class="tile !bg-surface-container"><span class="material-symbols-outlined !text-on-surface-variant">speed</span></div>
           <p class="section-title text-on-surface">Outgoing rate limits <span class="label-muted">(upcoming)</span></p>
           <p class="text-on-surface-variant font-body-md">Automatic limits so a misbehaving integration can't get your number banned.</p>
@@ -344,11 +357,14 @@
           <p class="text-on-surface-variant font-body-md">Every number past 100.</p>
         </div>
       </div>
-      <p class="reveal text-on-surface-variant font-body-md text-center mt-8">
-        The cheapest WhatsApp API with coexistence we know of is
-        <a class="text-primary font-bold hover:underline" href="https://msg91.com/help/whatsapp/whatsapp-coexistence" target="_blank" rel="noopener">MSG91</a>,
-        at ₹500 (about $6) per month per number.
-      </p>
+      <div class="reveal max-w-3xl mx-auto mt-8 rounded-xl border-2 border-primary-container bg-[#effcf3] p-5 flex items-center justify-center gap-3 text-center">
+        <span class="material-symbols-outlined text-primary flex-shrink-0">sell</span>
+        <p class="text-on-surface font-body-md text-base">
+          The cheapest WhatsApp API with coexistence we know of is
+          <a class="text-primary font-bold hover:underline" href="https://msg91.com/help/whatsapp/whatsapp-coexistence" target="_blank" rel="noopener">MSG91</a>,
+          at <strong>₹500 (about $6) per month per number</strong>.
+        </p>
+      </div>
 
       <details class="reveal max-w-3xl mx-auto mt-10 bg-white border border-outline-variant rounded-xl shadow-sm p-5">
         <summary class="section-title text-on-surface cursor-pointer">Your total cost: how Meta bills you</summary>
