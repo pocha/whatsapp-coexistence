@@ -309,8 +309,9 @@
             <p class="text-on-surface-variant font-body-md">
               We value your privacy. Your WhatsApp access token is encrypted with your
               Watobot API key, and we do <strong>NOT</strong> store that key on our server,
-              only a hash that can't open anything. We can't read your token: it is
-              unlocked in memory only while a request carrying your key is handled.
+              only a hash that can't open anything. Without your key, even we can't read or
+              use your token. If our database were ever leaked, an attacker would get only
+              scrambled data that can't be opened without your key.
             </p>
           </div>
         </div>
@@ -342,30 +343,29 @@
   <section class="px-gutter md:px-24 py-16 bg-surface-container-low" id="pricing">
     <div class="max-w-5xl mx-auto">
       <h2 class="reveal font-headline-lg text-headline-lg text-on-surface text-center mb-10">Pricing</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="reveal card p-6 whatsapp-border lift">
-          <p class="label-strong text-primary mb-2">FIRST 10 NUMBERS</p>
-          <p class="font-headline-lg text-headline-lg text-on-surface mb-2" style="font-size:40px;line-height:44px">Free</p>
-          <p class="text-on-surface-variant font-body-md">No cost for your first 10 numbers.</p>
+      <div class="reveal card max-w-4xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-2">
+          <div class="p-8 flex flex-col items-center justify-center text-center gap-2">
+            <p class="label-strong text-primary">FIRST 10 NUMBERS</p>
+            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:44px;line-height:48px">Free</p>
+            <p class="text-on-surface-variant font-body-md">No setup cost, no monthly cost.</p>
+          </div>
+          <div class="p-8 flex flex-col items-center justify-center text-center gap-2 border-t md:border-t-0 md:border-l border-outline-variant">
+            <p class="label-strong text-primary">AFTER THAT</p>
+            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:44px;line-height:48px">$5 <span class="font-body-md text-on-surface-variant" style="font-size:14px">setup</span></p>
+            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:28px;line-height:36px">+ $1 <span class="font-body-md text-on-surface-variant" style="font-size:14px">/ number / month</span></p>
+          </div>
         </div>
-        <div class="reveal d1 card p-6 lift">
-          <p class="label-strong text-primary mb-2">NUMBERS 11 TO 100</p>
-          <p class="font-headline-lg text-headline-lg text-on-surface mb-2" style="font-size:40px;line-height:44px">$1 <span class="text-body-md font-body-md text-on-surface-variant" style="font-size:14px">/ number / month</span></p>
-          <p class="text-on-surface-variant font-body-md">Numbers 11 through 100.</p>
+        <div class="border-t border-outline-variant p-5 md:p-6">
+          <div class="rounded-xl border-2 border-primary-container bg-[#effcf3] p-5 flex items-center justify-center gap-3 text-center">
+            <span class="material-symbols-outlined text-primary flex-shrink-0">sell</span>
+            <p class="text-on-surface font-body-md text-base">
+              The cheapest WhatsApp API with coexistence we know of is
+              <a class="text-primary font-bold hover:underline" href="https://msg91.com/help/whatsapp/whatsapp-coexistence" target="_blank" rel="noopener">MSG91</a>,
+              at <strong>₹500 (about $6) per month per number</strong>.
+            </p>
+          </div>
         </div>
-        <div class="reveal d2 card p-6 lift">
-          <p class="label-strong text-primary mb-2">BEYOND 100 NUMBERS</p>
-          <p class="font-headline-lg text-headline-lg text-on-surface mb-2" style="font-size:40px;line-height:44px">$5 <span class="text-body-md font-body-md text-on-surface-variant" style="font-size:14px">/ number / month</span></p>
-          <p class="text-on-surface-variant font-body-md">Every number past 100.</p>
-        </div>
-      </div>
-      <div class="reveal max-w-3xl mx-auto mt-8 rounded-xl border-2 border-primary-container bg-[#effcf3] p-5 flex items-center justify-center gap-3 text-center">
-        <span class="material-symbols-outlined text-primary flex-shrink-0">sell</span>
-        <p class="text-on-surface font-body-md text-base">
-          The cheapest WhatsApp API with coexistence we know of is
-          <a class="text-primary font-bold hover:underline" href="https://msg91.com/help/whatsapp/whatsapp-coexistence" target="_blank" rel="noopener">MSG91</a>,
-          at <strong>₹500 (about $6) per month per number</strong>.
-        </p>
       </div>
 
       <details class="reveal max-w-3xl mx-auto mt-10 bg-white border border-outline-variant rounded-xl shadow-sm p-5">
