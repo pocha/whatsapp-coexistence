@@ -88,7 +88,7 @@ async function maybeFinish() {
 
 function initEmbeddedSignup() {
   window.fbAsyncInit = function () {
-    FB.init({ appId: META_APP_ID, cookie: true, xfbml: false, version: 'v21.0' });
+    FB.init({ appId: META_APP_ID, cookie: true, xfbml: false, version: 'v26.0' });
     sdkReady = true;
     if (!keyVerified) status.textContent = 'Enter your API key to continue.';
     refreshButton();

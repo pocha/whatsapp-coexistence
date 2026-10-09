@@ -30,8 +30,8 @@ function isoWeekKey(d: Date) {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
-// The rules let just the owner read phoneNumbers/{phoneNumberId}. Returns false if the
-// number isn't in this account.
+// The rules let just the owner read phoneNumbers/{phoneNumberId}. Returns false if the record
+// is missing or isn't this user's; the page still works then, just without the saved details.
 async function loadRecord(): Promise<boolean> {
   let data: PhoneNumberDoc | undefined;
   try {
@@ -167,11 +167,10 @@ onAuthStateChanged(auth, async (user) => {
   }
   fillSidebar(user.uid, phoneNumberId);
   el('number-id-line').textContent = `Phone number ID: ${phoneNumberId}`;
-  if (await loadRecord()) {
-    renderCommands();
-    el('key-card').classList.remove('hidden');
-    el('sections').classList.remove('hidden');
-  } else {
-    el('not-found').classList.remove('hidden');
-  }
+  // What the buttons and commands do is authorised by the API key, not by this sign-in, so
+  // the sections show either way.
+  renderCommands();
+  el('key-card').classList.remove('hidden');
+  el('sections').classList.remove('hidden');
+  if (!(await loadRecord())) el('not-found').classList.remove('hidden');
 });

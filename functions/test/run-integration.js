@@ -27,7 +27,12 @@ const ENV_PATH = path.join(__dirname, '..', '.env');
 
 async function main() {
   const stub = await startMetaStub(META_STUB_PORT);
-  const originalEnv = fs.readFileSync(ENV_PATH, 'utf8');
+  // Drop any stub settings an interrupted earlier run left behind, so they are never restored
+  // into the real .env that `npm start` uses.
+  const originalEnv = fs
+    .readFileSync(ENV_PATH, 'utf8')
+    .replace(/^(GRAPH_API_BASE|ALLOW_HTTP_ENDPOINT)=.*\n?/gm, '');
+  fs.writeFileSync(ENV_PATH, originalEnv);
 
   let exitCode = 1;
   try {

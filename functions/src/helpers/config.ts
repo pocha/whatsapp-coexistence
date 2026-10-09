@@ -29,5 +29,5 @@ export const config = {
   get watobotApiKey() {
     return required('WATOBOT_API_KEY');
   },
-  graphApiVersion: 'v21.0',
+  graphApiVersion: 'v26.0',
 };
