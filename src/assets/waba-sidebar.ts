@@ -1,9 +1,9 @@
 // Fills the shared sidebar (views/partials/waba-sidebar.html) with the signed-in
 // user's onboarded WABAs, wires up its Delete account button, and returns the
 // WABA records. Callers only invoke this when someone is signed in.
-import { auth, db, signOutUser } from './firebase-init.js';
-import { deleteAccount } from './account.js';
-import { el, errorMessage } from './dom.js';
+import { auth, db, signOutUser } from '/assets/firebase-init.js';
+import { deleteAccount } from '/assets/account.js';
+import { el, errorMessage } from '/assets/dom.js';
 import type { PhoneNumberDoc, UserDoc } from '../../functions/src/helpers/types';
 import {
   collection,

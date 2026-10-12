@@ -1,7 +1,7 @@
 // On dashboard pages, the nav bar's "Open Dashboard" button becomes a Logout
 // button while someone is signed in. Imported only by those pages, so the
 // marketing pages keep "Open Dashboard".
-import { auth, onAuthStateChanged, signOutUser } from './firebase-init.js';
+import { auth, onAuthStateChanged, signOutUser } from '/assets/firebase-init.js';
 
 const cta = document.getElementById('nav-cta');
 const original = cta ? { html: cta.innerHTML, className: cta.className, href: cta.getAttribute('href') ?? '' } : null;

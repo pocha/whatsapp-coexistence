@@ -1,9 +1,9 @@
 // The "here is your new API key" popup, shared by the dashboard and the onboarding
 // page (markup: views/partials/key-dialog.html).
-import { auth, signOutUser } from './firebase-init.js';
-import { generateApiKey } from './api-key.js';
-import { el, errorMessage } from './dom.js';
-import { setFirstKey } from './account.js';
+import { auth, signOutUser } from '/assets/firebase-init.js';
+import { generateApiKey } from '/assets/api-key.js';
+import { el, errorMessage } from '/assets/dom.js';
+import { setFirstKey } from '/assets/account.js';
 
 /**
  * Generates a key in the browser and shows it. `save(key)` runs when the user clicks

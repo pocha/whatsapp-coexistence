@@ -126,14 +126,27 @@ function sourceFiles(dir) {
   });
 }
 
-function buildScripts() {
+// Imports written as a URL (the Firebase CDN) or an absolute path (/assets/...) are left for the
+// browser to load. Anything relative, such as the rate limiter shared with the Functions, is
+// inlined. A plugin rather than esbuild's `external` globs: those also match a relative import's
+// resolved file path, which starts with "/" too.
+const keepAsImport = {
+  name: 'keep-urls-and-absolute-paths',
+  setup(build) {
+    build.onResolve({ filter: /^(https:\/\/|\/)/ }, (args) =>
+      args.kind === 'entry-point' ? undefined : { path: args.path, external: true },
+    );
+  },
+};
+
+async function buildScripts() {
   const entryPoints = sourceFiles(SRC_DIR);
-  esbuild.buildSync({
+  await esbuild.build({
     entryPoints,
     outdir: PUBLIC_DIR,
     outbase: SRC_DIR,
     bundle: true,
-    external: ['https://*', '/*'],
+    plugins: [keepAsImport],
     format: 'esm',
     target: 'es2022',
     logLevel: 'warning',
@@ -141,8 +154,8 @@ function buildScripts() {
   return entryPoints.map((file) => path.relative(SRC_DIR, file).replace(/\.ts$/, '.js'));
 }
 
-function main() {
-  const written = buildScripts();
+async function main() {
+  const written = await buildScripts();
   for (const pageFile of Object.keys(PAGE_MAP)) {
     const srcPath = path.join(PAGES_DIR, pageFile);
     if (!fs.existsSync(srcPath)) {
@@ -155,4 +168,7 @@ function main() {
   }
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
