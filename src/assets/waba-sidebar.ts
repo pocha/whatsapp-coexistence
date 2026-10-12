@@ -4,21 +4,26 @@
 import { auth, db, signOutUser } from './firebase-init.js';
 import { deleteAccount } from './account.js';
 import { el, errorMessage } from './dom.js';
-import type { PhoneNumberDoc } from '../../functions/src/helpers/types';
+import type { PhoneNumberDoc, UserDoc } from '../../functions/src/helpers/types';
 import {
   collection,
+  doc,
+  getDoc,
   query,
   where,
   getDocs,
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-const ACTIVE = ['bg-primary-container', 'text-on-primary-container', 'font-bold'];
+// Selected item: white text on the dark green. Anything the link carried that sets a text
+// colour or a hover background has to go, or it competes with these.
+const ACTIVE = ['bg-primary', 'text-on-primary', 'font-bold'];
+const ACTIVE_REPLACES = ['bg-primary-container', 'text-primary', 'text-on-surface-variant', 'hover:bg-surface-container'];
 const LINK =
   'flex items-center gap-3 px-2 lg:px-3 py-2.5 rounded-lg font-label-md text-sm hover:bg-surface-container transition-colors justify-center lg:justify-start';
 
 function markActive(target: Element) {
+  target.classList.remove(...ACTIVE_REPLACES);
   target.classList.add(...ACTIVE);
-  target.classList.remove('text-on-surface-variant');
 }
 
 /** A phone number record plus its document id (the phone number ID). */
@@ -52,6 +57,15 @@ export async function fillSidebar(uid: string, currentId?: string | null): Promi
   if (location.pathname === '/dashboard/waba/create.html') {
     markActive(sidebar.querySelector('[data-nav="onboard"]')!);
   }
+  if (location.pathname.startsWith('/dashboard/key')) {
+    markActive(sidebar.querySelector('[data-nav="key"]')!);
+  }
+
+  // The key page is where an account creates its key, and later changes it.
+  const hasKey = Boolean(((await getDoc(doc(db, 'users', uid))).data() as UserDoc | undefined)?.apiKeyHash);
+  const keyLabel = hasKey ? 'Modify API key' : 'Create API key';
+  el('key-nav-label').textContent = keyLabel;
+  sidebar.querySelector('[data-nav="key"]')!.setAttribute('title', keyLabel);
 
   const snapshot = await getDocs(query(collection(db, 'phoneNumbers'), where('userId', '==', uid)));
   const numbers: NumberRecord[] = [];

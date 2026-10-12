@@ -2,9 +2,8 @@ import { auth, db, functionsBase, onAuthStateChanged } from '/assets/firebase-in
 import { META_APP_ID, META_CONFIG_ID } from '/assets/app-config.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
-import { FIRST_KEY_NOTE, NEW_KEY_NOTE, saveFirstKey, showNewKey, signOutAfterNewKey } from '/assets/key-dialog.js';
 import { isValidApiKey } from '/assets/api-key.js';
-import { callAsUser, keyMatchesAccount, resetKey } from '/assets/account.js';
+import { callAsUser, keyMatchesAccount } from '/assets/account.js';
 import { el, errorMessage } from '/assets/dom.js';
 import type { ExchangeCodeRequest, UserDoc } from '../../../functions/src/helpers/types';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
@@ -45,26 +44,6 @@ async function checkKey() {
 }
 
 keyInput.addEventListener('input', checkKey);
-
-el('lost-key-btn').addEventListener('click', async () => {
-  const ok = confirm(
-    'Your onboarded WABAs will be useless.\n\n' +
-      'Without your API key we cannot open the access tokens we hold for your numbers, so we have to delete them. ' +
-      'Each number must be onboarded again before it can send.\n\n' +
-      "You'll then get a new API key to note down. Continue?",
-  );
-  if (!ok) return;
-  try {
-    await resetKey(auth.currentUser!.uid);
-    showNewKey({ required: true, note: NEW_KEY_NOTE, save: saveFirstKey, afterSave: signOutAfterNewKey });
-  } catch (err) {
-    status.textContent = `Reset failed: ${errorMessage(err)}`;
-  }
-});
-
-el('create-key-btn').addEventListener('click', () =>
-  showNewKey({ required: true, note: FIRST_KEY_NOTE, save: saveFirstKey, afterSave: signOutAfterNewKey }),
-);
 
 // Both halves of Embedded Signup must arrive: the code (from FB.login's callback)
 // and the WABA and phone number ids (from a window message).
@@ -148,11 +127,10 @@ onAuthStateChanged(auth, async (user) => {
   if (started) return;
   started = true;
 
-  // An account with no API key yet creates one here, before its first onboarding.
+  // An account with no API key yet creates one first, on the key page.
   const hasKey = Boolean(((await getDoc(doc(db, 'users', user.uid))).data() as UserDoc | undefined)?.apiKeyHash);
   if (!hasKey) {
-    el('create-key-card').classList.remove('hidden');
-    status.textContent = '';
+    location.replace('/dashboard/key/');
     return;
   }
 

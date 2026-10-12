@@ -1,0 +1,61 @@
+<!--#var title="API key — WA Coexistence"-->
+<!--#var description="Create your Watobot API key, or replace it or reset it if you lost it."-->
+<!--#include partial="head"-->
+<!--#include partial="header"-->
+
+  <script>
+    // While the app waits for Meta's approval, visitors go to the landing page's waitlist. The
+    // dashboard stays reachable on localhost, and anywhere after opening it once
+    // with ?preview=1 (remembered in this browser).
+    (function () {
+      var open = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      try {
+        if (new URLSearchParams(location.search).get('preview') === '1') localStorage.setItem('watobot_preview', '1');
+        open = open || localStorage.getItem('watobot_preview') === '1';
+      } catch (e) {}
+      if (!open) location.replace('/?join-waitlist=true');
+    })();
+  </script>
+
+  <div class="flex w-full flex-1">
+    <!--#include partial="waba-sidebar"-->
+
+    <section class="flex-1 min-w-0 px-gutter md:px-10 py-12">
+      <div class="max-w-3xl mx-auto flex flex-col gap-6 w-full">
+        <h1 id="key-title" class="font-headline-lg text-headline-lg text-on-surface">API key</h1>
+
+        <!-- No key yet: create one (an account needs it before it can onboard a number) -->
+        <div id="create-key-card" class="hidden card p-6">
+          <p class="section-title text-on-surface mb-1">Create your Watobot API key</p>
+          <p class="text-on-surface-variant font-body-md">
+            We encrypt the access token Meta gives us for your number with a
+            Watobot API key that only you hold. We'll show you the key once, so
+            you can note it down.
+          </p>
+          <button id="create-key-btn" type="button" class="mt-4 self-start rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Create my API key</button>
+        </div>
+
+        <div id="modify-key-card" class="hidden card p-6">
+          <p class="section-title text-on-surface mb-1">Your Watobot API key</p>
+          <p class="text-on-surface-variant font-body-md text-sm mb-4">
+            The key your apps use to call our API. We keep only a hash of it, and
+            it encrypts the Meta access tokens we store for your numbers, so we
+            can't read them without it. To replace it, enter the current key:
+            nothing breaks, and every number keeps working with the new key. We
+            sign you out afterwards, so you need the new key to sign in.
+          </p>
+          <label class="label-strong text-on-surface-variant block" for="rotate-old">Current API key</label>
+          <input id="rotate-old" type="password" autocomplete="off" class="w-full mt-1 mb-3 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-xs"/>
+          <button id="rotate-btn" class="rounded-xl border border-outline-variant bg-white px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all disabled:opacity-50">Generate a new key</button>
+          <p class="text-on-surface-variant font-body-md text-sm mt-3" id="rotate-status"></p>
+          <button id="reset-key-btn" type="button" class="mt-4 text-error font-body-md text-sm hover:underline">I lost my key (reset)</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+<!--#include partial="key-dialog"-->
+
+  <script type="module" src="/dashboard/key/index.js"></script>
+
+<!--#include partial="footer"-->

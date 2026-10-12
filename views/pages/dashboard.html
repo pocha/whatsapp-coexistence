@@ -55,27 +55,11 @@
       <div id="signed-in" class="hidden flex flex-col gap-6">
         <div class="flex justify-between items-center gap-4">
           <h1 class="font-headline-lg text-headline-lg text-on-surface">Your WABAs</h1>
-          <a href="/dashboard/waba/create.html" class="rounded-xl bg-primary-container text-on-primary-container px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all whitespace-nowrap">Onboard new WABA</a>
+          <a href="/dashboard/waba/create.html" class="rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all whitespace-nowrap">Onboard new WABA</a>
         </div>
 
         <div id="waba-cards" class="flex flex-col gap-4"></div>
         <p id="waba-cards-empty" class="hidden text-on-surface-variant font-body-md">No WABAs onboarded yet.</p>
-
-        <div class="card p-6 mt-4">
-          <p class="section-title text-on-surface mb-1">Your Watobot API key</p>
-          <p class="text-on-surface-variant font-body-md text-sm mb-4">
-            The key your apps use to call our API. We keep only a hash of it, and
-            it encrypts the Meta access tokens we store for your numbers, so we
-            can't read them without it. To replace it, enter the current key:
-            nothing breaks, and every number keeps working with the new key. We
-            sign you out afterwards, so you need the new key to sign in.
-          </p>
-          <label class="label-strong text-on-surface-variant block" for="rotate-old">Current API key</label>
-          <input id="rotate-old" type="password" autocomplete="off" class="w-full mt-1 mb-3 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-xs"/>
-          <button id="rotate-btn" class="rounded-xl border border-outline-variant bg-white px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all disabled:opacity-50">Generate a new key</button>
-          <p class="text-on-surface-variant font-body-md text-sm mt-3" id="rotate-status"></p>
-          <button id="reset-key-btn" type="button" class="mt-4 text-error font-body-md text-sm hover:underline">I lost my key (reset)</button>
-        </div>
       </div>
     </div>
     </section>
