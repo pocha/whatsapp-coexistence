@@ -49,6 +49,13 @@ export interface SetWebhookRequest {
   overrideCallbackUrl: string;
 }
 
+export interface RegisterNumberRequest {
+  phoneNumberId: string;
+  apiKey: string;
+  /** The 6-digit two-step verification PIN to set. Keep it: Meta asks for it to change or delete the number. */
+  pin: string;
+}
+
 export interface RotateKeyRequest {
   oldApiKey: string;
   newApiKey: string;

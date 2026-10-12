@@ -3,14 +3,15 @@ import express from 'express';
 import cors from 'cors';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { config } from './helpers/config';
-import { graphApiBase, subscribeApp } from './helpers/graphApi';
+import { graphApiBase, registerPhoneNumber, subscribeApp } from './helpers/graphApi';
 import { verifyEndpointChallenge } from './helpers/endpointCheck';
 import { HttpError } from './helpers/auth';
-import type { SetWebhookRequest } from './helpers/types';
+import type { RegisterNumberRequest, SetWebhookRequest } from './helpers/types';
 import { authenticateKey } from './accounts';
 
 // What a customer does with a number through its Watobot API key: set where incoming
-// messages go (setWebhook), send messages (relayMessage) and manage message templates
+// messages go (setWebhook), register a new number (registerNumber), send messages
+// (relayMessage) and manage message templates
 // (templates). Each one finds the number, checks the key, decrypts the stored Meta token
 // in memory for the request, and calls Meta with it.
 
@@ -54,6 +55,36 @@ export const setWebhook = onRequest((req, res) => {
         .collection('phoneNumbers')
         .doc(String(phoneNumberId))
         .update({ overrideUrl: overrideCallbackUrl, activatedAt: Date.now() });
+      res.status(200).send({ ok: true });
+    } catch (err) {
+      const status = err instanceof HttpError ? err.status : 502;
+      res.status(status).send({ ok: false, error: (err as Error).message });
+    }
+  });
+});
+
+// ---- registerNumber ----
+
+// Registers a number for Cloud API use after Embedded Signup, which a brand-new (not
+// coexistence) number needs before it can send or receive. Same auth as setWebhook: the
+// Watobot API key, no sign-in. Meta's error is returned as is, so a failure says why.
+// timeoutSeconds leaves room for Meta's slow register call (see registerPhoneNumber).
+export const registerNumber = onRequest({ timeoutSeconds: 90 }, (req, res) => {
+  corsHandler(req, res, async () => {
+    if (req.method !== 'POST') {
+      res.status(405).send({ ok: false, error: 'Use POST' });
+      return;
+    }
+
+    const { phoneNumberId, apiKey, pin } = (req.body ?? {}) as Partial<RegisterNumberRequest>;
+    if (!phoneNumberId || !apiKey || !/^\d{6}$/.test(String(pin ?? ''))) {
+      res.status(400).send({ ok: false, error: 'phoneNumberId, apiKey and a 6-digit pin are required' });
+      return;
+    }
+
+    try {
+      const { accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
+      await registerPhoneNumber(String(phoneNumberId), accessToken, String(pin));
       res.status(200).send({ ok: true });
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;

@@ -79,11 +79,25 @@
             <p class="section-title text-on-surface mb-1">Send a message</p>
             <p class="text-on-surface-variant font-body-md text-sm mb-4">
               Your app sends messages by calling our endpoint with the same request body as
-              Meta's own send-message API. Put a recipient number in this command and run it
+              Meta's own send-message API. This command sends the <code>hello_world</code>
+              sample template, which works at any time (free-form text is only delivered within
+              24 hours of the customer's last message). Put a recipient number in it and run it
               in a terminal.
             </p>
             <textarea id="send-command" rows="8" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
             <button id="copy-send-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+          </div>
+
+          <div class="card p-6">
+            <p class="section-title text-on-surface mb-1">Register this number</p>
+            <p class="text-on-surface-variant font-body-md text-sm mb-4">
+              Only for a <strong>new</strong> number (not one connected with coexistence): Meta needs it
+              registered before it can send or receive. Without that, sending fails with
+              <code>Account not registered</code> (133010). Pick a 6-digit PIN and keep it, because
+              Meta asks for it to change or delete the number.
+            </p>
+            <textarea id="register-command" rows="5" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
+            <button id="copy-register-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
           </div>
 
           <div class="card p-6 lg:col-span-2">

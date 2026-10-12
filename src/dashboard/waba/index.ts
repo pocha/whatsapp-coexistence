@@ -103,17 +103,27 @@ function renderCommands() {
   const auth = `-H 'Authorization: Bearer ${key}'`;
   const json = `-H 'Content-Type: application/json'`;
 
+  // A template, because free-form text is only delivered within 24 hours of the customer's last
+  // message. hello_world is the sample template Meta provides on new accounts.
   const message = JSON.stringify({
     messaging_product: 'whatsapp',
     to: 'RECIPIENT_PHONE_NUMBER',
-    type: 'text',
-    text: { body: 'Hello from Watobot' },
+    type: 'template',
+    template: { name: 'hello_world', language: { code: 'en_US' } },
   });
   el<HTMLTextAreaElement>('send-command').value = [
     `curl -X POST '${base}/relayMessage/${phoneNumberId}/messages' \\`,
     `  ${auth} \\`,
     `  ${json} \\`,
     `  -d '${message}'`,
+  ].join('\n');
+
+  // Only for a brand-new number (not coexistence): Meta needs it registered before it can send.
+  const register = JSON.stringify({ phoneNumberId, apiKey: key, pin: 'YOUR_6_DIGIT_PIN' });
+  el<HTMLTextAreaElement>('register-command').value = [
+    `curl -X POST '${base}/registerNumber' \\`,
+    `  ${json} \\`,
+    `  -d '${register}'`,
   ].join('\n');
 
   const create = JSON.stringify({
@@ -152,6 +162,7 @@ apiKeyInput.addEventListener('input', renderCommands);
 for (const [button, box] of [
   ['copy-send-btn', 'send-command'],
   ['copy-templates-btn', 'templates-command'],
+  ['copy-register-btn', 'register-command'],
 ]) {
   el(button).addEventListener('click', async () => {
     await navigator.clipboard.writeText(el<HTMLTextAreaElement>(box).value);
