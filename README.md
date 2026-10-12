@@ -130,8 +130,10 @@ from being flagged. Free-form replies are not limited.
 - **Per-number override:** set `rateLimits` on that number's `phoneNumbers/{id}` record (Admin SDK or
   the Firebase console; customers can't write it), with any part of the same shape, for example
   `{ "minute": { "floor": 40 } }`. Set `{ "enabled": false }` to switch limiting off for one number.
-- **State** is `rateState` on the same record, `{current, previous}` per window, which the number's
-  page in the dashboard reads for its tiles. The limiter itself is
+- **State** is `rateState` on the same record: per window the accepted count and the attempted
+  count (refused requests included), for the current and the previous window. The limit is worked
+  out from the *accepted* previous count only, so refused requests can't raise it. The number's page
+  in the dashboard shows both, with the limits that apply. The limiter itself is
   [`rateLimiter.ts`](functions/src/helpers/rateLimiter.ts), shared by the Functions and the page.
 
 ### 3. Local setup

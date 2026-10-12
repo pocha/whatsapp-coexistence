@@ -8,9 +8,16 @@ export const UNITS: Unit[] = ['minute', 'hour', 'day'];
 // Fixed windows: minutes and hours on the clock, days in UTC.
 const PERIOD_MS: Record<Unit, number> = { minute: 60_000, hour: 3_600_000, day: 86_400_000 };
 
+/**
+ * `current` and `previous` count what was accepted (and is what the limit is worked out from).
+ * The `...Attempts` pair also counts requests that were refused, so a sender can see how hard it
+ * hit the limit. Attempts never raise a limit: otherwise hammering the endpoint would buy growth.
+ */
 export interface WindowCount {
   current: number;
   previous: number;
+  currentAttempts: number;
+  previousAttempts: number;
 }
 
 /** What is stored on the number's record: a count pair per window, and when they were last written. */
@@ -35,7 +42,7 @@ export function effectiveConfig(override?: RateLimitOverride): RateLimitConfig {
   };
 }
 
-const empty = (): WindowCount => ({ current: 0, previous: 0 });
+const empty = (): WindowCount => ({ current: 0, previous: 0, currentAttempts: 0, previousAttempts: 0 });
 
 /**
  * Moves the stored counts forward to `now`: into the next window (current becomes previous), or
@@ -47,9 +54,14 @@ export function advance(state: RateState | undefined, now: number): RateState {
   for (const unit of UNITS) {
     const steps = Math.floor(now / PERIOD_MS[unit]) - Math.floor(state.lastAt / PERIOD_MS[unit]);
     const was = state[unit] ?? empty();
-    if (steps <= 0) next[unit] = { ...was };
-    else if (steps === 1) next[unit] = { current: 0, previous: was.current };
-    // More than one window ago: both are zero.
+    // Records written before attempts were kept have none; their attempts were all accepted.
+    const attempts = { current: was.currentAttempts ?? was.current, previous: was.previousAttempts ?? was.previous };
+    if (steps <= 0) {
+      next[unit] = { current: was.current, previous: was.previous, currentAttempts: attempts.current, previousAttempts: attempts.previous };
+    } else if (steps === 1) {
+      next[unit] = { current: 0, previous: was.current, currentAttempts: 0, previousAttempts: attempts.current };
+    }
+    // More than one window ago: all zero.
   }
   return next;
 }
@@ -63,11 +75,12 @@ export type Verdict =
   | { allowed: false; state: RateState; unit: Unit; limit: number; current: number; retryAfterSeconds: number };
 
 /**
- * Decides whether one more template message may go, and returns the state to store. Counts it in
- * every window when allowed. When refused, the state is moved forward but not incremented.
+ * Decides whether one more template message may go, and returns the state to store. Every request
+ * counts as an attempt in every window; only an accepted one raises the accepted count.
  */
 export function reserve(stored: RateState | undefined, config: RateLimitConfig, now: number): Verdict {
   const state = advance(stored, now);
+  for (const unit of UNITS) state[unit].currentAttempts += 1;
   for (const unit of UNITS) {
     const limit = limitFor(state[unit].previous, config[unit], config.headroomSigmas);
     if (state[unit].current + 1 > limit) {

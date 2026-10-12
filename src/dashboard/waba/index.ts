@@ -31,33 +31,95 @@ function isoWeekKey(d: Date) {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
-// One tile: the current count big, the previous window under it with the change, and a limit
-// when there is one.
-function tile(label: string, current: number, previous: number, limit?: number): HTMLElement {
+// One tile: the count for this period, with the previous one under it.
+function tile(label: string, current: number, previous: number): HTMLElement {
   const box = document.createElement('div');
   box.className = 'rounded-lg border border-outline-variant p-3 text-center';
-  const over = limit !== undefined && current >= limit;
-  if (over) box.classList.add('border-error');
 
   const name = document.createElement('p');
   name.className = 'label-muted';
   name.textContent = label;
 
   const big = document.createElement('p');
-  big.className = `font-headline-md text-headline-md ${over ? 'text-error' : 'text-on-surface'}`;
-  big.textContent = limit === undefined ? current.toLocaleString() : `${current.toLocaleString()} / ${limit.toLocaleString()}`;
+  big.className = 'font-headline-md text-headline-md text-on-surface';
+  big.textContent = current.toLocaleString();
 
   const small = document.createElement('p');
   small.className = 'text-on-surface-variant font-body-md text-sm';
-  let change = '';
-  if (previous > 0) {
-    const pct = Math.round(((current - previous) / previous) * 100);
-    change = ` · ${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%`;
-  }
-  small.textContent = `prev ${previous.toLocaleString()}${change}`;
+  small.textContent = `prev ${previous.toLocaleString()}`;
 
   box.append(name, big, small);
   return box;
+}
+
+/** "10 / 15": accepted in green, then everything that was attempted in grey. */
+function pair(accepted: number, attempted: number): HTMLElement {
+  const cell = document.createElement('span');
+  const good = document.createElement('strong');
+  good.className = 'text-primary';
+  good.textContent = accepted.toLocaleString();
+  const all = document.createElement('span');
+  all.className = 'text-muted';
+  all.textContent = ` / ${attempted.toLocaleString()}`;
+  cell.append(good, all);
+  return cell;
+}
+
+function renderLimitTable(data: PhoneNumberDoc, nowMs: number) {
+  const config = effectiveConfig(data.rateLimits);
+  const windows = view(data.rateState, config, nowMs);
+  const units = [
+    ['minute', 'Minute'],
+    ['hour', 'Hour'],
+    ['day', 'Day'],
+  ] as const;
+
+  const rows: [string, (u: (typeof units)[number][0]) => Node | string][] = [
+    ['This window', (u) => pair(windows[u].current, windows[u].currentAttempts)],
+    ['Previous', (u) => pair(windows[u].previous, windows[u].previousAttempts)],
+    [
+      'Allowed now',
+      (u) => {
+        const full = windows[u].current >= windows[u].limit;
+        const span = document.createElement('span');
+        span.className = full ? 'text-error font-bold' : 'font-bold';
+        span.textContent = windows[u].limit.toLocaleString();
+        return span;
+      },
+    ],
+    ['Growth', (u) => `${config[u].growthPercent}%`],
+    ['Minimum', (u) => String(config[u].floor)],
+  ];
+
+  const table = el<HTMLTableElement>('limit-table');
+  table.replaceChildren();
+  const head = table.createTHead().insertRow();
+  head.append(document.createElement('th'));
+  for (const [, label] of units) {
+    const th = document.createElement('th');
+    th.className = 'label-muted text-right pb-2';
+    th.textContent = label;
+    head.append(th);
+  }
+  const body = table.createTBody();
+  for (const [label, cellFor] of rows) {
+    const row = body.insertRow();
+    row.className = 'border-t border-outline-variant';
+    const name = row.insertCell();
+    name.className = 'py-2 pr-3 text-on-surface-variant';
+    name.textContent = label;
+    for (const [unit] of units) {
+      const cell = row.insertCell();
+      cell.className = 'py-2 text-right';
+      cell.append(cellFor(unit));
+    }
+  }
+  if (!config.enabled) {
+    const note = document.createElement('caption');
+    note.className = 'text-left text-on-surface-variant pb-2';
+    note.textContent = 'Rate limiting is switched off for this number.';
+    table.prepend(note);
+  }
 }
 
 // Messages sent come from the date-keyed usage counters (previous period = the earlier key);
@@ -74,12 +136,7 @@ function renderStats(data: PhoneNumberDoc) {
     tile('This month', usage.monthly?.[monthlyKey(now)] ?? 0, usage.monthly?.[monthlyKey(monthAgo)] ?? 0),
   );
 
-  const windows = view(data.rateState, effectiveConfig(data.rateLimits), now.getTime());
-  el('limit-tiles').replaceChildren(
-    tile('This minute', windows.minute.current, windows.minute.previous, windows.minute.limit),
-    tile('This hour', windows.hour.current, windows.hour.previous, windows.hour.limit),
-    tile('Today', windows.day.current, windows.day.previous, windows.day.limit),
-  );
+  renderLimitTable(data, now.getTime());
   el('stats').classList.remove('hidden');
 }
 

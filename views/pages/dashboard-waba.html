@@ -50,9 +50,11 @@
             <p class="label-strong text-on-surface-variant mb-1">RATE LIMITING <span class="label-muted">template messages</span></p>
             <p class="text-on-surface-variant font-body-md text-sm mb-3">
               A window may grow only so far over the one before it. Past its limit, template
-              sends are refused until the window rolls over.
+              sends are refused until the window rolls over. Each count shows what went through
+              (green) and, after the slash, all requests including the ones refused (grey).
+              Refused requests never raise the limit.
             </p>
-            <div id="limit-tiles" class="grid grid-cols-3 gap-3"></div>
+            <div class="overflow-x-auto"><table id="limit-table" class="w-full text-sm"></table></div>
           </div>
         </div>
 
