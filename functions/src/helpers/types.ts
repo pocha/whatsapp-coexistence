@@ -17,6 +17,8 @@ export interface UserDoc {
   rotatedAt?: number;
 }
 
+import type { RateLimitOverride, RateState } from './rateLimiter';
+
 /** Counters written by the relay, keyed by day (YYYY-MM-DD), ISO week (YYYY-Www) and month (YYYY-MM). */
 export interface Usage {
   daily?: Record<string, number>;
@@ -34,6 +36,12 @@ export interface PhoneNumberDoc {
   activatedAt?: number;
   lastRelayCall?: number;
   usage?: Usage;
+  /** The number as people know it, e.g. "+1 555-339-3615". Filled from Meta; falls back to the ID. */
+  displayPhoneNumber?: string;
+  /** Template-message counts per window, written by the relay (see helpers/rateLimiter.ts). */
+  rateState?: RateState;
+  /** Per-number override of the default rate limits. Set by us, never by the customer. */
+  rateLimits?: RateLimitOverride;
 }
 
 export interface ExchangeCodeRequest {

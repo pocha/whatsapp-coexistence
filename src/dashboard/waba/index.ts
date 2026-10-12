@@ -5,6 +5,7 @@ import { isValidApiKey } from '/assets/api-key.js';
 import '/assets/nav-auth.js';
 import { el, errorMessage } from '/assets/dom.js';
 import type { PhoneNumberDoc, SetWebhookRequest } from '../../../functions/src/helpers/types';
+import { effectiveConfig, view } from '../../../functions/src/helpers/rateLimiter';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 // The page for one number, identified by ?id= in the URL (its phone number ID). Signed-in
@@ -30,6 +31,58 @@ function isoWeekKey(d: Date) {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
+// One tile: the current count big, the previous window under it with the change, and a limit
+// when there is one.
+function tile(label: string, current: number, previous: number, limit?: number): HTMLElement {
+  const box = document.createElement('div');
+  box.className = 'rounded-lg border border-outline-variant p-3 text-center';
+  const over = limit !== undefined && current >= limit;
+  if (over) box.classList.add('border-error');
+
+  const name = document.createElement('p');
+  name.className = 'label-muted';
+  name.textContent = label;
+
+  const big = document.createElement('p');
+  big.className = `font-headline-md text-headline-md ${over ? 'text-error' : 'text-on-surface'}`;
+  big.textContent = limit === undefined ? current.toLocaleString() : `${current.toLocaleString()} / ${limit.toLocaleString()}`;
+
+  const small = document.createElement('p');
+  small.className = 'text-on-surface-variant font-body-md text-sm';
+  let change = '';
+  if (previous > 0) {
+    const pct = Math.round(((current - previous) / previous) * 100);
+    change = ` · ${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}%`;
+  }
+  small.textContent = `prev ${previous.toLocaleString()}${change}`;
+
+  box.append(name, big, small);
+  return box;
+}
+
+// Messages sent come from the date-keyed usage counters (previous period = the earlier key);
+// rate limiting from the relay's window counts, advanced to now the same way the relay does.
+function renderStats(data: PhoneNumberDoc) {
+  const now = new Date();
+  const usage = data.usage ?? {};
+  const dayAgo = new Date(now.getTime() - 86_400_000);
+  const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
+  const monthAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  el('sent-tiles').replaceChildren(
+    tile('Today', usage.daily?.[dailyKey(now)] ?? 0, usage.daily?.[dailyKey(dayAgo)] ?? 0),
+    tile('This week', usage.weekly?.[isoWeekKey(now)] ?? 0, usage.weekly?.[isoWeekKey(weekAgo)] ?? 0),
+    tile('This month', usage.monthly?.[monthlyKey(now)] ?? 0, usage.monthly?.[monthlyKey(monthAgo)] ?? 0),
+  );
+
+  const windows = view(data.rateState, effectiveConfig(data.rateLimits), now.getTime());
+  el('limit-tiles').replaceChildren(
+    tile('This minute', windows.minute.current, windows.minute.previous, windows.minute.limit),
+    tile('This hour', windows.hour.current, windows.hour.previous, windows.hour.limit),
+    tile('Today', windows.day.current, windows.day.previous, windows.day.limit),
+  );
+  el('stats').classList.remove('hidden');
+}
+
 // The rules let just the owner read phoneNumbers/{phoneNumberId}. Returns false if the record
 // is missing or isn't this user's; the page still works then, just without the saved details.
 async function loadRecord(): Promise<boolean> {
@@ -44,14 +97,8 @@ async function loadRecord(): Promise<boolean> {
   if (data.wabaId) el('waba-id-line').textContent = `WABA ID: ${data.wabaId}`;
   if (data.overrideUrl && !overrideUrl.value) overrideUrl.value = data.overrideUrl;
 
-  const usage = data.usage;
-  if (usage) {
-    const now = new Date();
-    el('usage-today').textContent = String(usage.daily?.[dailyKey(now)] ?? 0);
-    el('usage-week').textContent = String(usage.weekly?.[isoWeekKey(now)] ?? 0);
-    el('usage-month').textContent = String(usage.monthly?.[monthlyKey(now)] ?? 0);
-    el('counts-card').classList.remove('hidden');
-  }
+  if (data.displayPhoneNumber) el('number-id-line').textContent = `Phone number: ${data.displayPhoneNumber} · ID ${phoneNumberId}`;
+  renderStats(data);
   return true;
 }
 

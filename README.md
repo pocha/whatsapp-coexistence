@@ -114,9 +114,25 @@ only their own, within the limits in `firestore.rules` (they can never change `u
 |---|---|
 | `users/{randomUserId}` | `phoneNumber`, `apiKeyHash`, `createdAt`, `rotatedAt` |
 | `phoneIndex/{phone}` | `userId` |
-| `phoneNumbers/{phoneNumberId}` | `userId`, `wabaId`, `phoneNumberId`, `encAccessToken`, `overrideUrl`, `activatedAt`, `lastRelayCall`, `usage` |
+| `phoneNumbers/{phoneNumberId}` | `userId`, `wabaId`, `phoneNumberId`, `displayPhoneNumber`, `encAccessToken`, `overrideUrl`, `activatedAt`, `lastRelayCall`, `usage`, `rateState`, `rateLimits` |
 
 The Firebase sign-in `uid` is the random user ID, not the phone number.
+
+### Rate limits
+
+Template messages sent through the relay are rate limited per number, to protect the number
+from being flagged. Free-form replies are not limited.
+
+- **The values** are in [`functions/src/helpers/rateLimitConfig.ts`](functions/src/helpers/rateLimitConfig.ts):
+  per window (minute, hour, day) a `floor` that is always allowed and a `growthPercent` over the
+  previous window, plus statistical headroom. A send over any window's limit gets a `429` with
+  `Retry-After`.
+- **Per-number override:** set `rateLimits` on that number's `phoneNumbers/{id}` record (Admin SDK or
+  the Firebase console; customers can't write it), with any part of the same shape, for example
+  `{ "minute": { "floor": 40 } }`. Set `{ "enabled": false }` to switch limiting off for one number.
+- **State** is `rateState` on the same record, `{current, previous}` per window, which the number's
+  page in the dashboard reads for its tiles. The limiter itself is
+  [`rateLimiter.ts`](functions/src/helpers/rateLimiter.ts), shared by the Functions and the page.
 
 ### 3. Local setup
 

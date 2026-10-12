@@ -76,7 +76,8 @@ export async function fillSidebar(uid: string, currentId?: string | null): Promi
     const link = document.createElement('a');
     link.href = `/dashboard/waba/?id=${encodeURIComponent(docSnap.id)}`;
     link.className = `${LINK} text-on-surface-variant`;
-    link.title = `Phone number ID ${docSnap.id}`;
+    const shown = waba.displayPhoneNumber ?? `Number ${docSnap.id}`;
+    link.title = `${shown} (phone number ID ${docSnap.id})`;
 
     const icon = document.createElement('span');
     icon.className = 'material-symbols-outlined text-[22px] flex-shrink-0';
@@ -84,7 +85,7 @@ export async function fillSidebar(uid: string, currentId?: string | null): Promi
 
     const label = document.createElement('span');
     label.className = 'hidden lg:inline truncate';
-    label.textContent = `Number ${docSnap.id}`;
+    label.textContent = shown;
 
     link.append(icon, label);
     if (docSnap.id === currentId) markActive(link);

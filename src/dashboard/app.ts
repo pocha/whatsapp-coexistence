@@ -162,7 +162,7 @@ function renderCards(numbers: NumberRecord[]) {
     row.className = 'flex justify-between items-center gap-4';
     const title = document.createElement('p');
     title.className = 'section-title text-on-surface break-all';
-    title.textContent = `Phone number ID ${waba.id}`;
+    title.textContent = waba.displayPhoneNumber ?? `Phone number ID ${waba.id}`;
     const status = document.createElement('span');
     status.className = 'label-muted whitespace-nowrap';
     // A number with no stored token (after a key reset) can't send until onboarded again.

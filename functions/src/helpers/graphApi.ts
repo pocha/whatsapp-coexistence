@@ -46,6 +46,15 @@ export async function subscribeApp(
   });
 }
 
+/** The number as people see it, e.g. "+1 555-339-3615". */
+export async function getDisplayPhoneNumber(phoneNumberId: string, accessToken: string): Promise<string | undefined> {
+  const body = await graphFetch(`/${encodeURIComponent(phoneNumberId)}?fields=display_phone_number`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return body.display_phone_number as string | undefined;
+}
+
 /**
  * Registers a business phone number for Cloud API use. Meta requires this after Embedded Signup
  * for a new number (not for a coexistence number, which is already registered), and it sets the

@@ -41,12 +41,18 @@
           <input id="api-key" type="password" autocomplete="off" placeholder="your 64-character API key" class="w-full px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-xs"/>
         </div>
 
-        <div id="counts-card" class="hidden card p-6">
-          <p class="label-strong text-on-surface-variant mb-2">Messages sent through our endpoint</p>
-          <div class="grid grid-cols-3 gap-3 text-center">
-            <div><p class="font-headline-md text-headline-md text-on-surface" id="usage-today">0</p><p class="label-muted">Today</p></div>
-            <div><p class="font-headline-md text-headline-md text-on-surface" id="usage-week">0</p><p class="label-muted">This week</p></div>
-            <div><p class="font-headline-md text-headline-md text-on-surface" id="usage-month">0</p><p class="label-muted">This month</p></div>
+        <div id="stats" class="hidden flex flex-col gap-4">
+          <div class="card p-6">
+            <p class="label-strong text-on-surface-variant mb-3">MESSAGES SENT <span class="label-muted">all messages · UTC</span></p>
+            <div id="sent-tiles" class="grid grid-cols-3 gap-3"></div>
+          </div>
+          <div class="card p-6">
+            <p class="label-strong text-on-surface-variant mb-1">RATE LIMITING <span class="label-muted">template messages</span></p>
+            <p class="text-on-surface-variant font-body-md text-sm mb-3">
+              A window may grow only so far over the one before it. Past its limit, template
+              sends are refused until the window rolls over.
+            </p>
+            <div id="limit-tiles" class="grid grid-cols-3 gap-3"></div>
           </div>
         </div>
 

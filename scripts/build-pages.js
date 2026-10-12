@@ -5,9 +5,9 @@
  * Builds the static site into public/:
  *
  *   1. Compiles the browser TypeScript in src/ to the matching .js files in public/
- *      (esbuild, one output per source file, no bundling: the pages still import
- *      Firebase from Google's CDN and each other by absolute URL). Type-checking is
- *      `npm run typecheck`; esbuild only strips the types.
+ *      (esbuild, one output per source file. The pages still import Firebase from Google's
+ *      CDN and each other by absolute URL; only relative imports, such as the rate limiter
+ *      shared with the Functions, are inlined). Type-checking is `npm run typecheck`.
  *   2. Expands the page templates in views/pages/*.html into public/.
  *
  * Templates may:
@@ -132,6 +132,8 @@ function buildScripts() {
     entryPoints,
     outdir: PUBLIC_DIR,
     outbase: SRC_DIR,
+    bundle: true,
+    external: ['https://*', '/*'],
     format: 'esm',
     target: 'es2022',
     logLevel: 'warning',

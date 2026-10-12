@@ -3,10 +3,11 @@ import express from 'express';
 import cors from 'cors';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { config } from './helpers/config';
-import { graphApiBase, registerPhoneNumber, subscribeApp } from './helpers/graphApi';
+import { getDisplayPhoneNumber, graphApiBase, registerPhoneNumber, subscribeApp } from './helpers/graphApi';
+import { effectiveConfig, reserve, type Verdict } from './helpers/rateLimiter';
 import { verifyEndpointChallenge } from './helpers/endpointCheck';
 import { HttpError } from './helpers/auth';
-import type { RegisterNumberRequest, SetWebhookRequest } from './helpers/types';
+import type { PhoneNumberDoc, RegisterNumberRequest, SetWebhookRequest } from './helpers/types';
 import { authenticateKey } from './accounts';
 
 // What a customer does with a number through its Watobot API key: set where incoming
@@ -16,6 +17,18 @@ import { authenticateKey } from './accounts';
 // in memory for the request, and calls Meta with it.
 
 const corsHandler = cors({ origin: true });
+
+/** Saves how the number is shown (best-effort, so older records fill in the next time they are used). */
+async function rememberDisplayNumber(phoneNumberId: string, accessToken: string): Promise<void> {
+  try {
+    const displayPhoneNumber = await getDisplayPhoneNumber(phoneNumberId, accessToken);
+    if (displayPhoneNumber) {
+      await getFirestore().collection('phoneNumbers').doc(phoneNumberId).update({ displayPhoneNumber });
+    }
+  } catch {
+    // The sidebar falls back to the phone number ID.
+  }
+}
 
 // ---- setWebhook ----
 
@@ -55,6 +68,7 @@ export const setWebhook = onRequest((req, res) => {
         .collection('phoneNumbers')
         .doc(String(phoneNumberId))
         .update({ overrideUrl: overrideCallbackUrl, activatedAt: Date.now() });
+      await rememberDisplayNumber(String(phoneNumberId), accessToken);
       res.status(200).send({ ok: true });
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;
@@ -85,6 +99,7 @@ export const registerNumber = onRequest({ timeoutSeconds: 90 }, (req, res) => {
     try {
       const { accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
       await registerPhoneNumber(String(phoneNumberId), accessToken, String(pin));
+      await rememberDisplayNumber(String(phoneNumberId), accessToken);
       res.status(200).send({ ok: true });
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;
@@ -110,6 +125,24 @@ export function isoWeekKey(d: Date): string {
   const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
   const weekNo = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+/**
+ * Counts one more template message against the number's windows, and says whether it may go. The
+ * check and the count happen in one transaction, so sends arriving together cannot all slip under
+ * the limit. Limits come from helpers/rateLimitConfig.ts, overridden per number by `rateLimits`.
+ */
+async function reserveTemplateSend(phoneNumberId: string): Promise<Verdict | { allowed: true }> {
+  const db = getFirestore();
+  const ref = db.collection('phoneNumbers').doc(phoneNumberId);
+  return db.runTransaction(async (tx) => {
+    const data = (await tx.get(ref)).data() as PhoneNumberDoc | undefined;
+    const config = effectiveConfig(data?.rateLimits);
+    if (!config.enabled) return { allowed: true as const };
+    const verdict = reserve(data?.rateState, config, Date.now());
+    tx.update(ref, { rateState: verdict.state });
+    return verdict;
+  });
 }
 
 const relayApp = express();
@@ -139,6 +172,21 @@ relayApp.post('/:phoneNumberId/messages', async (req, res) => {
   } catch (err) {
     res.status(err instanceof HttpError ? err.status : 502).send({ error: (err as Error).message });
     return;
+  }
+
+  // Only template messages are limited; free-form replies go straight through.
+  if (req.body?.type === 'template') {
+    const verdict = await reserveTemplateSend(phoneNumberId);
+    if (!verdict.allowed && 'unit' in verdict) {
+      res.set('Retry-After', String(verdict.retryAfterSeconds));
+      res.status(429).send({
+        error: `Rate limit reached: ${verdict.current} template messages this ${verdict.unit} (limit ${verdict.limit}). Try again in ${verdict.retryAfterSeconds}s.`,
+        window: verdict.unit,
+        limit: verdict.limit,
+        retryAfterSeconds: verdict.retryAfterSeconds,
+      });
+      return;
+    }
   }
 
   const metaRes = await fetch(`${graphApiBase()}/${phoneNumberId}/messages`, {
