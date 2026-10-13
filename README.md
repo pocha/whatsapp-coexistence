@@ -191,15 +191,11 @@ Things to know:
 Check the app locally by signing in at `http://localhost:8765/dashboard/` with
 a number you own, entering the WhatsApp OTP you receive.
 
-**Waitlist mode.** While the app waits for Meta's approval, `/dashboard/` and
-`/dashboard/waba/create.html` redirect visitors to the landing page (`/?join-waitlist=true`),
-which shows a notice. The landing page's **Join Waitlist** button reveals the
-Google Group link, and a count of people who clicked it is kept in
-`meta/waitlist`, incremented by the `joinWaitlist` function once per browser.
-The dashboard still opens on `localhost`, and on any other host after visiting
-`/dashboard/?preview=1` once (remembered in that browser). To launch, delete the
-redirect script near the top of `views/pages/dashboard.html` and
-`views/pages/dashboard-waba-create.html`, and point the nav button back at `/dashboard/`.
+**Waitlist.** The dashboard (`/dashboard/` and its pages) is open to anyone, so Meta's reviewers can
+sign in and test the app. The landing page's **Join Waitlist** button reveals the Google Group link,
+and a count of people who clicked it is kept in `meta/waitlist`, incremented by the `joinWaitlist`
+function once per browser. The nav button on the landing page still says **Join Waitlist**; point it
+at `/dashboard/` (in `views/partials/header.html`) when you want the site itself to lead there.
 
 ### 4. Production deployment
 
