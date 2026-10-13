@@ -5,6 +5,7 @@ import { isValidApiKey } from '/assets/api-key.js';
 import '/assets/nav-auth.js';
 import { el, errorMessage } from '/assets/dom.js';
 import type { PhoneNumberDoc, SetWebhookRequest } from '../../../functions/src/helpers/types';
+import { effectiveConfig, view } from '../../../functions/src/helpers/rateLimiter';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 // The page for one number, identified by ?id= in the URL (its phone number ID). Signed-in
@@ -30,6 +31,124 @@ function isoWeekKey(d: Date) {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
+// One tile: the count for this period, with the previous one under it.
+function tile(label: string, current: number, previous: number): HTMLElement {
+  const box = document.createElement('div');
+  box.className = 'rounded-lg border border-outline-variant p-3 text-center';
+
+  const name = document.createElement('p');
+  name.className = 'label-muted';
+  name.textContent = label;
+
+  const big = document.createElement('p');
+  big.className = 'font-headline-md text-headline-md text-on-surface';
+  big.textContent = current.toLocaleString();
+
+  const small = document.createElement('p');
+  small.className = 'text-on-surface-variant font-body-md text-sm';
+  small.textContent = `prev ${previous.toLocaleString()}`;
+
+  box.append(name, big, small);
+  return box;
+}
+
+/** "10 / 15": accepted in green, then everything that was attempted in grey. */
+function pair(accepted: number, attempted: number): HTMLElement {
+  const cell = document.createElement('span');
+  const good = document.createElement('strong');
+  good.className = 'text-primary';
+  good.textContent = accepted.toLocaleString();
+  const all = document.createElement('span');
+  all.className = 'text-muted';
+  all.textContent = ` / ${attempted.toLocaleString()}`;
+  cell.append(good, all);
+  return cell;
+}
+
+function renderLimitTable(data: PhoneNumberDoc, nowMs: number) {
+  const config = effectiveConfig(data.rateLimits);
+  const windows = view(data.rateState, config, nowMs);
+  const units = [
+    ['minute', 'Minute'],
+    ['hour', 'Hour'],
+    ['day', 'Day'],
+  ] as const;
+
+  // The allowance is what a sender runs into; how it is worked out sits in a hover note, so the
+  // table stays at three rows.
+  const allowanceNote = (u: (typeof units)[number][0]) =>
+    `Grows with usage: up to ${config[u].growthPercent}% over the previous ${u}, and never below ${config[u].floor}.`;
+
+  const rows: [string, (u: (typeof units)[number][0]) => Node | string, string?][] = [
+    ['This window', (u) => pair(windows[u].current, windows[u].currentAttempts)],
+    ['Previous', (u) => pair(windows[u].previous, windows[u].previousAttempts)],
+    [
+      'Current allowance ⓘ',
+      (u) => {
+        const full = windows[u].current >= windows[u].limit;
+        const span = document.createElement('span');
+        span.className = `${full ? 'text-error ' : ''}font-bold cursor-help`;
+        span.textContent = windows[u].limit.toLocaleString();
+        span.title = allowanceNote(u);
+        return span;
+      },
+      'The most this number may send in the window. It keeps increasing as you send more.',
+    ],
+  ];
+
+  const table = el<HTMLTableElement>('limit-table');
+  table.replaceChildren();
+  const head = table.createTHead().insertRow();
+  head.append(document.createElement('th'));
+  for (const [, label] of units) {
+    const th = document.createElement('th');
+    th.className = 'label-muted text-right pb-2';
+    th.textContent = label;
+    head.append(th);
+  }
+  const body = table.createTBody();
+  for (const [label, cellFor, hint] of rows) {
+    const row = body.insertRow();
+    row.className = 'border-t border-outline-variant';
+    const name = row.insertCell();
+    name.className = 'py-2 pr-3 text-on-surface-variant';
+    name.textContent = label;
+    if (hint) {
+      name.title = hint;
+      name.classList.add('cursor-help');
+    }
+    for (const [unit] of units) {
+      const cell = row.insertCell();
+      cell.className = 'py-2 text-right';
+      cell.append(cellFor(unit));
+    }
+  }
+  if (!config.enabled) {
+    const note = document.createElement('caption');
+    note.className = 'text-left text-on-surface-variant pb-2';
+    note.textContent = 'Rate limiting is switched off for this number.';
+    table.prepend(note);
+  }
+}
+
+// Messages sent come from the date-keyed usage counters (previous period = the earlier key);
+// rate limiting from the relay's window counts, advanced to now the same way the relay does.
+function renderStats(data: PhoneNumberDoc) {
+  const now = new Date();
+  const usage = data.usage ?? {};
+  const dayAgo = new Date(now.getTime() - 86_400_000);
+  const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
+  const monthAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  el('sent-tiles').replaceChildren(
+    tile('Today', usage.daily?.[dailyKey(now)] ?? 0, usage.daily?.[dailyKey(dayAgo)] ?? 0),
+    tile('This week', usage.weekly?.[isoWeekKey(now)] ?? 0, usage.weekly?.[isoWeekKey(weekAgo)] ?? 0),
+    tile('This month', usage.monthly?.[monthlyKey(now)] ?? 0, usage.monthly?.[monthlyKey(monthAgo)] ?? 0),
+  );
+
+  renderLimitTable(data, now.getTime());
+  el('stats').classList.remove('hidden');
+}
+
 // The rules let just the owner read phoneNumbers/{phoneNumberId}. Returns false if the record
 // is missing or isn't this user's; the page still works then, just without the saved details.
 async function loadRecord(): Promise<boolean> {
@@ -44,14 +163,8 @@ async function loadRecord(): Promise<boolean> {
   if (data.wabaId) el('waba-id-line').textContent = `WABA ID: ${data.wabaId}`;
   if (data.overrideUrl && !overrideUrl.value) overrideUrl.value = data.overrideUrl;
 
-  const usage = data.usage;
-  if (usage) {
-    const now = new Date();
-    el('usage-today').textContent = String(usage.daily?.[dailyKey(now)] ?? 0);
-    el('usage-week').textContent = String(usage.weekly?.[isoWeekKey(now)] ?? 0);
-    el('usage-month').textContent = String(usage.monthly?.[monthlyKey(now)] ?? 0);
-    el('counts-card').classList.remove('hidden');
-  }
+  if (data.displayPhoneNumber) el('number-id-line').textContent = `Phone number: ${data.displayPhoneNumber} · ID ${phoneNumberId}`;
+  renderStats(data);
   return true;
 }
 
@@ -135,38 +248,49 @@ function renderCommands() {
   const edit = JSON.stringify({
     components: [{ type: 'BODY', text: 'Your order {{1}} is on its way.', example: { body_text: [['A1234']] } }],
   });
-  el<HTMLTextAreaElement>('templates-command').value = [
-    '# List templates (each has an id)',
-    `curl '${base}/templates/${phoneNumberId}' \\`,
-    `  ${auth}`,
-    '',
-    '# Create a template',
+  const put = (id: string, lines: string[]) => {
+    el<HTMLTextAreaElement>(id).value = lines.join('\n');
+  };
+  put('tpl-list-command', [`curl '${base}/templates/${phoneNumberId}' \\`, `  ${auth}`]);
+  put('tpl-create-command', [
     `curl -X POST '${base}/templates/${phoneNumberId}' \\`,
     `  ${auth} \\`,
     `  ${json} \\`,
     `  -d '${create}'`,
-    '',
-    '# Edit a template (use its id from the list)',
+  ]);
+  put('tpl-edit-command', [
     `curl -X POST '${base}/templates/${phoneNumberId}/TEMPLATE_ID' \\`,
     `  ${auth} \\`,
     `  ${json} \\`,
     `  -d '${edit}'`,
-    '',
-    '# Delete a template by name',
+  ]);
+  put('tpl-delete-command', [
     `curl -X DELETE '${base}/templates/${phoneNumberId}?name=order_update' \\`,
     `  ${auth}`,
-  ].join('\n');
+  ]);
 }
 apiKeyInput.addEventListener('input', renderCommands);
 
 for (const [button, box] of [
   ['copy-send-btn', 'send-command'],
-  ['copy-templates-btn', 'templates-command'],
   ['copy-register-btn', 'register-command'],
+  ['copy-tpl-list-btn', 'tpl-list-command'],
+  ['copy-tpl-create-btn', 'tpl-create-command'],
+  ['copy-tpl-edit-btn', 'tpl-edit-command'],
+  ['copy-tpl-delete-btn', 'tpl-delete-command'],
 ]) {
   el(button).addEventListener('click', async () => {
     await navigator.clipboard.writeText(el<HTMLTextAreaElement>(box).value);
     el(button).textContent = 'Copied';
+  });
+}
+
+// --- Accordions: opening one closes the others ---------------------------------
+const accordions = Array.from(document.querySelectorAll<HTMLDetailsElement>('details[data-accordion]'));
+for (const item of accordions) {
+  item.addEventListener('toggle', () => {
+    if (!item.open) return;
+    for (const other of accordions) if (other !== item) other.open = false;
   });
 }
 

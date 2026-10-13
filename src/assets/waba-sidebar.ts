@@ -1,9 +1,9 @@
 // Fills the shared sidebar (views/partials/waba-sidebar.html) with the signed-in
 // user's onboarded WABAs, wires up its Delete account button, and returns the
 // WABA records. Callers only invoke this when someone is signed in.
-import { auth, db, signOutUser } from './firebase-init.js';
-import { deleteAccount } from './account.js';
-import { el, errorMessage } from './dom.js';
+import { auth, db, signOutUser } from '/assets/firebase-init.js';
+import { deleteAccount } from '/assets/account.js';
+import { el, errorMessage } from '/assets/dom.js';
 import type { PhoneNumberDoc, UserDoc } from '../../functions/src/helpers/types';
 import {
   collection,
@@ -76,7 +76,8 @@ export async function fillSidebar(uid: string, currentId?: string | null): Promi
     const link = document.createElement('a');
     link.href = `/dashboard/waba/?id=${encodeURIComponent(docSnap.id)}`;
     link.className = `${LINK} text-on-surface-variant`;
-    link.title = `Phone number ID ${docSnap.id}`;
+    const shown = waba.displayPhoneNumber ?? `Number ${docSnap.id}`;
+    link.title = `${shown} (phone number ID ${docSnap.id})`;
 
     const icon = document.createElement('span');
     icon.className = 'material-symbols-outlined text-[22px] flex-shrink-0';
@@ -84,7 +85,7 @@ export async function fillSidebar(uid: string, currentId?: string | null): Promi
 
     const label = document.createElement('span');
     label.className = 'hidden lg:inline truncate';
-    label.textContent = `Number ${docSnap.id}`;
+    label.textContent = shown;
 
     link.append(icon, label);
     if (docSnap.id === currentId) markActive(link);

@@ -40,6 +40,13 @@ function serveStatic() {
       res.writeHead(403).end();
       return;
     }
+    // Like GitHub Pages: a folder URL without its trailing slash (/dashboard) redirects to it.
+    const isFolder = fs.existsSync(filePath) && fs.statSync(filePath).isDirectory();
+    if (isFolder && !urlPath.endsWith('/')) {
+      const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+      res.writeHead(301, { Location: `${urlPath}/${query}` }).end();
+      return;
+    }
     fs.readFile(filePath, (err, data) => {
       if (err) {
         res.writeHead(404).end('Not found');

@@ -2,8 +2,8 @@
 // Firestore rules limit each of these to the user's own records. The browser never handles
 // a plaintext Meta token, so rotating the key (which re-encrypts the tokens) goes through
 // a Function instead.
-import { auth, db, functionsBase } from './firebase-init.js';
-import { hashApiKey, isValidApiKey } from './api-key.js';
+import { auth, db, functionsBase } from '/assets/firebase-init.js';
+import { hashApiKey, isValidApiKey } from '/assets/api-key.js';
 import {
   collection,
   deleteField,

@@ -2,7 +2,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import cors from 'cors';
 import { config } from './helpers/config';
-import { exchangeCodeForToken } from './helpers/graphApi';
+import { exchangeCodeForToken, getDisplayPhoneNumber } from './helpers/graphApi';
 import type { ExchangeCodeRequest, PhoneNumberDoc, RotateKeyRequest } from './helpers/types';
 import { HttpError, requireAuth } from './helpers/auth';
 import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKey } from './helpers/apiKey';
@@ -206,6 +206,15 @@ export const exchangeCode = onRequest((req, res) => {
 
       const accessToken = await exchangeCodeForToken(code, config.metaAppId, config.metaAppSecret);
       await storeWabaToken({ userId, wabaId: String(wabaId), phoneNumberId: String(phoneNumberId), accessToken, apiKey: apiKey as string });
+      // How the number is shown in the dashboard. Best-effort: it falls back to the phone number ID.
+      try {
+        const displayPhoneNumber = await getDisplayPhoneNumber(String(phoneNumberId), accessToken);
+        if (displayPhoneNumber) {
+          await getFirestore().collection('phoneNumbers').doc(String(phoneNumberId)).update({ displayPhoneNumber });
+        }
+      } catch {
+        // Not fatal.
+      }
       res.status(200).send({ ok: true, wabaId, phoneNumberId });
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;

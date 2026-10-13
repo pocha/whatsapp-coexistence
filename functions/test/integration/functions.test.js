@@ -144,6 +144,32 @@ test('relayMessage authenticates with the API key, sends with the decrypted Meta
   assert.equal(data.usage.daily[new Date().toISOString().slice(0, 10)], 1);
 });
 
+test('template sends are rate limited per number, and free-form text is not', async () => {
+  await seedNumber('556', '667');
+  // A per-number override, so the test needs only a few sends: every window allows 2, with no growth.
+  const tight = { floor: 2, growthPercent: 0 };
+  await db.collection('phoneNumbers').doc('556').update({
+    rateLimits: { headroomSigmas: 0, minute: tight, hour: tight, day: tight },
+  });
+  const send = (message) =>
+    fetch(`${FUNCTIONS_BASE}/relayMessage/556/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to: '15551234567', ...message }),
+    });
+  const template = { type: 'template', template: { name: 'hello_world', language: { code: 'en_US' } } };
+
+  assert.equal((await send(template)).status, 200);
+  assert.equal((await send(template)).status, 200);
+  const refused = await send(template);
+  assert.equal(refused.status, 429);
+  assert.ok(Number(refused.headers.get('retry-after')) >= 1, 'tells the caller when to retry');
+
+  assert.equal((await send({ type: 'text', text: { body: 'hi' } })).status, 200, 'free-form text is not limited');
+  const state = (await db.collection('phoneNumbers').doc('556').get()).data().rateState;
+  assert.equal(state.minute.current + state.minute.previous >= 2, true);
+});
+
 test('templates lists, creates and deletes through the stored token', async () => {
   await seedNumber('777', '888');
   const call = (method, query = '', body) =>
