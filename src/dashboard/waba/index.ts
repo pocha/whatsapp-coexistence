@@ -248,34 +248,36 @@ function renderCommands() {
   const edit = JSON.stringify({
     components: [{ type: 'BODY', text: 'Your order {{1}} is on its way.', example: { body_text: [['A1234']] } }],
   });
-  el<HTMLTextAreaElement>('templates-command').value = [
-    '# List templates (each has an id)',
-    `curl '${base}/templates/${phoneNumberId}' \\`,
-    `  ${auth}`,
-    '',
-    '# Create a template',
+  const put = (id: string, lines: string[]) => {
+    el<HTMLTextAreaElement>(id).value = lines.join('\n');
+  };
+  put('tpl-list-command', [`curl '${base}/templates/${phoneNumberId}' \\`, `  ${auth}`]);
+  put('tpl-create-command', [
     `curl -X POST '${base}/templates/${phoneNumberId}' \\`,
     `  ${auth} \\`,
     `  ${json} \\`,
     `  -d '${create}'`,
-    '',
-    '# Edit a template (use its id from the list)',
+  ]);
+  put('tpl-edit-command', [
     `curl -X POST '${base}/templates/${phoneNumberId}/TEMPLATE_ID' \\`,
     `  ${auth} \\`,
     `  ${json} \\`,
     `  -d '${edit}'`,
-    '',
-    '# Delete a template by name',
+  ]);
+  put('tpl-delete-command', [
     `curl -X DELETE '${base}/templates/${phoneNumberId}?name=order_update' \\`,
     `  ${auth}`,
-  ].join('\n');
+  ]);
 }
 apiKeyInput.addEventListener('input', renderCommands);
 
 for (const [button, box] of [
   ['copy-send-btn', 'send-command'],
-  ['copy-templates-btn', 'templates-command'],
   ['copy-register-btn', 'register-command'],
+  ['copy-tpl-list-btn', 'tpl-list-command'],
+  ['copy-tpl-create-btn', 'tpl-create-command'],
+  ['copy-tpl-edit-btn', 'tpl-edit-command'],
+  ['copy-tpl-delete-btn', 'tpl-delete-command'],
 ]) {
   el(button).addEventListener('click', async () => {
     await navigator.clipboard.writeText(el<HTMLTextAreaElement>(box).value);

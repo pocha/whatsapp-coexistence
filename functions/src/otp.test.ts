@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizePhone, sendOtpCore, verifyOtpCore } from './otp';
+import { TEST_LOGIN } from './helpers/testLogin';
 import { hashApiKey } from './helpers/apiKey';
 
 test('normalizePhone strips non-digits and rejects out-of-range lengths', () => {
@@ -28,6 +29,14 @@ function makeSendDeps(overrides: Partial<Parameters<typeof sendOtpCore>[1]> = {}
     },
   };
 }
+
+test('the reviewers\' test number gets its fixed code and no WhatsApp message', async () => {
+  const { sent, stored, deps } = makeSendDeps();
+  const result = await sendOtpCore(`+${TEST_LOGIN.phone}`, deps);
+  assert.equal(result.ok, true);
+  assert.equal(sent.length, 0);
+  assert.equal(stored[TEST_LOGIN.phone].code, TEST_LOGIN.code);
+});
 
 test('sendOtpCore rejects an invalid phone without sending', async () => {
   const { sent, deps } = makeSendDeps();

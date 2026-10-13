@@ -4,6 +4,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { config } from './helpers/config';
 import { sendWhatsappMessage } from './helpers/watobotApi';
+import { TEST_LOGIN } from './helpers/testLogin';
 import { apiKeyMatchesHash, isValidApiKey } from './helpers/apiKey';
 import { getOrCreateUserByPhone, resetApiKey, type UserRecord } from './accounts';
 
@@ -46,15 +47,20 @@ export async function sendOtpCore(
   const normalized = normalizePhone(phone);
   if (!normalized) return { ok: false, error: 'Enter a valid WhatsApp number, including country code.' };
 
+  // The reviewers' login: a fixed code and no message (see helpers/testLogin.ts).
+  const isTestLogin = normalized === TEST_LOGIN.phone;
+
   const existing = await deps.getOtpDoc(normalized);
   const now = Date.now();
-  if (existing?.lastSentAt && now - existing.lastSentAt < RESEND_COOLDOWN_MS) {
+  if (!isTestLogin && existing?.lastSentAt && now - existing.lastSentAt < RESEND_COOLDOWN_MS) {
     const waitSec = Math.ceil((RESEND_COOLDOWN_MS - (now - existing.lastSentAt)) / 1000);
     return { ok: false, error: `Wait ${waitSec}s before requesting another code.` };
   }
 
-  const code = generateCode();
-  await deps.sendMessage(normalized, `Your WA Coexistence login code is ${code}. It expires in 5 minutes.`);
+  const code = isTestLogin ? TEST_LOGIN.code : generateCode();
+  if (!isTestLogin) {
+    await deps.sendMessage(normalized, `Your WA Coexistence login code is ${code}. It expires in 5 minutes.`);
+  }
   await deps.setOtpDoc(normalized, { code, expiresAt: now + OTP_TTL_MS, attempts: 0, lastSentAt: now });
   return { ok: true };
 }

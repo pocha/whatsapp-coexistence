@@ -32,15 +32,6 @@
           </p>
         </div>
 
-        <div id="key-card" class="hidden card p-6">
-          <label class="section-title text-on-surface block" for="api-key">Your Watobot API key</label>
-          <p class="text-on-surface-variant font-body-md text-sm mt-1 mb-3">
-            Used by every section below, and filled into the commands as you type. It stays
-            in this page and is never saved.
-          </p>
-          <input id="api-key" type="password" autocomplete="off" placeholder="your 64-character API key" class="w-full px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-xs"/>
-        </div>
-
         <div id="stats" class="hidden flex flex-col gap-4">
           <div class="card p-6">
             <p class="label-strong text-on-surface-variant mb-3">MESSAGES SENT <span class="label-muted">all messages · UTC</span></p>
@@ -58,7 +49,16 @@
           </div>
         </div>
 
-        <div id="sections" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <div id="sections" class="hidden flex flex-col gap-6">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div id="key-card" class="card p-6">
+            <label class="section-title text-on-surface block" for="api-key">Your Watobot API key</label>
+            <p class="text-on-surface-variant font-body-md text-sm mt-1 mb-3">
+              Used by every section below, and filled into the commands as you type. It stays
+              in this page and is never saved.
+            </p>
+            <input id="api-key" type="password" autocomplete="off" placeholder="your 64-character API key" class="w-full px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-xs"/>
+          </div>
           <div class="card p-6">
             <p class="section-title text-on-surface mb-1">Override incoming message URL</p>
             <p class="text-on-surface-variant font-body-md text-sm mb-4">
@@ -83,41 +83,76 @@
             </details>
           </div>
 
-          <div class="card p-6">
-            <p class="section-title text-on-surface mb-1">Send a message</p>
-            <p class="text-on-surface-variant font-body-md text-sm mb-4">
-              Your app sends messages by calling our endpoint with the same request body as
-              Meta's own send-message API. This command sends the <code>hello_world</code>
-              sample template, which works at any time (free-form text is only delivered within
-              24 hours of the customer's last message). Put a recipient number in it and run it
-              in a terminal.
-            </p>
-            <textarea id="send-command" rows="8" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
-            <button id="copy-send-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
           </div>
 
           <div class="card p-6">
-            <p class="section-title text-on-surface mb-1">Register this number</p>
-            <p class="text-on-surface-variant font-body-md text-sm mb-4">
-              Only for a <strong>new</strong> number (not one connected with coexistence): Meta needs it
-              registered before it can send or receive. Without that, sending fails with
-              <code>Account not registered</code> (133010). Pick a 6-digit PIN and keep it, because
-              Meta asks for it to change or delete the number.
-            </p>
-            <textarea id="register-command" rows="5" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
-            <button id="copy-register-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
-          </div>
-
-          <div class="card p-6 lg:col-span-2">
-            <p class="section-title text-on-surface mb-1">Manage message templates</p>
-            <p class="text-on-surface-variant font-body-md text-sm mb-4">
-              List, create, edit and delete this number's message templates with these commands.
-              The responses are Meta's, unchanged. The template id for an edit comes from the list.
-              You can also manage templates in
-              <a class="text-primary font-bold hover:underline" href="https://business.facebook.com/latest/whatsapp_manager/message_templates" target="_blank" rel="noopener">WhatsApp Manager</a>.
-            </p>
-            <textarea id="templates-command" rows="18" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
-            <button id="copy-templates-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+            <p class="label-strong text-on-surface-variant mb-1">MORE</p>
+            <details class="border-t border-outline-variant">
+              <summary class="cursor-pointer py-3 section-title text-on-surface">Register this number</summary>
+              <div class="pb-4">
+                <p class="text-on-surface-variant font-body-md text-sm mb-3">
+                  Only for a <strong>new</strong> number (not one connected with coexistence): Meta needs it
+                  registered before it can send or receive. Without that, sending fails with
+                  <code>Account not registered</code> (133010). Pick a 6-digit PIN and keep it, because
+                  Meta asks for it to change or delete the number.
+                </p>
+                <div>
+                  <p class="label-strong text-on-surface-variant mb-1">REGISTER</p>
+                  <textarea id="register-command" rows="5" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
+                  <button id="copy-register-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                </div>
+              </div>
+            </details>
+            <details class="border-t border-outline-variant">
+              <summary class="cursor-pointer py-3 section-title text-on-surface">Send a message</summary>
+              <div class="pb-4">
+                <p class="text-on-surface-variant font-body-md text-sm mb-3">
+                  Your app sends messages by calling our endpoint with the same request body as
+                  Meta's own send-message API. This command sends the <code>hello_world</code>
+                  sample template, which works at any time (free-form text is only delivered within
+                  24 hours of the customer's last message). Put a recipient number in it and run it
+                  in a terminal.
+                </p>
+                <div>
+                  <p class="label-strong text-on-surface-variant mb-1">SEND</p>
+                  <textarea id="send-command" rows="8" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
+                  <button id="copy-send-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                </div>
+              </div>
+            </details>
+            <details class="border-t border-b border-outline-variant">
+              <summary class="cursor-pointer py-3 section-title text-on-surface">Manage message templates</summary>
+              <div class="pb-4 flex flex-col gap-4">
+                <p class="text-on-surface-variant font-body-md text-sm">
+                  Each command runs on its own. The responses are Meta's, unchanged. The template id for an
+                  edit comes from the list. You can also manage templates in
+                  <a class="text-primary font-bold hover:underline" href="https://business.facebook.com/latest/whatsapp_manager/message_templates" target="_blank" rel="noopener">WhatsApp Manager</a>.
+                </p>
+                <div>
+                  <p class="label-strong text-on-surface-variant mb-1">LIST</p>
+                  <p class="text-on-surface-variant font-body-md text-sm mb-2">Every template on this account, each with its id.</p>
+                  <textarea id="tpl-list-command" rows="3" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
+                  <button id="copy-tpl-list-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                </div>
+                <div>
+                  <p class="label-strong text-on-surface-variant mb-1">CREATE</p>
+                  <textarea id="tpl-create-command" rows="6" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
+                  <button id="copy-tpl-create-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                </div>
+                <div>
+                  <p class="label-strong text-on-surface-variant mb-1">EDIT</p>
+                  <p class="text-on-surface-variant font-body-md text-sm mb-2">Use the id from the list in place of TEMPLATE_ID.</p>
+                  <textarea id="tpl-edit-command" rows="6" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
+                  <button id="copy-tpl-edit-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                </div>
+                <div>
+                  <p class="label-strong text-on-surface-variant mb-1">DELETE</p>
+                  <p class="text-on-surface-variant font-body-md text-sm mb-2">Deletes every template with this name.</p>
+                  <textarea id="tpl-delete-command" rows="3" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
+                  <button id="copy-tpl-delete-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
       </div>
