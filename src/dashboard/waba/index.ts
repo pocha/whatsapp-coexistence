@@ -285,6 +285,15 @@ for (const [button, box] of [
   });
 }
 
+// --- Accordions: opening one closes the others ---------------------------------
+const accordions = Array.from(document.querySelectorAll<HTMLDetailsElement>('details[data-accordion]'));
+for (const item of accordions) {
+  item.addEventListener('toggle', () => {
+    if (!item.open) return;
+    for (const other of accordions) if (other !== item) other.open = false;
+  });
+}
+
 // --- Boot ---------------------------------------------------------------------
 onAuthStateChanged(auth, async (user) => {
   if (!user) {

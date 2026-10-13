@@ -78,8 +78,10 @@
               <p class="text-on-surface-variant font-body-md text-sm mt-2">
                 Copy these into the test chatbot's <code>.env</code>, and add your Watobot API key as <code>WATOBOT_API_KEY</code>.
               </p>
-              <pre class="bg-surface-container-low rounded-lg p-3 mt-2 text-xs overflow-x-auto whitespace-pre-wrap" id="chatbot-env"></pre>
-              <button id="copy-env-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+              <div class="relative">
+                <pre class="bg-surface-container-low rounded-lg p-3 mt-2 text-xs overflow-x-auto whitespace-pre-wrap pr-20" id="chatbot-env"></pre>
+                <button id="copy-env-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+              </div>
             </details>
           </div>
 
@@ -87,7 +89,7 @@
 
           <div class="card p-6">
             <p class="label-strong text-on-surface-variant mb-1">MORE</p>
-            <details class="border-t border-outline-variant">
+            <details data-accordion class="border-t border-outline-variant">
               <summary class="cursor-pointer py-3 section-title text-on-surface">Register this number</summary>
               <div class="pb-4">
                 <p class="text-on-surface-variant font-body-md text-sm mb-3">
@@ -98,12 +100,14 @@
                 </p>
                 <div>
                   <p class="label-strong text-on-surface-variant mb-1">REGISTER</p>
-                  <textarea id="register-command" rows="5" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
-                  <button id="copy-register-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  <div class="relative">
+                    <textarea id="register-command" rows="5" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none pr-20"></textarea>
+                    <button id="copy-register-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  </div>
                 </div>
               </div>
             </details>
-            <details class="border-t border-outline-variant">
+            <details data-accordion class="border-t border-outline-variant">
               <summary class="cursor-pointer py-3 section-title text-on-surface">Send a message</summary>
               <div class="pb-4">
                 <p class="text-on-surface-variant font-body-md text-sm mb-3">
@@ -115,12 +119,14 @@
                 </p>
                 <div>
                   <p class="label-strong text-on-surface-variant mb-1">SEND</p>
-                  <textarea id="send-command" rows="8" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
-                  <button id="copy-send-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  <div class="relative">
+                    <textarea id="send-command" rows="8" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none pr-20"></textarea>
+                    <button id="copy-send-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  </div>
                 </div>
               </div>
             </details>
-            <details class="border-t border-b border-outline-variant">
+            <details data-accordion class="border-t border-b border-outline-variant">
               <summary class="cursor-pointer py-3 section-title text-on-surface">Manage message templates</summary>
               <div class="pb-4 flex flex-col gap-4">
                 <p class="text-on-surface-variant font-body-md text-sm">
@@ -131,25 +137,33 @@
                 <div>
                   <p class="label-strong text-on-surface-variant mb-1">LIST</p>
                   <p class="text-on-surface-variant font-body-md text-sm mb-2">Every template on this account, each with its id.</p>
-                  <textarea id="tpl-list-command" rows="3" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
-                  <button id="copy-tpl-list-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  <div class="relative">
+                    <textarea id="tpl-list-command" rows="3" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none pr-20"></textarea>
+                    <button id="copy-tpl-list-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  </div>
                 </div>
                 <div>
                   <p class="label-strong text-on-surface-variant mb-1">CREATE</p>
-                  <textarea id="tpl-create-command" rows="6" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
-                  <button id="copy-tpl-create-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  <div class="relative">
+                    <textarea id="tpl-create-command" rows="6" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none pr-20"></textarea>
+                    <button id="copy-tpl-create-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  </div>
                 </div>
                 <div>
                   <p class="label-strong text-on-surface-variant mb-1">EDIT</p>
                   <p class="text-on-surface-variant font-body-md text-sm mb-2">Use the id from the list in place of TEMPLATE_ID.</p>
-                  <textarea id="tpl-edit-command" rows="6" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
-                  <button id="copy-tpl-edit-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  <div class="relative">
+                    <textarea id="tpl-edit-command" rows="6" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none pr-20"></textarea>
+                    <button id="copy-tpl-edit-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  </div>
                 </div>
                 <div>
                   <p class="label-strong text-on-surface-variant mb-1">DELETE</p>
                   <p class="text-on-surface-variant font-body-md text-sm mb-2">Deletes every template with this name.</p>
-                  <textarea id="tpl-delete-command" rows="3" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none"></textarea>
-                  <button id="copy-tpl-delete-btn" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  <div class="relative">
+                    <textarea id="tpl-delete-command" rows="3" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none pr-20"></textarea>
+                    <button id="copy-tpl-delete-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  </div>
                 </div>
               </div>
             </details>
