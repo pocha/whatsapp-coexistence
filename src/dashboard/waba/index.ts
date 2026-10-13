@@ -74,21 +74,26 @@ function renderLimitTable(data: PhoneNumberDoc, nowMs: number) {
     ['day', 'Day'],
   ] as const;
 
-  const rows: [string, (u: (typeof units)[number][0]) => Node | string][] = [
+  // The allowance is what a sender runs into; how it is worked out sits in a hover note, so the
+  // table stays at three rows.
+  const allowanceNote = (u: (typeof units)[number][0]) =>
+    `Grows with usage: up to ${config[u].growthPercent}% over the previous ${u}, and never below ${config[u].floor}.`;
+
+  const rows: [string, (u: (typeof units)[number][0]) => Node | string, string?][] = [
     ['This window', (u) => pair(windows[u].current, windows[u].currentAttempts)],
     ['Previous', (u) => pair(windows[u].previous, windows[u].previousAttempts)],
     [
-      'Allowed now',
+      'Current allowance ⓘ',
       (u) => {
         const full = windows[u].current >= windows[u].limit;
         const span = document.createElement('span');
-        span.className = full ? 'text-error font-bold' : 'font-bold';
+        span.className = `${full ? 'text-error ' : ''}font-bold cursor-help`;
         span.textContent = windows[u].limit.toLocaleString();
+        span.title = allowanceNote(u);
         return span;
       },
+      'The most this number may send in the window. It keeps increasing as you send more.',
     ],
-    ['Growth', (u) => `${config[u].growthPercent}%`],
-    ['Minimum', (u) => String(config[u].floor)],
   ];
 
   const table = el<HTMLTableElement>('limit-table');
@@ -102,12 +107,16 @@ function renderLimitTable(data: PhoneNumberDoc, nowMs: number) {
     head.append(th);
   }
   const body = table.createTBody();
-  for (const [label, cellFor] of rows) {
+  for (const [label, cellFor, hint] of rows) {
     const row = body.insertRow();
     row.className = 'border-t border-outline-variant';
     const name = row.insertCell();
     name.className = 'py-2 pr-3 text-on-surface-variant';
     name.textContent = label;
+    if (hint) {
+      name.title = hint;
+      name.classList.add('cursor-help');
+    }
     for (const [unit] of units) {
       const cell = row.insertCell();
       cell.className = 'py-2 text-right';

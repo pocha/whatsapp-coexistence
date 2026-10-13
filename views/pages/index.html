@@ -288,8 +288,8 @@
             end user. So we hold it for you, and your app sends messages through
             our endpoint, where we use the token on your behalf. That is the only
             place we sit in the path: incoming messages go straight from WhatsApp
-            to your app. It also lets us protect your number with rate limiting
-            <em>(upcoming)</em>.
+            to your app. It also lets us protect your number from bans, with
+            rate limits at the minute, hour and day level.
           </p>
         </div>
       </div>
@@ -315,6 +315,21 @@
             </p>
           </div>
         </div>
+        <div class="reveal card p-8 gap-4 lift md:col-span-2 !flex-col md:!flex-row md:items-center">
+          <div class="tile !w-16 !h-16 !rounded-2xl flex-shrink-0"><span class="material-symbols-outlined !text-[34px]">speed</span></div>
+          <div class="flex flex-col gap-2">
+            <p class="label-strong text-primary">BAN PREVENTION</p>
+            <p class="section-title text-on-surface" style="font-size:24px;line-height:32px">Rate limits that keep your number from getting banned</p>
+            <p class="text-on-surface-variant font-body-md">
+              WhatsApp flags numbers that suddenly send far more than they used to. We limit template
+              messages per <strong>minute</strong>, per <strong>hour</strong> and per <strong>day</strong>,
+              and each window may only grow a little over the one before it, so your volume ramps up the
+              way Meta expects. If your app misbehaves, say a retry loop or a bug, the extra sends get a
+              clear <code>429</code> from us instead of reaching WhatsApp. You can see your limits, and
+              where each number stands, on its page in the dashboard.
+            </p>
+          </div>
+        </div>
         <div class="reveal d1 card p-6 gap-3 lift">
           <div class="tile"><span class="material-symbols-outlined">bolt</span></div>
           <p class="section-title text-on-surface">Low latency</p>
@@ -324,11 +339,6 @@
           <div class="tile"><span class="material-symbols-outlined">code</span></div>
           <p class="section-title text-on-surface">Open source</p>
           <p class="text-on-surface-variant font-body-md">Every line is on GitHub and self-hostable. Read it, fork it, run your own copy.</p>
-        </div>
-        <div class="reveal card p-6 gap-3 lift opacity-80">
-          <div class="tile !bg-surface-container"><span class="material-symbols-outlined !text-on-surface-variant">speed</span></div>
-          <p class="section-title text-on-surface">Outgoing rate limits <span class="label-muted">(upcoming)</span></p>
-          <p class="text-on-surface-variant font-body-md">Automatic limits so a misbehaving integration can't get your number banned.</p>
         </div>
         <div class="reveal d1 card p-6 gap-3 lift opacity-80">
           <div class="tile !bg-surface-container"><span class="material-symbols-outlined !text-on-surface-variant">low_priority</span></div>
