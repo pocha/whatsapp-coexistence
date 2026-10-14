@@ -29,9 +29,13 @@
               A window may grow only so far over the one before it. Past its limit, template
               sends are refused until the window rolls over. Each count shows what went through
               (green) and, after the slash, all requests including the ones refused (grey).
-              Refused requests never raise the limit. Hover over an allowance to see how it grows.
+              Refused requests never raise the limit. Click the ⓘ next to an allowance to see how it grows.
             </p>
-            <div class="overflow-x-auto"><table id="limit-table" class="w-full text-sm"></table></div>
+            <table id="limit-table" class="w-full text-sm"></table>
+            <p class="mt-3 text-on-surface-variant font-body-md text-sm">
+              Want the limits increased?
+              <a class="text-primary font-bold hover:underline" href="/#contact">Write to us</a>
+            </p>
           </div>
         </div>
 
@@ -95,20 +99,27 @@
             </details>
             <details data-accordion class="border-t border-outline-variant">
               <summary class="cursor-pointer py-3 section-title text-on-surface">Send a message</summary>
-              <div class="pb-4">
+              <div class="pb-4 flex flex-col gap-4">
                 <p class="text-on-surface-variant font-body-md text-sm mb-3">
                   Your app sends messages by calling our endpoint with the same request body as
-                  Meta's own send-message API. This command sends the <code>hello_world</code>
-                  sample template, which works at any time (free-form text is only delivered within
-                  24 hours of the customer's last message). Put a recipient number in it and run it
+                  Meta's own send-message API. The template command sends the <code>hello_world</code>
+                  sample and works at any time. Put a recipient number in either command and run it
                   in a terminal.
                 </p>
                 <div>
-                  <p class="label-strong text-on-surface-variant mb-1">SEND</p>
+                  <p class="label-strong text-on-surface-variant mb-1">SEND TEMPLATE</p>
                   <div class="relative">
                     <textarea id="send-command" rows="8" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none pr-20"></textarea>
                     <button id="copy-send-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
                   </div>
+                <div>
+                  <p class="label-strong text-on-surface-variant mb-1">SEND FREE FORM TEXT</p>
+                  <p class="text-on-surface-variant font-body-md text-sm mb-2">Plain text. WhatsApp only delivers it within 24 hours of the customer's last message to this number; outside that window use a template.</p>
+                  <div class="relative">
+                    <textarea id="send-text-command" rows="8" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none pr-20"></textarea>
+                    <button id="copy-send-text-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  </div>
+                </div>
                 </div>
               </div>
             </details>

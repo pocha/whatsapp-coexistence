@@ -65,6 +65,44 @@ function pair(accepted: number, attempted: number): HTMLElement {
   return cell;
 }
 
+// An "i" that opens a short note when clicked. Click, not hover, so it works on touch screens too;
+// only one note is open at a time and a click anywhere else closes it.
+let openNote: HTMLElement | null = null;
+function closeNote() {
+  openNote?.classList.add('hidden');
+  openNote = null;
+}
+document.addEventListener('click', closeNote);
+
+function infoIcon(text: string, align: 'left' | 'right'): HTMLElement {
+  const wrap = document.createElement('span');
+  wrap.className = 'relative inline-block align-middle ml-1';
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'cursor-pointer leading-none text-on-surface-variant hover:text-primary';
+  button.textContent = 'ⓘ';
+  button.setAttribute('aria-label', 'More information');
+
+  // Opens upwards: the table sits at the bottom of its card, which would clip a note below it.
+  const note = document.createElement('span');
+  note.setAttribute('role', 'tooltip');
+  note.className = `hidden absolute bottom-full z-20 mb-1 w-56 rounded-lg bg-inverse-surface p-2 text-left text-xs font-normal text-inverse-on-surface shadow-lg ${align === 'right' ? 'right-0' : 'left-0'}`;
+  note.textContent = text;
+
+  button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const wasOpen = openNote === note;
+    closeNote();
+    if (!wasOpen) {
+      note.classList.remove('hidden');
+      openNote = note;
+    }
+  });
+  wrap.append(button, note);
+  return wrap;
+}
+
 function renderLimitTable(data: PhoneNumberDoc, nowMs: number) {
   const config = effectiveConfig(data.rateLimits);
   const windows = view(data.rateState, config, nowMs);
@@ -74,8 +112,8 @@ function renderLimitTable(data: PhoneNumberDoc, nowMs: number) {
     ['day', 'Day'],
   ] as const;
 
-  // The allowance is what a sender runs into; how it is worked out sits in a hover note, so the
-  // table stays at three rows.
+  // The allowance is what a sender runs into; how it is worked out sits in a note behind an "i",
+  // so the table stays at three rows.
   const allowanceNote = (u: (typeof units)[number][0]) =>
     `Grows with usage: up to ${config[u].growthPercent}% over the previous ${u}, and never below ${config[u].floor}.`;
 
@@ -83,14 +121,15 @@ function renderLimitTable(data: PhoneNumberDoc, nowMs: number) {
     ['This window', (u) => pair(windows[u].current, windows[u].currentAttempts)],
     ['Previous', (u) => pair(windows[u].previous, windows[u].previousAttempts)],
     [
-      'Current allowance ⓘ',
+      'Current allowance',
       (u) => {
         const full = windows[u].current >= windows[u].limit;
-        const span = document.createElement('span');
-        span.className = `${full ? 'text-error ' : ''}font-bold cursor-help`;
-        span.textContent = windows[u].limit.toLocaleString();
-        span.title = allowanceNote(u);
-        return span;
+        const cell = document.createElement('span');
+        const value = document.createElement('span');
+        value.className = `${full ? 'text-error ' : ''}font-bold`;
+        value.textContent = windows[u].limit.toLocaleString();
+        cell.append(value, infoIcon(allowanceNote(u), 'right'));
+        return cell;
       },
       'The most this number may send in the window. It keeps increasing as you send more.',
     ],
@@ -113,10 +152,7 @@ function renderLimitTable(data: PhoneNumberDoc, nowMs: number) {
     const name = row.insertCell();
     name.className = 'py-2 pr-3 text-on-surface-variant';
     name.textContent = label;
-    if (hint) {
-      name.title = hint;
-      name.classList.add('cursor-help');
-    }
+    if (hint) name.append(infoIcon(hint, 'left'));
     for (const [unit] of units) {
       const cell = row.insertCell();
       cell.className = 'py-2 text-right';
@@ -231,6 +267,20 @@ function renderCommands() {
     `  -d '${message}'`,
   ].join('\n');
 
+  // Free-form text: only delivered within 24 hours of the customer's last message to the number.
+  const text = JSON.stringify({
+    messaging_product: 'whatsapp',
+    to: 'RECIPIENT_PHONE_NUMBER',
+    type: 'text',
+    text: { body: 'Hello from Watobot' },
+  });
+  el<HTMLTextAreaElement>('send-text-command').value = [
+    `curl -X POST '${base}/relayMessage/${phoneNumberId}/messages' \\`,
+    `  ${auth} \\`,
+    `  ${json} \\`,
+    `  -d '${text}'`,
+  ].join('\n');
+
   // Only for a brand-new number (not coexistence): Meta needs it registered before it can send.
   const register = JSON.stringify({ phoneNumberId, apiKey: key, pin: 'YOUR_6_DIGIT_PIN' });
   el<HTMLTextAreaElement>('register-command').value = [
@@ -273,6 +323,7 @@ apiKeyInput.addEventListener('input', renderCommands);
 
 for (const [button, box] of [
   ['copy-send-btn', 'send-command'],
+  ['copy-send-text-btn', 'send-text-command'],
   ['copy-register-btn', 'register-command'],
   ['copy-tpl-list-btn', 'tpl-list-command'],
   ['copy-tpl-create-btn', 'tpl-create-command'],
