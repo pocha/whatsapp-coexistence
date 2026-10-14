@@ -1,0 +1,143 @@
+<!--#var title="How to De-register Your WhatsApp Number from a Tech Provider or BSP — WA Coexistence"-->
+<!--#var description="How to free your WhatsApp number from a Tech Provider or BSP: ask the provider to deregister it, delete it yourself in WhatsApp Manager, disconnect a coexistence number in the Business app, and what to do if you've lost the PIN."-->
+<!--#include partial="head"-->
+<!--#include partial="header"-->
+
+  <section class="px-gutter md:px-24 py-12">
+    <div class="max-w-3xl mx-auto flex flex-col gap-4">
+      <a href="/#how-to" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to How-To Guides</a>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to De-register Your WhatsApp Number from a Tech Provider or BSP</h1>
+
+      <p class="text-on-surface-variant font-body-md">
+        Another provider's signup can refuse your number with <em>"already registered"</em>
+        while the old provider still holds it. You don't need to be stuck: you can
+        free it yourself. How depends on one thing, whether the number is also on
+        the WhatsApp Business app.
+      </p>
+
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">Which one do you have?</p>
+        <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+          <li><strong>API only:</strong> the number works only through the provider. It's not on the WhatsApp Business app on your phone. Go to <a class="text-primary font-bold hover:underline" href="#api-only">API-only numbers</a>.</li>
+          <li><strong>Coexistence:</strong> you still use the number in the WhatsApp Business app, and the provider is connected alongside it. Go to <a class="text-primary font-bold hover:underline" href="#coexistence">coexistence numbers</a>.</li>
+        </ul>
+        <p class="text-on-surface-variant font-body-md mt-3">
+          Not sure? If you can open the number's chats in the WhatsApp Business app,
+          it's coexistence. The <a class="text-primary font-bold hover:underline" href="/how-to/move-whatsapp-api-between-providers.html">move guide</a>
+          shows how to check in Business Settings.
+        </p>
+      </div>
+
+      <h2 id="api-only" class="section-title text-on-surface mt-6">API-only numbers</h2>
+      <p class="text-on-surface-variant font-body-md">There are two ways. Pick the first if you're happy to wait for the provider, the second if you want it done now.</p>
+
+      <div class="card p-6 whatsapp-border">
+        <p class="section-title text-on-surface mb-2">Way 1. Ask the provider to deregister it</p>
+        <ol class="flex flex-col gap-2 list-decimal list-inside text-on-surface-variant font-body-md">
+          <li>Write to the provider's support and ask them to <strong>deregister the phone number</strong> (their API has a deregister call for it). Say which number and which account.</li>
+          <li>Ask them to confirm when it's done.</li>
+          <li>Wait a few minutes, then run the new provider's signup again.</li>
+        </ol>
+        <p class="text-on-surface-variant font-body-md text-sm mt-3">
+          This works whenever the provider is responsive. It doesn't need your PIN, and
+          it's not blocked by recent paid messages.
+        </p>
+      </div>
+
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">Way 2. Delete the number yourself in WhatsApp Manager</p>
+        <ol class="flex flex-col gap-2 list-decimal list-inside text-on-surface-variant font-body-md">
+          <li>Open <a class="text-primary font-bold hover:underline" href="https://business.facebook.com/latest/whatsapp_manager/" target="_blank" rel="noopener">WhatsApp Manager</a> and load your business portfolio. If it opens the wrong account or shows an error, go through Business Settings &rarr; Accounts &rarr; WhatsApp accounts &rarr; your account instead.</li>
+          <li>Go to <strong>Account tools</strong> (the toolbox icon) &rarr; <strong>Phone numbers</strong>.</li>
+          <li>Click the <strong>trash can</strong> icon next to the number.</li>
+          <li>Enter the <strong>two-step verification PIN</strong> when asked, and complete the flow.</li>
+          <li>Wait a few minutes, then run the new provider's signup again.</li>
+        </ol>
+        <p class="section-title text-on-surface mt-4 mb-2">What has to be true</p>
+        <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+          <li>You must be an <strong>admin</strong> of the business portfolio that owns the account.</li>
+          <li>The number must <strong>not have sent paid messages in the last 30 days</strong>. If it has, WhatsApp Manager shows the date of the last paid message instead, and you can delete the number 30 days after it.</li>
+          <li>Deleting can only be done in WhatsApp Manager. Meta doesn't allow it through the API.</li>
+        </ul>
+        <p class="text-on-surface-variant font-body-md text-sm mt-3">
+          Deleting removes the number from that WhatsApp account altogether, which is a
+          stronger step than the provider deregistering it. If you only want to hand the
+          number to another provider, Way 1 is the lighter choice.
+        </p>
+      </div>
+
+      <h3 class="section-title text-on-surface mt-2">If you've lost the PIN</h3>
+      <p class="text-on-surface-variant font-body-md">
+        Two-step verification protects the number, and Meta asks for the PIN to
+        change it or to delete the number. Ask the old provider first: many set it
+        and can tell you. If they can't, you can turn it off yourself:
+      </p>
+      <ol class="flex flex-col gap-2 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>In WhatsApp Manager, go to <strong>Account tools &rarr; Phone numbers</strong> and select the number.</li>
+        <li>Open the <strong>Two-step verification</strong> tab and click <strong>Change PIN</strong>.</li>
+        <li>On the last step click <strong>Turn off two-step verification</strong>.</li>
+        <li>Meta emails a link to the address on your business portfolio. Use it to confirm. Once it's off, you can set a new PIN whenever you like.</li>
+      </ol>
+      <p class="text-on-surface-variant font-body-md text-sm">
+        The provider can also set a new PIN through the API. You can't turn two-step
+        verification off through the API, only in WhatsApp Manager.
+      </p>
+
+      <h2 id="coexistence" class="section-title text-on-surface mt-6">Coexistence numbers</h2>
+      <div class="card p-6 whatsapp-border">
+        <p class="text-on-surface-variant font-body-md">
+          A coexistence number isn't deregistered. It stays registered on your
+          WhatsApp Business app. You only disconnect the provider's API connection.
+          Meta's deregister call can't be used on numbers that are on both.
+        </p>
+      </div>
+      <ol class="flex flex-col gap-2 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>On your phone, open the <strong>WhatsApp Business app</strong>.</li>
+        <li>Go to <strong>Settings &rarr; Account &rarr; Business Platform</strong>.</li>
+        <li>Select the connected provider and tap <strong>Disconnect</strong>.</li>
+        <li><strong>Wait 15 minutes</strong>, then run the new provider's signup.</li>
+      </ol>
+      <figure class="flex flex-col items-center gap-2 my-2">
+        <img src="/assets/how-to/coex-app-business-platform-disconnect.jpg" alt="WhatsApp Business app Business Platform screen with a green Disconnect button and a note that the Business app will not be affected" class="w-auto max-h-96 rounded-lg border border-outline-variant" loading="lazy"/>
+        <figcaption class="text-on-surface-variant font-body-md text-sm text-center max-w-md">
+          Disconnect here. Your Business app and chats are not affected. Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users" target="_blank" rel="noopener">Meta for Developers, Onboard WhatsApp Business app users</a>.
+        </figcaption>
+      </figure>
+      <p class="text-on-surface-variant font-body-md text-sm">
+        The provider is told the connection was removed, and its sends stop working
+        from that moment. If you then want to leave the number API-free altogether,
+        you're done. If you're moving to another provider, the
+        <a class="text-primary font-bold hover:underline" href="/how-to/move-whatsapp-api-between-providers.html">move guide</a>
+        covers the rest.
+      </p>
+
+      <h2 class="section-title text-on-surface mt-6">What does not deregister a number</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li><strong>Removing the provider in Business Settings</strong> (unsharing the account or removing the partner) only takes away their access. The number may still be registered, and the next provider's signup can still say "already registered".</li>
+        <li><strong>Cancelling the provider's subscription</strong> doesn't deregister it either. Ask them to deregister first, then cancel.</li>
+        <li><strong>Deleting the provider's app or token</strong> on your side doesn't touch Meta's registration.</li>
+      </ul>
+
+      <h2 class="section-title text-on-surface mt-6">After it's free</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li>Wait a few minutes before retrying. Meta's error messages say it can take up to 3 minutes, and 15 minutes after a Business app disconnect.</li>
+        <li>The new provider registers the number with a PIN. If two-step verification is still on, it needs the existing PIN. Otherwise any six digits are used. Keep the PIN safe, and don't give it out.</li>
+        <li>If the signup still says "already registered", the number may be on another WhatsApp product, or in someone else's account. Check the number was typed correctly.</li>
+        <li>Your templates are on the Messaging account, not the number. See the <a class="text-primary font-bold hover:underline" href="/how-to/move-whatsapp-api-between-providers.html">move guide</a> for what to check.</li>
+      </ul>
+
+      <h2 class="section-title text-on-surface mt-6">Meta's own docs</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/business-phone-numbers/phone-numbers" target="_blank" rel="noopener">Business phone numbers: two-step verification and deleting numbers</a></li>
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users" target="_blank" rel="noopener">Onboard WhatsApp Business app users (Coexistence)</a></li>
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/errors" target="_blank" rel="noopener">Embedded Signup errors</a></li>
+      </ul>
+
+      <div class="card p-6 mt-4">
+        <p class="section-title text-on-surface mb-2">Moving to another provider?</p>
+        <a class="text-primary font-bold hover:underline" href="/how-to/move-whatsapp-api-between-providers.html">How to move your number to another provider &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+<!--#include partial="footer"-->

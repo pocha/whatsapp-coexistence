@@ -1,0 +1,462 @@
+<!--#var title="How to Move Your WhatsApp API Number to Another Tech Provider or BSP — WA Coexistence"-->
+<!--#var description="Switching WhatsApp API providers: how the new WhatsApp account model changes it, how to add a new provider to your existing number, what to do for coexistence numbers, and what goes wrong."-->
+<!--#include partial="head"-->
+<!--#include partial="header"-->
+
+  <section class="px-gutter md:px-24 py-12">
+    <div class="max-w-3xl mx-auto flex flex-col gap-4">
+      <a href="/#how-to" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to How-To Guides</a>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Move Your WhatsApp API Number from One Tech Provider (or BSP) to Another</h1>
+
+      <p class="text-on-surface-variant font-body-md">
+        Moving to a different WhatsApp API provider used to mean <em>migrating</em> the
+        number. Meta is now changing how accounts work, and for accounts on the new
+        model a number is no longer moved: your new provider is added next to the old
+        one. This guide covers both, tells you how to check which applies to you, and
+        what to do for a number that is also on the WhatsApp Business app. Everything
+        comes from Meta's own documentation, linked at the end.
+      </p>
+
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">A note on the names</p>
+        <p class="text-on-surface-variant font-body-md">
+          <strong>BSP</strong> is the older name. Meta now calls the providers that have
+          a credit line <strong>Solution Partners</strong>, and the ones that don't
+          <strong>Tech Providers</strong> (a <strong>Tech Partner</strong> is a Tech
+          Provider that is also a Meta Business Partner). For a move they work the same
+          way. The difference you'll feel is billing.
+        </p>
+      </div>
+
+      <div class="card p-6 whatsapp-border">
+        <p class="label-strong text-primary mb-1">THIS IS CHANGING NOW</p>
+        <p class="text-on-surface-variant font-body-md">
+          Meta describes the new account model as being in beta, with general availability
+          scheduled for the second half of 2026 and existing accounts being moved over
+          automatically. Its own pages say the details are subject to change, so treat the
+          steps below as the current picture and check the linked pages before you start.
+        </p>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-4">First, find out what you have</h2>
+      <div class="grid grid-cols-1 gap-4">
+        <div class="card p-6">
+          <p class="label-strong text-primary mb-1">WHICH ACCOUNT MODEL ARE YOU ON?</p>
+          <p class="text-on-surface-variant font-body-md">
+            Open <a class="text-primary font-bold hover:underline" href="https://business.facebook.com/settings" target="_blank" rel="noopener">Business Settings</a>
+            &rarr; Accounts. On the <strong>new model</strong> you see two separate tabs:
+            <strong>WhatsApp accounts</strong> (the phone number) and
+            <strong>Messaging accounts</strong> (templates and billing). On the
+            <strong>old model</strong> you see a single <strong>WhatsApp accounts</strong>
+            list where each entry holds everything.
+          </p>
+          <figure class="flex flex-col items-center gap-2 my-2">
+            <img src="/assets/how-to/business-suite-two-tabs.png" alt="Meta Business Suite settings: the Accounts menu lists WhatsApp accounts and Messaging accounts as separate entries, and a WhatsApp account is open on its Partners tab with an Assign partner button" class="w-full max-w-xl rounded-lg border border-outline-variant" loading="lazy"/>
+            <figcaption class="text-on-surface-variant font-body-md text-sm text-center max-w-md">
+              The new model: separate <em>WhatsApp accounts</em> and <em>Messaging accounts</em> entries under Accounts. The Partners tab with <em>Assign partner</em> is where you share an account by hand. Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/account-model-evolution/" target="_blank" rel="noopener">Meta for Developers, Updates to WhatsApp Business accounts</a>.
+            </figcaption>
+          </figure>
+        </div>
+        <div class="card p-6">
+          <p class="label-strong text-primary mb-1">IS YOUR NUMBER CLOUD API ONLY, OR IS COEXISTENCE ENABLED?</p>
+          <p class="text-on-surface-variant font-body-md">
+            If the WhatsApp Business app on your phone still works with this number and
+            shows <strong>Business Platform</strong> under Settings &rarr; Account, it's a
+            <strong>coexistence</strong> number. Otherwise it's <strong>API-only</strong>.
+            If you're not sure, ask your provider. Going through a provider does <strong>not</strong> give you
+            coexistence by default: the provider has to offer it, and the number has to be
+            on the Business app when it's connected.
+          </p>
+        </div>
+        <div class="card p-6">
+          <p class="label-strong text-primary mb-1">DOES YOUR PROVIDER OWN THE ACCOUNT?</p>
+          <p class="text-on-surface-variant font-body-md">
+            Under the old "on behalf of" model some providers owned the account
+            themselves. Meta retired that model, and the accounts were to be handed to the
+            businesses by 1 October 2025. If your account isn't listed under your own
+            business portfolio, ask your provider to transfer it first. You can only move
+            or share an account you own.
+          </p>
+        </div>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-4">Before you start</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li><strong>You're an admin</strong> of the business portfolio that owns the WhatsApp account.</li>
+        <li><strong>The display name is approved</strong> and has no pending change.</li>
+        <li>
+          <strong>A payment method.</strong> With a Tech Provider you pay Meta for
+          messages yourself, so add a card
+          (<a class="text-primary font-bold hover:underline" href="https://www.facebook.com/business/help/488291839463771" target="_blank" rel="noopener">Meta's help article</a>).
+          Until you do, template messages sent through the new provider won't go. A
+          Solution Partner can extend its own credit line instead.
+        </li>
+        <li><strong>A list of your approved templates</strong> and what each is used for. Under the new model they are <em>not</em> shared between providers, and you may not be able to see them once you've left (see Step 1).</li>
+        <li><strong>A quiet time</strong> for the switch, and your developers on hand: your app's credentials and webhook URL will change.</li>
+        <li><strong>Don't cancel the old contract yet.</strong> Keep it until the new setup has been working for a while.</li>
+      </ul>
+
+      <h2 class="section-title text-on-surface mt-6">Step 1. Leave the old provider</h2>
+      <div class="card p-6 whatsapp-border">
+        <p class="label-strong text-primary mb-1">CHECK YOUR TEMPLATES FIRST</p>
+        <p class="text-on-surface-variant font-body-md">
+          Templates live in the <strong>Messaging account</strong>, not on the number, and
+          deregistering or disconnecting doesn't delete them. But once you've left, you can
+          only see them if that account is in <strong>your</strong> business portfolio.
+        </p>
+        <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md mt-3">
+          <li>Open Business Settings &rarr; Accounts &rarr; <strong>Messaging accounts</strong> and see whether your old provider's Messaging account is listed. If it is, you own it and can read the templates in WhatsApp Manager at any time.</li>
+          <li>If it isn't, it sits in the provider's portfolio. Before you leave, <strong>export your templates</strong>: ask the provider for a list with each template's name, language, category and text (an API export is the easiest for them). Then re-create them in the new Messaging account.</li>
+          <li>Coexistence doesn't create a new Messaging account, so a coexistence move has nothing to re-create. Any onboarding that is not coexistence does create one, and it should land in your own portfolio.</li>
+        </ul>
+      </div>
+      <p class="text-on-surface-variant font-body-md">
+        What you do here depends on what you have now and what you're moving to.
+      </p>
+      <div class="card p-6">
+        <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+          <li><strong>API-only &rarr; API-only:</strong> nothing to disconnect on the new account model. The new provider is added next to the old one.</li>
+          <li><strong>API-only &rarr; coexistence:</strong> deregister the number, then connect it to the WhatsApp Business app.</li>
+          <li><strong>Coexistence &rarr; coexistence:</strong> disconnect in the WhatsApp Business app, then wait 15 minutes.</li>
+          <li><strong>Coexistence &rarr; API-only:</strong> the number has to leave the Business app. This is the least documented case.</li>
+        </ul>
+      </div>
+
+      <h3 class="text-xl font-bold text-on-surface mt-4">API-only &rarr; API-only</h3>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li><strong>New account model:</strong> you don't disconnect or deregister anything. The new provider is added next to the old one in Step 2, and you remove the old provider at the end, once you're satisfied.</li>
+        <li><strong>Old account model:</strong> the account is moved by the new provider's signup, so the old provider has to let go of the number first (see below).</li>
+      </ul>
+      <p class="label-strong text-on-surface-variant mt-2">On the new model</p>
+      <p class="text-on-surface-variant font-body-md">
+        Meta's page on moving numbers between providers now says: <em>"Phone number
+        migration isn't supported for accounts on the new WhatsApp account model. The
+        number can't be moved between accounts … Sharing still works: your client can
+        share the WhatsApp account that owns the number, which gives you access to
+        it."</em> In practice the number stays where it is, and each provider gets its own
+        Messaging account for templates and billing.
+      </p>
+      <p class="label-strong text-on-surface-variant mt-2">On the old model</p>
+      <p class="text-on-surface-variant font-body-md">
+        Meta's migration page describes the older flow, which it now says applies only
+        to accounts that aren't on the new model. In short: turn off two-step
+        verification (or have the PIN), start the new provider's signup with your
+        existing portfolio, display name and number, and the new provider then
+        <strong>registers</strong> the number, which re-associates it with the new
+        account instantly. Approved, green templates are copied, template quality
+        ratings reset, and the number keeps its display name, quality rating and messaging
+        limit. Test numbers can't be migrated, and the migrated number can only be used
+        with the Cloud API. Messages delivered before the move are billed to the old
+        provider and those after to you. If your account has already been moved to the
+        new model, the new-model steps below apply instead.
+      </p>
+
+      <h3 class="text-xl font-bold text-on-surface mt-4">API-only &rarr; coexistence</h3>
+      <ol class="flex flex-col gap-2 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li><strong>Deregister the number</strong> from the old provider: ask them to, or delete it yourself in WhatsApp Manager. <a class="text-primary font-bold hover:underline" href="/how-to/deregister-whatsapp-number-from-provider.html">Step-by-step: how to de-register your number</a>.</li>
+        <li><strong>Put the number on the WhatsApp Business app</strong> on your phone, and use a recent app version (2.24.17 or higher).</li>
+        <li>Wait a few minutes, then continue with Step 2.</li>
+      </ol>
+      <p class="text-on-surface-variant font-body-md text-sm">
+        If you skip the deregister step, the new provider's signup stops with
+        <em>"The phone number you entered is already registered"</em> (3441030).
+      </p>
+
+      <h3 class="text-xl font-bold text-on-surface mt-4">Coexistence &rarr; coexistence</h3>
+      <div class="card p-6 whatsapp-border">
+        <p class="text-on-surface-variant font-body-md">
+          Meta's signup won't switch the provider for you here. It stops with:
+          <em>"The business is already sharing this WhatsApp Business account with a
+          partner. Switching partners is not supported in this flow. Disconnect the
+          current partner in the WhatsApp Business App, then return here to connect a
+          new partner."</em>
+        </p>
+      </div>
+      <ol class="flex flex-col gap-2 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>
+          <strong>Disconnect, in the WhatsApp Business app:</strong> Settings &rarr;
+          Account &rarr; Business Platform &rarr; select the connected platform &rarr;
+          <strong>Disconnect</strong>. The old provider is told the connection was removed,
+          and its sends stop working from then on.
+        </li>
+        <li><strong>Wait 15 minutes.</strong> Meta's error messages ask you to wait that long before retrying, so the number can become available again.</li>
+      </ol>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+        <figure class="flex flex-col items-center gap-2 my-2">
+          <img src="/assets/how-to/coex-app-business-platform-disconnect.jpg" alt="WhatsApp Business app Business Platform screen with a green Disconnect button and a note that the Business app will not be affected" class="w-auto max-h-96 rounded-lg border border-outline-variant" loading="lazy"/>
+          <figcaption class="text-on-surface-variant font-body-md text-sm text-center max-w-md">
+            Disconnect from the old provider here: Settings, Account, Business Platform, then <strong>Disconnect</strong>. Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users" target="_blank" rel="noopener">Meta for Developers, Onboard WhatsApp Business app users</a>.
+          </figcaption>
+        </figure>
+      </div>
+
+      <h3 class="text-xl font-bold text-on-surface mt-4">Coexistence &rarr; API-only</h3>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li>Disconnecting in the Business app removes the old provider's API connection, but the number stays on the app. A cloud-only signup then fails with <em>"This number is registered to an existing WhatsApp account"</em>.</li>
+        <li>Meta's deregister call can't be used on a number that is on both the app and the API.</li>
+        <li>To make the number API-only, it has to leave the WhatsApp Business app, which means you lose the app and its chats on that number. Meta's pages don't spell out the exact steps, so check with the new provider before you do it.</li>
+        <li>If you want to keep the app, choose a provider that supports coexistence instead.</li>
+      </ul>
+
+      <h2 class="section-title text-on-surface mt-6">Step 2. Onboard with the new provider</h2>
+      <p class="text-on-surface-variant font-body-md">
+        Open the new provider's signup (Embedded Signup) and follow it. The first
+        screen is the same for everyone:
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+        <figure class="flex flex-col items-center gap-2 my-2">
+          <img src="/assets/how-to/v4-phone-number-entry.png" alt="Embedded Signup step Add your WhatsApp phone number, with a phone number dropdown and a country code and number field" class="w-auto max-h-96 rounded-lg border border-outline-variant" loading="lazy"/>
+          <figcaption class="text-on-surface-variant font-body-md text-sm text-center max-w-md">
+            The signup starts from the phone number: enter or choose your existing one. Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/version-4-public-preview/" target="_blank" rel="noopener">Meta for Developers, Embedded Signup version 4 public preview</a>.
+          </figcaption>
+        </figure>
+      </div>
+      <h3 class="text-xl font-bold text-on-surface mt-4">If the new provider is API-only</h3>
+      <ol class="flex flex-col gap-3 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>Choose your <strong>existing business portfolio</strong> and your <strong>existing phone number</strong>.</li>
+        <li>Finish the signup. On the new account model, Meta automatically creates a <strong>separate Messaging account for the new provider</strong> and gives it access to the number. Your existing conversations aren't interrupted.</li>
+        <li>Add your payment method for the new provider's Messaging account.</li>
+        <li>Switch your app to the new provider's credentials and webhook.</li>
+        <li>Once you're satisfied, <strong>remove the old provider</strong> from the account in Business Settings. It receives an <code>account_update</code> notice when you do.</li>
+      </ol>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+        <figure class="flex flex-col items-center gap-2 my-2">
+          <img src="/assets/how-to/new-model-asset-selection.png" alt="Embedded Signup step Select your business assets, with a business portfolio dropdown and a WhatsApp account dropdown holding a phone number" class="w-auto max-h-96 rounded-lg border border-outline-variant" loading="lazy"/>
+          <figcaption class="text-on-surface-variant font-body-md text-sm text-center max-w-md">
+            Pick your existing business portfolio and the WhatsApp account that holds the number. The footer mentions a <em>Messaging account</em>, which is the new model. Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/account-model-evolution/onboarding/" target="_blank" rel="noopener">Meta for Developers, Onboarding changes</a>.
+          </figcaption>
+        </figure>
+        <figure class="flex flex-col items-center gap-2 my-2">
+          <img src="/assets/how-to/new-model-review-share.png" alt="Embedded Signup step Review what you will share, listing access to a WhatsApp account and a Messaging account" class="w-auto max-h-96 rounded-lg border border-outline-variant" loading="lazy"/>
+          <figcaption class="text-on-surface-variant font-body-md text-sm text-center max-w-md">
+            What you grant: access to your <em>WhatsApp account</em> and to a <em>Messaging account</em> created for this provider. Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/account-model-evolution/onboarding/" target="_blank" rel="noopener">Meta for Developers, Onboarding changes</a>.
+          </figcaption>
+        </figure>
+        <figure class="flex flex-col items-center gap-2 my-2">
+          <img src="/assets/how-to/new-model-accounts-created.png" alt="Embedded Signup confirmation: your account is connected, with a WhatsApp account and a Messaging account listed under assets successfully created" class="w-auto max-h-96 rounded-lg border border-outline-variant" loading="lazy"/>
+          <figcaption class="text-on-surface-variant font-body-md text-sm text-center max-w-md">
+            Done: the signup created a WhatsApp account and a separate Messaging account for the new provider. Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/account-model-evolution/onboarding/" target="_blank" rel="noopener">Meta for Developers, Onboarding changes</a>.
+          </figcaption>
+        </figure>
+      </div>
+      <details class="text-on-surface-variant font-body-md">
+        <summary class="cursor-pointer text-primary font-bold hover:underline w-fit">Prefer to share the accounts by hand instead of using the signup?</summary>
+        <div class="mt-3 pl-4 border-l-2 border-outline-variant flex flex-col gap-3">
+          <p>
+            A provider can also be added directly in
+            <a class="text-primary font-bold hover:underline" href="https://business.facebook.com/settings" target="_blank" rel="noopener">Business Settings</a>,
+            without using its signup page.
+          </p>
+          <div>
+            <p class="label-strong text-on-surface-variant mb-1">SHARE BOTH ACCOUNT TYPES</p>
+            <ul class="flex flex-col gap-2 list-disc list-inside">
+              <li>The <strong>WhatsApp account</strong> gives the provider the phone number.</li>
+              <li>The <strong>Messaging account</strong> gives it the templates and billing.</li>
+              <li>Messaging doesn't work unless the provider has access to <strong>both</strong>.</li>
+            </ul>
+          </div>
+          <div>
+            <p class="label-strong text-on-surface-variant mb-1">STEPS, FOR EACH ACCOUNT TYPE</p>
+            <ol class="flex flex-col gap-2 list-decimal list-inside">
+              <li>Ask the provider for its <strong>business portfolio ID</strong>.</li>
+              <li>Open Business Settings &rarr; <strong>Accounts</strong> &rarr; <em>WhatsApp accounts</em>.</li>
+              <li>Select the account and click <strong>Assign partner</strong>.</li>
+              <li>Enter the provider's business portfolio ID and set the permissions.</li>
+              <li>Press <strong>Assign</strong>, and check the provider appears on the account's <strong>Partners</strong> tab.</li>
+              <li>Repeat steps 2 to 5 under <em>Messaging accounts</em>.</li>
+            </ol>
+          </div>
+          <div>
+            <p class="label-strong text-on-surface-variant mb-1">LIMITS AND REQUIREMENTS</p>
+            <ul class="flex flex-col gap-2 list-disc list-inside">
+              <li>A WhatsApp account can be shared with up to <strong>five</strong> Solution Partners.</li>
+              <li>A Messaging account can be shared with up to <strong>two</strong> partners.</li>
+              <li>The provider's app needs <strong>Advanced access</strong> for <code>whatsapp_business_management</code> and <code>whatsapp_business_messaging</code>. Without it, its API calls fail with error 200.</li>
+              <li>If the provider is a Solution Partner, it also has to share its credit line with you before you can send through its app.</li>
+            </ul>
+          </div>
+        </div>
+      </details>
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">What the number keeps, and what is shared</p>
+        <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+          <li><strong>Unchanged:</strong> display name, quality rating, the number's conversation history, and business verification.</li>
+          <li><strong>Shared between providers on the number:</strong> the messaging limit (unique users per 24 hours, set at the portfolio level) and the number's throughput. If both providers send, they use the same allowance.</li>
+          <li><strong>Separate for each provider:</strong> templates, billing and the webhook subscription. Delivery receipts go to the app that sent the message.</li>
+          <li><strong>Registration:</strong> any provider can deregister the number. Re-registering an already registered number succeeds without resetting its PIN.</li>
+        </ul>
+      </div>
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">What Meta's pages don't say</p>
+        <p class="text-on-surface-variant font-body-md">
+          We couldn't find, in the pages above, how <strong>incoming messages</strong> are
+          split when two providers share a number (one description says every provider
+          receives them), nor exactly what happens to a removed provider's templates and
+          billing. Ask both providers how they handle incoming messages during the
+          overlap, so two bots don't answer the same customer.
+        </p>
+      </div>
+
+      <h3 class="text-xl font-bold text-on-surface mt-4">If the new provider supports coexistence</h3>
+      <ol class="flex flex-col gap-3 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>
+          Choose the option for an <strong>existing WhatsApp Business app number</strong>.
+          You'll get a code in the app: tap the message from the Business Platform,
+          choose <em>Connect</em>, confirm whether to share your chat history (Meta says
+          you can&rsquo;t change that choice later), and paste the code.
+        </li>
+        <li>The new provider has <strong>24 hours</strong> to start syncing your contacts and chat history, once each. If it doesn't, Meta requires the number to be offboarded and the signup repeated. <a class="text-primary font-bold hover:underline" href="/how-to/questions-to-ask-whatsapp-api-provider.html">Ask the new provider</a> that they do this.</li>
+        <li>Update your app to the new provider's credentials and webhook.</li>
+      </ol>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+        <figure class="flex flex-col items-center gap-2 my-2">
+          <img src="/assets/how-to/coex-app-connect-message.png" alt="WhatsApp Business app chat from Facebook Business titled Connect to the Business Platform, with a Connect button" class="w-auto max-h-96 rounded-lg border border-outline-variant" loading="lazy"/>
+          <figcaption class="text-on-surface-variant font-body-md text-sm text-center max-w-md">
+            The new provider’s signup sends this message from Facebook Business. Tap <strong>Connect</strong>. Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users" target="_blank" rel="noopener">Meta for Developers, Onboard WhatsApp Business app users</a>.
+          </figcaption>
+        </figure>
+        <figure class="flex flex-col items-center gap-2 my-2">
+          <img src="/assets/how-to/coex-app-share-history.png" alt="WhatsApp Business app dialog Share chat history with the options Share chats, Do not share chats and Cancel" class="w-auto max-h-96 rounded-lg border border-outline-variant" loading="lazy"/>
+          <figcaption class="text-on-surface-variant font-body-md text-sm text-center max-w-md">
+            Choose whether to share chat history. Meta says this decision <strong>cannot be changed later</strong>. Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users" target="_blank" rel="noopener">Meta for Developers, Onboard WhatsApp Business app users</a>.
+          </figcaption>
+        </figure>
+        <figure class="flex flex-col items-center gap-2 my-2">
+          <img src="/assets/how-to/v4-coex-qr-code.png" alt="Embedded Signup step Import contacts and chat history with a QR code to scan using the WhatsApp Business app" class="w-auto max-h-96 rounded-lg border border-outline-variant" loading="lazy"/>
+          <figcaption class="text-on-surface-variant font-body-md text-sm text-center max-w-md">
+            Or scan the QR code in the signup with the Business app. The numbered instructions under it match the steps above. Source: <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/version-4-public-preview/" target="_blank" rel="noopener">Meta for Developers, Embedded Signup version 4 public preview</a>.
+          </figcaption>
+        </figure>
+      </div>
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">What coexistence does to the account</p>
+        <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+          <li>Your existing account ID stays the same. Meta uses it as the Messaging account (templates and billing), and for coexistence it does <strong>not</strong> create a separate Messaging account for the new provider. The WhatsApp account that holds the number is also yours and stays the same.</li>
+          <li>While the number is on both the Business app and the API, throughput is fixed at <strong>20 messages per second</strong>.</li>
+          <li>Messages you send from the Business app stay free. Messages sent through the API are charged at Cloud API rates.</li>
+          <li>The number is already registered, so the new provider doesn't register it or ask for a PIN. <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-number-registration-and-pin.html">When a number gets registered, and how the PIN works</a>.</li>
+        </ul>
+      </div>
+      <p class="text-on-surface-variant font-body-md text-sm">
+        When a number is connected, all linked devices (WhatsApp Web, desktop and so on)
+        are unlinked from your account, and you can link the supported ones again
+        afterwards. Some Business app features change while coexistence is on: broadcast
+        lists become read-only and view-once messages are disabled in one-to-one chats.
+        You also need a reasonably recent Business app (version 2.24.17 or higher).
+      </p>
+
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">What happens to your templates</p>
+        <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+          <li><strong>Coexistence &rarr; coexistence:</strong> nothing to do. No new Messaging account is created, so your templates should stay in the Messaging account you already have. Meta doesn't spell this out, so check them after you connect.</li>
+          <li><strong>API-only &rarr; API-only, old account model:</strong> copied for you. Approved templates in good standing move with the number, and their quality ratings reset.</li>
+          <li><strong>Every other move:</strong> copy them yourself. Templates belong to the Messaging account they were created in, so re-create them in the new provider's Messaging account, or copy them with Meta's template migration API. The copy only works between Messaging accounts under the same Meta business, for approved templates with a green or unknown quality rating, and copied templates start with a reset quality rating that takes roughly 2 to 4 weeks to ramp back up.</li>
+          <li><strong>Always:</strong> note down each approved template's name, language, category and text before you leave the old provider, and compare the list after you connect. Meta doesn't document what happens to templates when switching between API-only and coexistence, so don't assume they carry over.</li>
+        </ul>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-6">Step 3. Test, and what to expect</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li>Send yourself a template message, and message the number from your phone to check it arrives at the new webhook.</li>
+        <li>Compare your list of approved templates with the new Messaging account.</li>
+      </ul>
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">Repercussions</p>
+        <p class="text-on-surface-variant font-body-md">What a move costs you, case by case: downtime, your sending allowance and your templates' reputation.</p>
+        <div class="mt-4">
+          <p class="font-bold text-on-surface mb-1">API-only &rarr; API-only, new account model</p>
+          <ul class="flex flex-col gap-1 list-disc list-inside text-on-surface-variant font-body-md">
+            <li><strong>Downtime:</strong> none. Both providers are attached at once, so you switch your app over when you're ready.</li>
+            <li><strong>Sending limit:</strong> unchanged. The messaging limit (unique users per 24 hours) is set at the portfolio level, and it and the number's throughput are shared with the old provider while both are attached.</li>
+            <li><strong>Number reputation:</strong> the display name and quality rating stay with the number, unchanged.</li>
+            <li><strong>Template reputation:</strong> your old templates keep theirs in the old Messaging account. Copies in the new one start from a reset quality rating and tier, and take roughly 2 to 4 weeks to ramp back up. Re-created templates are new and go through review again.</li>
+          </ul>
+        </div>
+        <div class="mt-4">
+          <p class="font-bold text-on-surface mb-1">API-only &rarr; API-only, old account model</p>
+          <ul class="flex flex-col gap-1 list-disc list-inside text-on-surface-variant font-body-md">
+            <li><strong>Downtime:</strong> Meta describes the move as instant.</li>
+            <li><strong>Sending limit:</strong> the number keeps its display name, quality rating and messaging limit.</li>
+            <li><strong>Template reputation:</strong> approved templates are copied, and their quality ratings reset.</li>
+            <li><strong>Billing:</strong> messages delivered before the move are billed to the old provider and those after to you.</li>
+          </ul>
+        </div>
+        <div class="mt-4">
+          <p class="font-bold text-on-surface mb-1">Coexistence &rarr; coexistence</p>
+          <ul class="flex flex-col gap-1 list-disc list-inside text-on-surface-variant font-body-md">
+            <li><strong>Downtime:</strong> the API is down from the disconnect until the new provider is connected: at least the 15-minute wait plus the signup. The Business app keeps working, and messages that arrive in the gap reach only the app.</li>
+            <li><strong>Sending limit:</strong> throughput stays fixed at 20 messages per second while the number is on both the app and the API. Meta doesn't document the messaging limit changing.</li>
+            <li><strong>Template reputation:</strong> no templates are copied, so no reset is documented. Check them after you connect.</li>
+            <li><strong>History:</strong> the new provider must start the contacts and chat history sync within 24 hours, up to six months of chats, and group chats aren't synced. Your choice to share history can't be changed later, and linked devices are unlinked.</li>
+          </ul>
+        </div>
+        <div class="mt-4">
+          <p class="font-bold text-on-surface mb-1">API-only &rarr; coexistence</p>
+          <ul class="flex flex-col gap-1 list-disc list-inside text-on-surface-variant font-body-md">
+            <li><strong>Downtime:</strong> the API is down from the deregistering until the number is connected again. Allow time for the app setup and for the 24-hour sync to start.</li>
+            <li><strong>Sending limit:</strong> throughput becomes fixed at 20 messages per second while the number is on both, which may be lower than you had on an API-only number. Meta doesn't document the messaging limit changing.</li>
+            <li><strong>Template reputation:</strong> copy the templates yourself; copies start from a reset quality rating.</li>
+            <li><strong>The app:</strong> some Business app features change while coexistence is on, such as broadcast lists becoming read-only and view-once messages being disabled.</li>
+          </ul>
+        </div>
+        <div class="mt-4">
+          <p class="font-bold text-on-surface mb-1">Coexistence &rarr; API-only</p>
+          <ul class="flex flex-col gap-1 list-disc list-inside text-on-surface-variant font-body-md">
+            <li><strong>Downtime:</strong> the Business app stops being usable on this number, and its chats are lost with it.</li>
+            <li><strong>Template reputation:</strong> copy the templates yourself; copies start from a reset quality rating.</li>
+            <li><strong>Sending limit:</strong> Meta doesn't document what happens to the messaging limit in this case.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-6">Where each step happens</h2>
+      <p class="text-on-surface-variant font-body-md">
+        You never need <code>developers.facebook.com</code> for any of this. That site
+        is for the providers' own developers.
+      </p>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li><strong>The WhatsApp Business app on your phone:</strong> disconnecting a coexistence number.</li>
+        <li><strong><a class="text-primary font-bold hover:underline" href="https://business.facebook.com/latest/whatsapp_manager/" target="_blank" rel="noopener">WhatsApp Manager</a>:</strong> two-step verification, templates, phone number settings, your payment method.</li>
+        <li><strong><a class="text-primary font-bold hover:underline" href="https://business.facebook.com/settings" target="_blank" rel="noopener">Business Settings</a> &rarr; Accounts:</strong> who owns the account, and which partners can access it.</li>
+        <li><strong>The new provider's signup page:</strong> adding the new provider.</li>
+      </ul>
+
+      <h2 class="section-title text-on-surface mt-6">If something goes wrong</h2>
+      <div class="card p-6">
+        <ul class="flex flex-col gap-3 list-disc list-inside text-on-surface-variant font-body-md">
+          <li><strong>"Switching partners is not supported in this flow" (code 2655093):</strong> the number is connected through the Business app. Disconnect it there (see Step 1), then try again.</li>
+          <li><strong>"This phone number is already registered with the product" (3441049) or "Please disconnect your business platform to continue" (2655094):</strong> disconnect in the app as above and wait 15 minutes.</li>
+          <li><strong>"This number is registered to an existing WhatsApp account":</strong> your provider is probably calling the <em>register</em> API on the number. That is usually done on a brand-new phone number that is not on WhatsApp, like a number you just got. Maybe the provider is doing a Cloud API-only onboarding and calls register at the end. The error is thrown if the number is already on WhatsApp, either registered on regular WhatsApp or on the WhatsApp Business app. <a class="text-primary font-bold hover:underline" href="/how-to/deregister-whatsapp-number-from-provider.html">Step-by-step: how to de-register your number</a>.</li>
+          <li><strong>"The phone number you entered is already registered" (3441030):</strong> this is most likely a number registered for the API only with another provider, and you're now connecting it as a coexistence number through a different one. Deregister it first: ask the old provider, or delete it yourself in WhatsApp Manager (not possible if it sent paid messages in the last 30 days). <a class="text-primary font-bold hover:underline" href="/how-to/deregister-whatsapp-number-from-provider.html">Step-by-step: how to de-register your number</a>.</li>
+          <li><strong>"Your phone number isn't eligible to connect to the WhatsApp Business Platform" (3441045):</strong> Meta wants to see more activity on the WhatsApp Business app first. It doesn't say how much, so use the app normally for a while and try again.</li>
+          <li><strong>"The phone number is not associated with the business you selected" (3441041):</strong> the number sits under another portfolio. Remove it from there first (Business Settings &rarr; Accounts &rarr; WhatsApp accounts &rarr; Remove, or delete the number in WhatsApp Manager).</li>
+          <li><strong>"This account is already shared with another partner" (2655049, 2494028):</strong>
+            <ul class="flex flex-col gap-1 list-disc list-inside mt-1 ml-4">
+              <li><strong>Old model:</strong> the account you picked is already shared with a different provider, and in this model it can only be shared with one. Unshare it from the old provider in Business Settings &rarr; WhatsApp accounts &rarr; the account &rarr; Partners, or create a new account.</li>
+              <li><strong>New model:</strong> this shouldn't normally happen, because each provider gets its own Messaging account. If you see it, check you haven't reached the limits (five partners on a WhatsApp account, two on a Messaging account), and that the Messaging account doesn't have another provider's credit line attached.</li>
+            </ul></li>
+          <li><strong>Error 133016, too many attempts:</strong> Meta allows 10 registration requests per number in 72 hours. Stop, wait, then retry once with the right PIN. <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-number-registration-and-pin.html">When a number gets registered, and how the PIN works</a>.</li>
+          <li><strong>Error 133010, "Account not registered":</strong> registration didn't finish. The provider still has to register the number. <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-number-registration-and-pin.html">When a number gets registered, and how the PIN works</a>.</li>
+          <li><strong>Template messages don't go:</strong> check you added a payment method, and that the template exists and is approved in the <em>new</em> provider's Messaging account.</li>
+        </ul>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-6">Meta's own docs</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/account-model-evolution/" target="_blank" rel="noopener">Updates to WhatsApp Business accounts (the new account model)</a></li>
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/account-model-evolution/onboarding/" target="_blank" rel="noopener">Onboarding changes under the new account model</a></li>
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/support/migrating-phone-numbers-among-solution-partners-via-embedded-signup" target="_blank" rel="noopener">Migrating a number between providers via Embedded Signup (previous model)</a></li>
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users" target="_blank" rel="noopener">Onboard WhatsApp Business app users (coexistence)</a></li>
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/errors" target="_blank" rel="noopener">Embedded Signup flow errors</a></li>
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/business-phone-numbers/two-step-verification" target="_blank" rel="noopener">Two-step verification</a></li>
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/obo-model-deprecation" target="_blank" rel="noopener">On-Behalf-Of ownership model deprecation</a></li>
+      </ul>
+
+      <div class="card p-6 mt-4">
+        <p class="section-title text-on-surface mb-2">Planning to move to a new Tech Provider / BSP ?</p>
+        <a class="text-primary font-bold hover:underline" href="/how-to/questions-to-ask-whatsapp-api-provider.html">What to ask a Tech Provider or BSP before you sign up &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+<!--#include partial="footer"-->

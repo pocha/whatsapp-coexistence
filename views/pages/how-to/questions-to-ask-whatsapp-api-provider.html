@@ -1,0 +1,176 @@
+<!--#var title="What to Ask a WhatsApp API Provider (Tech Provider or BSP) Before You Sign Up — WA Coexistence"-->
+<!--#var description="A checklist of questions to ask a WhatsApp Business API provider before onboarding: who owns your account, coexistence, billing, limits, templates, your data, and how you leave."-->
+<!--#include partial="head"-->
+<!--#include partial="header"-->
+
+  <section class="px-gutter md:px-24 py-12">
+    <div class="max-w-3xl mx-auto flex flex-col gap-4">
+      <a href="/#how-to" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to How-To Guides</a>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">What to Ask a Tech Provider or BSP Before You Use Them for WhatsApp API</h1>
+
+      <p class="text-on-surface-variant font-body-md">
+        Switching WhatsApp API providers later is possible but not painless, so a few
+        questions up front save a lot. These are the ones that matter, why each matters,
+        and what a good answer looks like. Not every provider will like all of them.
+        That is a useful signal too.
+      </p>
+
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">Quick context</p>
+        <p class="text-on-surface-variant font-body-md">
+          <strong>Solution Partners</strong> (what used to be called BSPs) have a credit
+          line with Meta and can invoice you for messages. <strong>Tech Providers</strong>
+          don't: you add your own card with Meta, Meta bills you for messages, and the
+          provider bills you for its own service. <strong>Tech Partners</strong> are Tech
+          Providers that are also Meta Business Partners. Neither kind is better. They
+          just answer some questions below differently.
+        </p>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-4">1. Who owns what</h2>
+      <div class="card p-6 flex flex-col gap-4">
+        <div>
+          <p class="font-bold text-on-surface">Will the WhatsApp Business Account sit in <em>my</em> business portfolio?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> if you own the account, you can move it. Meta has retired the model where providers owned it, but check. <strong>Good answer:</strong> "Yes, it's created under your portfolio and we only get access." <strong>Red flag:</strong> any hint that the account or number stays theirs.</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">Am I an admin of that portfolio, and can I see the account in Business Settings?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> it's how you remove them later without asking. <strong>Good answer:</strong> "Yes, under Accounts &rarr; WhatsApp accounts."</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">Who holds the number's two-step verification PIN?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> Meta requires the PIN to change it or to delete the number, and the next provider needs it, or it has to be turned off. <strong>Good answer:</strong> "You choose it, and we tell you where it's kept." <strong>Red flag:</strong> "We set it, and we don't share it."</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">Do you support Meta's new account model, so I can add you to my existing number next to my current provider?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> under the new model a number can be shared by several providers, each with its own templates and billing, so you can try a provider without moving. Meta describes this as in beta, going general availability in the second half of 2026. <strong>Good answer:</strong> they know the model and can say how their signup handles an existing number and who answers incoming messages while two providers overlap. <strong>Red flag:</strong> "You'd have to migrate the number."</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">Are you a Solution Partner, a Tech Provider or a Tech Partner, and are you listed in Meta's partner directory?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> it decides how billing works and who has Meta's direct support behind them. Partners and Tech Partners appear in Meta's directory.</p>
+        </div>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-4">2. The WhatsApp Business app and coexistence</h2>
+      <div class="card p-6 flex flex-col gap-4">
+        <div>
+          <p class="font-bold text-on-surface">Can I keep using the WhatsApp Business app on my phone, with the same number?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> connecting a number to the API normally takes it off the Business app. Meta added "coexistence" so both work, but a provider has to build it, and you don't get it by default. <strong>Good answer:</strong> a clear yes or no, and which way your number would be connected.</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">If coexistence is on, what changes in the Business app?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> Meta disables some features while it's on. For example, broadcast lists become read-only and view-once messages are turned off in one-to-one chats, and linked devices are unlinked when you connect. <strong>Good answer:</strong> they know this list.</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">Do you sync my existing contacts and chat history on connection, and what do I choose?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> Meta gives the provider 24 hours to start that sync, once, and you decide whether to share history. If it's missed, the number can be dropped and the signup repeated. <strong>Red flag:</strong> they've never heard of this.</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">What happens to my messages if the Business app is used from a new phone?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> changing devices disconnects the API side until it reconnects, and sends fail in between. A good provider monitors for it and pauses sending.</p>
+        </div>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-4">3. Money</h2>
+      <div class="card p-6 flex flex-col gap-4">
+        <div>
+          <p class="font-bold text-on-surface">Exactly what do I pay you, and what do I pay Meta?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> Meta charges per message (since 1 July 2025), by message type and the customer's country. Some providers add a markup on top, some bill a monthly fee, some both. <strong>Good answer:</strong> a written breakdown where Meta's charge is shown separately.</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">Is there a setup fee, a minimum spend, a per-number fee or a contract term?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> these are where a cheap-looking plan stops being cheap, and where a long term makes leaving costly.</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">If I move, what happens to messages that are still in flight, and to the bill?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> Meta charges the old provider for what was delivered before the move, and you or the new provider after. You want to know about any minimum notice period or early termination fee.</p>
+        </div>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-4">4. Limits, quality and protecting the number</h2>
+      <div class="card p-6 flex flex-col gap-4">
+        <div>
+          <p class="font-bold text-on-surface">Do you limit or pace my sending, and can I see and change the limits?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> a bug or a retry loop can burn a number's quality rating in minutes, and recovering is slow. <strong>Good answer:</strong> yes, here are the limits and here's where you see them. <strong>Red flag:</strong> "We just pass everything through."</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">How many numbers can I connect, and what is the throughput?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> a new business portfolio is capped at 2 registered numbers until it's verified or reaches a higher messaging limit. Throughput limits also vary.</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">Who is notified if my number's quality drops or it gets restricted, and how fast?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> Meta sends these as account alerts to the provider's webhook. If they don't pass them on, you'll find out from customers.</p>
+        </div>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-4">5. Templates and messages</h2>
+      <div class="card p-6 flex flex-col gap-4">
+        <div>
+          <p class="font-bold text-on-surface">Can I create and edit templates myself, in WhatsApp Manager or through your tool?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> templates live on the WhatsApp account, so you should be able to see all of them in WhatsApp Manager whatever tool created them.</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">Do I get the raw webhooks from Meta, or only your version of them?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> delivery statuses, errors, and events like human replies from the Business app can get dropped or reshaped. <strong>Good answer:</strong> "You get Meta's payloads."</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">Does your API match Meta's, or is it your own format?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> if your code is written to a provider-specific API, moving means rewriting. One that follows Meta's request format keeps the switch small.</p>
+        </div>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-4">6. Your data and security</h2>
+      <div class="card p-6 flex flex-col gap-4">
+        <div>
+          <p class="font-bold text-on-surface">What do you store, where, and for how long?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> message content and contacts are your customers' personal data. Meta also supports keeping data in a chosen country when a number is registered. If you have a region requirement, ask about it.</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">How is my Meta access token protected, and who can use it?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> the token lets them send as you. Meta's terms say providers must protect it and not pass it on. <strong>Good answer:</strong> encrypted, with a clear description of who and what can use it.</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">Can I delete everything, and can I export it?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> you want a deletion path that doesn't need a support ticket, and a copy of your conversation history, contacts and reports before you go.</p>
+        </div>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-4">7. Support and leaving</h2>
+      <div class="card p-6 flex flex-col gap-4">
+        <div>
+          <p class="font-bold text-on-surface">How do I reach you, and what's the response time when sending breaks?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> a WhatsApp outage on a number you depend on is urgent. Ask for it in writing.</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">What is your process if I want to leave, and will you help?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> a move needs two-step verification off or the PIN, and often a hand from the old provider. <strong>Good answer:</strong> a short, written process, no penalty, and no notice period you'd be stuck in. <strong>Red flag:</strong> "Why would you leave?"</p>
+        </div>
+        <div>
+          <p class="font-bold text-on-surface">What happens to my number and account if you stop operating?</p>
+          <p class="text-on-surface-variant font-body-md text-sm"><strong>Why:</strong> if the account is in your own portfolio, you can connect another provider in minutes. If it isn't, you can't.</p>
+        </div>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-6">How to use this</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li>Send the questions in writing and keep the answers. Verbal answers have a way of changing.</li>
+        <li>Weigh the answers to sections 1 and 7 most heavily. Features can be added later, but ownership and exit terms are hard to fix afterwards.</li>
+        <li>You can check some answers yourself: the account's owner in Business Settings, the PIN setting in WhatsApp Manager, and the partner's entry in Meta's directory.</li>
+      </ul>
+
+      <h2 class="section-title text-on-surface mt-6">Meta's own docs</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/overview" target="_blank" rel="noopener">Solution providers: Solution Partners, Tech Providers and Tech Partners compared</a></li>
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users" target="_blank" rel="noopener">Onboard WhatsApp Business app users (coexistence)</a></li>
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/obo-model-deprecation" target="_blank" rel="noopener">On-Behalf-Of ownership model deprecation</a></li>
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/business-phone-numbers/phone-numbers" target="_blank" rel="noopener">Registering business phone numbers (limits, PIN, local storage)</a></li>
+      </ul>
+
+      <div class="card p-6 mt-4">
+        <p class="section-title text-on-surface mb-2">Already with a provider and thinking of switching?</p>
+        <a class="text-primary font-bold hover:underline" href="/how-to/move-whatsapp-api-between-providers.html">How to move your number to another provider &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+<!--#include partial="footer"-->

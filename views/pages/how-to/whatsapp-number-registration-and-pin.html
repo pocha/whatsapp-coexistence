@@ -1,0 +1,85 @@
+<!--#var title="WhatsApp Number Registration and the Two-Step PIN: When It Happens and Common Errors — WA Coexistence"-->
+<!--#var description="What registering a number for the WhatsApp Business API means, when a provider does it, how the two-step verification PIN works, and what errors 133010 and 133016 mean."-->
+<!--#include partial="head"-->
+<!--#include partial="header"-->
+
+  <section class="px-gutter md:px-24 py-12">
+    <div class="max-w-3xl mx-auto flex flex-col gap-4">
+      <a href="/#how-to" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to How-To Guides</a>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">WhatsApp Number Registration and the Two-Step PIN</h1>
+
+      <p class="text-on-surface-variant font-body-md">
+        Adding a number to a WhatsApp account is not the same as making it usable on
+        the API. That last step is called <strong>registration</strong>, and it needs a
+        six-digit PIN. Most people never do it themselves, because their provider
+        does. It matters when something goes wrong, or when you move to another
+        provider.
+      </p>
+
+      <h2 class="section-title text-on-surface mt-4">What registration is</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li>A number can sit in your WhatsApp account and still not be usable on the Cloud API. Until it is <strong>registered</strong>, sends fail with <em>"Account not registered"</em> (error 133010).</li>
+        <li>Registration is one API call, made with a six-digit PIN. The PIN becomes the number's <strong>two-step verification PIN</strong>.</li>
+        <li>Registering doesn't need a new SMS or voice code. The number must already be verified.</li>
+      </ul>
+
+      <h2 class="section-title text-on-surface mt-4">When a number gets registered</h2>
+      <div class="card p-6">
+        <ul class="flex flex-col gap-3 list-disc list-inside text-on-surface-variant font-body-md">
+          <li><strong>A brand-new number added as API-only:</strong> the signup finishes, and the provider then calls register. This is the usual case.</li>
+          <li><strong>A number added another way</strong> (through the API or in Business Manager rather than the signup): it joins the account, but nobody registers it until the provider makes the call.</li>
+          <li><strong>A number that was deregistered and is being picked up again,</strong> for example when you move to another provider. The new provider registers it, and needs the existing PIN if two-step verification is on. If it's off, any six digits are accepted.</li>
+          <li><strong>A recovery,</strong> when a number shows as not registered and the provider calls register again.</li>
+          <li><strong>Never for coexistence numbers.</strong> They're already registered through the WhatsApp Business app, so the provider skips it.</li>
+        </ul>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-4">The two-step verification PIN</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li><strong>Who sets it:</strong> whoever registers the number, usually your provider. Ask them for it, and keep it somewhere safe.</li>
+        <li><strong>What needs it:</strong> Meta asks for the PIN when you change it, or delete the number in WhatsApp Manager. The next provider needs it when it registers the number.</li>
+        <li><strong>Changing it:</strong> in WhatsApp Manager, Account tools &rarr; Phone numbers &rarr; the number &rarr; <em>Two-step verification</em> tab &rarr; <em>Change PIN</em>. This needs the current PIN. If you don't have it, your provider can set a new one through the API.</li>
+        <li><strong>Turning it off:</strong> only in WhatsApp Manager, with the same flow ending in <em>Turn off two-step verification</em>. Meta emails a link to the address on your business portfolio. It can't be turned off through the API.</li>
+      </ul>
+      <p class="text-on-surface-variant font-body-md text-sm">
+        Step-by-step, including what to do when the PIN is lost:
+        <a class="text-primary font-bold hover:underline" href="/how-to/deregister-whatsapp-number-from-provider.html">how to de-register your number</a>.
+      </p>
+
+      <h2 class="section-title text-on-surface mt-4">Errors you may see</h2>
+      <div class="card p-6">
+        <ul class="flex flex-col gap-3 list-disc list-inside text-on-surface-variant font-body-md">
+          <li><strong>133010, "Account not registered":</strong> registration didn't happen or didn't finish. The provider has to call register. If it's a coexistence number, it shouldn't need to, so check it's still connected in the Business app.</li>
+          <li><strong>133016, too many attempts:</strong> Meta allows <strong>10</strong> registration requests per number in <strong>72 hours</strong>. Stop, wait, then retry once with the right PIN. Every wrong PIN counts toward the limit.</li>
+          <li><strong>A wrong PIN:</strong> the number already has a PIN and the one sent doesn't match. Get the right one from the previous provider, or turn two-step verification off in WhatsApp Manager and set a new PIN.</li>
+          <li><strong>"This number is registered to an existing WhatsApp account":</strong> the signup tried to add the number as a brand-new one, and it's already on WhatsApp. See <a class="text-primary font-bold hover:underline" href="/how-to/move-whatsapp-api-between-providers.html">the move guide</a>.</li>
+        </ul>
+      </div>
+
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">If you use Watobot</p>
+        <p class="text-on-surface-variant font-body-md">
+          Watobot doesn't register numbers automatically. For a new number that isn't
+          on the WhatsApp Business app, open the number's page in the dashboard and
+          use the <em>Register this number</em> section, where you choose the PIN.
+          Coexistence numbers don't need it.
+        </p>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-6">Meta's own docs</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/business-phone-numbers/phone-numbers" target="_blank" rel="noopener">Business phone numbers</a>: two-step verification, status, deleting numbers</li>
+        <li><a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/errors" target="_blank" rel="noopener">Embedded Signup errors</a></li>
+      </ul>
+
+      <div class="card p-6 mt-4">
+        <p class="section-title text-on-surface mb-2">Related guides</p>
+        <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+          <li><a class="text-primary font-bold hover:underline" href="/how-to/deregister-whatsapp-number-from-provider.html">How to de-register your number from a provider</a></li>
+          <li><a class="text-primary font-bold hover:underline" href="/how-to/move-whatsapp-api-between-providers.html">How to move your number to another provider</a></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+<!--#include partial="footer"-->
