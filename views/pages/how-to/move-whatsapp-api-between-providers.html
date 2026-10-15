@@ -28,13 +28,22 @@
         </p>
       </div>
 
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">Two kinds of onboarding</p>
+        <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+          <li><strong>Standard onboarding:</strong> Meta's term for the normal Embedded Signup flow. The number is registered for the Cloud API and is <em>not</em> on the WhatsApp Business app on your phone. This guide also calls it "API only".</li>
+          <li><strong>Coexistence:</strong> the number stays on the WhatsApp Business app, and the provider is connected alongside it.</li>
+        </ul>
+      </div>
+
       <div class="card p-6 whatsapp-border">
         <p class="label-strong text-primary mb-1">THIS IS CHANGING NOW</p>
         <p class="text-on-surface-variant font-body-md">
-          Meta describes the new account model as being in beta, with general availability
-          scheduled for the second half of 2026 and existing accounts being moved over
-          automatically. Its own pages say the details are subject to change, so treat the
-          steps below as the current picture and check the linked pages before you start.
+          Meta's new WhatsApp account model became generally available on September 23,
+          2026, and is reaching all businesses by mid-October 2026. Accounts are moved
+          over in stages, so you may still see the older single-account view in Business
+          Settings. Meta's own pages say the details are subject to change, so check the
+          linked pages before you start.
         </p>
       </div>
 
@@ -58,11 +67,11 @@
           </figure>
         </div>
         <div class="card p-6">
-          <p class="label-strong text-primary mb-1">IS YOUR NUMBER CLOUD API ONLY, OR IS COEXISTENCE ENABLED?</p>
+          <p class="label-strong text-primary mb-1">IS YOUR NUMBER ON STANDARD ONBOARDING, OR IS COEXISTENCE ENABLED?</p>
           <p class="text-on-surface-variant font-body-md">
             If the WhatsApp Business app on your phone still works with this number and
             shows <strong>Business Platform</strong> under Settings &rarr; Account, it's a
-            <strong>coexistence</strong> number. Otherwise it's <strong>API-only</strong>.
+            <strong>coexistence</strong> number. Otherwise it was onboarded the <strong>standard</strong> way (API only).
             If you're not sure, ask your provider. Going through a provider does <strong>not</strong> give you
             coexistence by default: the provider has to offer it, and the number has to be
             on the Business app when it's connected.
@@ -129,7 +138,7 @@
         </ul>
       </div>
 
-      <h3 class="text-xl font-bold text-on-surface mt-4">API-only (previous provider) &rarr; API-only (new provider)</h3>
+      <h3 class="text-xl font-bold text-on-surface mt-4">Standard (previous provider) &rarr; Standard (new provider)</h3>
       <ul class="flex flex-col gap-3 list-disc list-inside text-on-surface-variant font-body-md">
         <li>
           <strong>New account model:</strong> Meta's page on moving numbers between
@@ -152,12 +161,12 @@
           flow, which it now says applies only to accounts that aren't on the new model.
           The new provider's signup moves the number, so before you start:
           <ul class="flex flex-col gap-1 list-disc list-inside mt-1 ml-4">
-            <li>Turn off two-step verification in WhatsApp Manager, or have the PIN to hand. The new provider needs the PIN when it registers the number. Meta doesn't say where in the signup that is asked, so <a class="text-primary font-bold hover:underline" href="/how-to/questions-to-ask-whatsapp-api-provider.html">check with the provider</a>.</li>
+            <li>Have the number's two-step PIN to hand, if it still has one. The new provider needs it when it registers the number. <a class="text-primary font-bold hover:underline" href="/how-to/deregister-whatsapp-number-from-provider.html#pin">The two-step PIN, and what to do if it is lost</a>.</li>
           </ul>
         </li>
       </ul>
 
-      <h3 class="text-xl font-bold text-on-surface mt-4">API-only &rarr; coexistence</h3>
+      <h3 class="text-xl font-bold text-on-surface mt-4">Standard &rarr; coexistence</h3>
       <ol class="flex flex-col gap-2 list-decimal list-inside text-on-surface-variant font-body-md">
         <li><strong>Deregister the number</strong> from the old provider: ask them to, or delete it yourself in WhatsApp Manager. <a class="text-primary font-bold hover:underline" href="/how-to/deregister-whatsapp-number-from-provider.html">Step-by-step: how to de-register your number</a>.</li>
         <li><strong>Put the number on the WhatsApp Business app</strong> on your phone, and use a recent app version (2.24.17 or higher).</li>
@@ -196,7 +205,7 @@
         </figure>
       </div>
 
-      <h3 class="text-xl font-bold text-on-surface mt-4">Coexistence &rarr; API-only</h3>
+      <h3 class="text-xl font-bold text-on-surface mt-4">Coexistence &rarr; standard</h3>
       <p class="text-on-surface-variant font-body-md">
         Disconnecting in the Business app is not enough: the number stays on the app,
         and a cloud-only signup fails with <em>"This number is registered to an existing
@@ -217,10 +226,10 @@
       <div class="card p-6">
         <p class="section-title text-on-surface mb-2">Summarising disconnection steps:</p>
         <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
-          <li><strong>API-only &rarr; API-only:</strong> nothing to disconnect on the new account model. The new provider is added next to the old one.</li>
-          <li><strong>API-only &rarr; coexistence:</strong> deregister the number, then connect it to the WhatsApp Business app.</li>
+          <li><strong>Standard &rarr; Standard:</strong> nothing to disconnect on the new account model. The new provider is added next to the old one.</li>
+          <li><strong>Standard &rarr; coexistence:</strong> deregister the number, then connect it to the WhatsApp Business app.</li>
           <li><strong>Coexistence &rarr; coexistence:</strong> disconnect in the WhatsApp Business app, then wait 15 minutes.</li>
-          <li><strong>Coexistence &rarr; API-only:</strong> the number has to leave the Business app. This is the least documented case.</li>
+          <li><strong>Coexistence &rarr; standard:</strong> the number has to leave the Business app. This is the least documented case.</li>
         </ul>
       </div>
 
@@ -237,7 +246,7 @@
           </figcaption>
         </figure>
       </div>
-      <h3 class="text-xl font-bold text-on-surface mt-4">Onboarding to API-only provider</h3>
+      <h3 class="text-xl font-bold text-on-surface mt-4">If the new provider does standard onboarding</h3>
       <ol class="flex flex-col gap-3 list-decimal list-inside text-on-surface-variant font-body-md">
         <li>Choose your <strong>existing business portfolio</strong> and your <strong>existing phone number</strong>.</li>
         <li>Finish the signup. On the new account model, Meta automatically creates a <strong>separate Messaging account for the new provider</strong> and gives it access to the number. Your existing conversations aren't interrupted. On the old account model, the new provider then <strong>registers</strong> the number, which re-associates it with the new account instantly.</li>
@@ -358,25 +367,25 @@
       <p class="text-on-surface-variant font-body-md text-sm">
         <em>Not documented by Meta:</em> Meta lists these as unchanged when a provider is
         added on the new model, and the old migration keeps them. For the moves between
-        API-only and coexistence it doesn't say either way. They are tied to the number
+        standard onboarding and coexistence it doesn't say either way. They are tied to the number
         and the portfolio, so we expect them not to change, but it isn't confirmed.
       </p>
 
       <h2 class="section-title text-on-surface mt-6">What changes</h2>
       <ul class="flex flex-col gap-3 list-disc list-inside text-on-surface-variant font-body-md">
-        <li><strong>Throughput:</strong> an API-only number isn't held to the coexistence figure. While a number is on both the Business app and the API, Meta fixes it at <strong>20 messages per second</strong>.</li>
-        <li><strong>Templates:</strong> you need to copy them to the new Messaging account yourself, either by re-creating them or with Meta's template migration API. The one exception is API-only &rarr; API-only on the old model, where approved templates are copied for you. For coexistence &rarr; coexistence they should stay, but Meta doesn't spell it out, so check them.</li>
+        <li><strong>Throughput:</strong> a standard-onboarding number isn't held to the coexistence figure. While a number is on both the Business app and the API, Meta fixes it at <strong>20 messages per second</strong>.</li>
+        <li><strong>Templates:</strong> you need to copy them to the new Messaging account yourself, either by re-creating them or with Meta's template migration API. The one exception is Standard &rarr; Standard on the old model, where approved templates are copied for you. For coexistence &rarr; coexistence they should stay, but Meta doesn't spell it out, so check them.</li>
         <li><strong>Template reputation:</strong> copied templates start from a reset quality rating and tier, and take roughly 2 to 4 weeks to ramp back up. Re-created templates are new and go through review again.</li>
         <li><strong>Billing:</strong> if the new provider is a <strong>Solution Partner</strong>, it can extend its own credit line. Otherwise you add <strong>your own payment method</strong> to the new Messaging account (on the old model, to the WhatsApp Business account), in WhatsApp Manager or Meta Business Suite. Until you do, template messages won't go.</li>
-        <li><strong>Registration:</strong> an API-only provider will probably register the number itself, so it needs the PIN, or two-step verification has to be disabled. Check with the provider. Coexistence numbers are already registered. <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-number-registration-and-pin.html">When a number gets registered, and how the PIN works</a>.</li>
+        <li><strong>Registration:</strong> a standard-onboarding provider will probably register the number itself and may need the PIN. Coexistence numbers are already registered. <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-number-registration-and-pin.html">When a number gets registered, and how the PIN works</a>.</li>
       </ul>
 
       <h2 class="section-title text-on-surface mt-6">Downtime</h2>
       <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
-        <li><strong>API-only &rarr; API-only:</strong> none. On the new model both providers are attached at once, and on the old model Meta describes the move as instant.</li>
+        <li><strong>Standard &rarr; Standard:</strong> none. On the new model both providers are attached at once, and on the old model Meta describes the move as instant.</li>
         <li><strong>Coexistence &rarr; coexistence:</strong> 15 minutes. Meta asks you to wait that long between disconnecting and connecting the new provider. The Business app keeps working meanwhile.</li>
-        <li><strong>API-only &rarr; coexistence:</strong> up to 3 minutes. Meta's signup error says it can take that long for the number to become available after it's deregistered.</li>
-        <li><strong>Coexistence &rarr; API-only:</strong> a few minutes. <em>Not documented by Meta.</em> The Business app is also gone from the number.</li>
+        <li><strong>Standard &rarr; coexistence:</strong> up to 3 minutes. Meta's signup error says it can take that long for the number to become available after it's deregistered.</li>
+        <li><strong>Coexistence &rarr; standard:</strong> a few minutes. <em>Not documented by Meta.</em> The Business app is also gone from the number.</li>
       </ul>
 
       <h2 class="section-title text-on-surface mt-6">Also worth asking your new Service Provider</h2>
@@ -402,8 +411,8 @@
         <ul class="flex flex-col gap-3 list-disc list-inside text-on-surface-variant font-body-md">
           <li><strong>"Switching partners is not supported in this flow" (code 2655093):</strong> the number is connected through the Business app. Disconnect it there (see Step 1), then try again.</li>
           <li><strong>"This phone number is already registered with the product" (3441049) or "Please disconnect your business platform to continue" (2655094):</strong> disconnect in the app as above and wait 15 minutes.</li>
-          <li><strong>"This number is registered to an existing WhatsApp account":</strong> your provider is probably calling the <em>register</em> API on the number. That is usually done on a brand-new phone number that is not on WhatsApp, like a number you just got. Maybe the provider is doing a Cloud API-only onboarding and calls register at the end. The error is thrown if the number is already on WhatsApp, either registered on regular WhatsApp or on the WhatsApp Business app. <a class="text-primary font-bold hover:underline" href="/how-to/deregister-whatsapp-number-from-provider.html">Step-by-step: how to de-register your number</a>.</li>
-          <li><strong>"The phone number you entered is already registered" (3441030):</strong> this is most likely a number registered for the API only with another provider, and you're now connecting it as a coexistence number through a different one. Deregister it first: ask the old provider, or delete it yourself in WhatsApp Manager (not possible if it sent paid messages in the last 30 days). <a class="text-primary font-bold hover:underline" href="/how-to/deregister-whatsapp-number-from-provider.html">Step-by-step: how to de-register your number</a>.</li>
+          <li><strong>"This number is registered to an existing WhatsApp account":</strong> your provider is probably calling the <em>register</em> API on the number. That is usually done on a brand-new phone number that is not on WhatsApp, like a number you just got. Maybe the provider is doing a standard (Cloud API only) onboarding and calls register at the end. The error is thrown if the number is already on WhatsApp, either registered on regular WhatsApp or on the WhatsApp Business app. <a class="text-primary font-bold hover:underline" href="/how-to/deregister-whatsapp-number-from-provider.html">Step-by-step: how to de-register your number</a>.</li>
+          <li><strong>"The phone number you entered is already registered" (3441030):</strong> this is most likely a number onboarded the standard way (API only) with another provider, and you're now connecting it as a coexistence number through a different one. Deregister it first: ask the old provider, or delete it yourself in WhatsApp Manager (not possible if it sent paid messages in the last 30 days). <a class="text-primary font-bold hover:underline" href="/how-to/deregister-whatsapp-number-from-provider.html">Step-by-step: how to de-register your number</a>.</li>
           <li><strong>"Your phone number isn't eligible to connect to the WhatsApp Business Platform" (3441045):</strong> Meta wants to see more activity on the WhatsApp Business app first. It doesn't say how much, so use the app normally for a while and try again.</li>
           <li><strong>"The phone number is not associated with the business you selected" (3441041):</strong> the number sits under another portfolio. Remove it from there first (Business Settings &rarr; Accounts &rarr; WhatsApp accounts &rarr; Remove, or delete the number in WhatsApp Manager).</li>
           <li><strong>"This account is already shared with another partner" (2655049, 2494028):</strong>
