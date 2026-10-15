@@ -28,7 +28,7 @@
         <ul class="flex flex-col gap-3 list-disc list-inside text-on-surface-variant font-body-md">
           <li><strong>A standard-onboarding (API-only) provider registers the number at the end of onboarding.</strong> The signup only creates the assets and hands the provider the IDs. The provider's own backend then calls register with a PIN. If it's a number that was deregistered earlier (a move), it needs the existing PIN, or any six digits if two-step verification is off.</li>
           <li><strong>A coexistence provider does not need to.</strong> Connecting the number to the WhatsApp Business app already registers it, so the provider skips the step and never asks for a PIN.</li>
-          <li><strong>If you onboard the number yourself</strong> (you add it in WhatsApp Manager or your business portfolio, without a provider): verifying the number adds it to your account, but Meta's pages don't say that this also registers it. Assume it doesn't. Check the status below, and if it isn't <code>CONNECTED</code>, call register yourself with a PIN of your choice. Without it, sends fail with <em>"Account not registered"</em> (133010).</li>
+          <li><strong>If you onboard the number yourself</strong> (you add it in WhatsApp Manager or your business portfolio, without a provider): you have to register it with the API yourself. Meta's registration page says "you can only register a number via the API — you cannot register a number through WhatsApp Manager or the App Dashboard". The steps are to add the number in WhatsApp Manager, verify it there, then call register with a PIN of your choice. Without it, sends fail with <em>"Account not registered"</em> (133010). Check the status below to see where it stands.</li>
         </ul>
       </div>
 

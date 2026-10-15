@@ -113,16 +113,16 @@
         </p>
         <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md mt-3">
           <li>
-            <strong>New model: export them.</strong> The new provider starts with an empty
-            Messaging account, so you re-create your templates there. The old provider's
-            Messaging account may not be in your portfolio, and then you can't see the
-            templates once you've disconnected. Open
+            <strong>New model: sort this out before you disconnect.</strong> The new
+            provider starts with an empty Messaging account, so your templates have to be
+            copied or re-created there. Open
             <a class="text-primary font-bold hover:underline" href="https://business.facebook.com/settings" target="_blank" rel="noopener">Business Settings</a>
             &rarr; Accounts &rarr; <strong>Messaging accounts</strong> and check whether
-            the old provider's account is listed. If it is, you own it and can read the
-            templates in WhatsApp Manager at any time. If it isn't, ask the provider
-            <em>before</em> you disconnect for a list with each template's name,
-            language, category and text (an API export is the easiest for them).
+            the old provider's account is listed.
+            <ul class="flex flex-col gap-1 list-disc list-inside mt-1 ml-4">
+              <li><strong>If it is listed, you own it.</strong> You can read the templates in WhatsApp Manager at any time. If the new provider supports importing templates through Meta's template migration API, add it as a partner on that Messaging account (<em>Assign partner</em>), and ask it to run the import once its own onboarding is done. The copy needs the destination account to exist, so it can only run after onboarding, but you can share the old account before.</li>
+              <li><strong>If it isn't listed,</strong> it sits in the old provider's portfolio and you can't see or share it. Ask the provider <em>before</em> you disconnect for a list with each template's name, language, category and text (an API export is the easiest for them), and re-create them.</li>
+            </ul>
           </li>
           <li>
             <strong>Old model: no export needed.</strong> The account is already yours, and
@@ -374,8 +374,20 @@
       <h2 class="section-title text-on-surface mt-6">What changes</h2>
       <ul class="flex flex-col gap-3 list-disc list-inside text-on-surface-variant font-body-md">
         <li><strong>Throughput:</strong> a standard-onboarding number isn't held to the coexistence figure. While a number is on both the Business app and the API, Meta fixes it at <strong>20 messages per second</strong>.</li>
-        <li><strong>Templates:</strong> you need to copy them to the new Messaging account yourself, either by re-creating them or with Meta's template migration API. The one exception is Standard &rarr; Standard on the old model, where approved templates are copied for you. For coexistence &rarr; coexistence they should stay, but Meta doesn't spell it out, so check them.</li>
-        <li><strong>Template reputation:</strong> copied templates start from a reset quality rating and tier, and take roughly 2 to 4 weeks to ramp back up. Re-created templates are new and go through review again.</li>
+        <li><strong>Templates:</strong>
+          <ul class="flex flex-col gap-1 list-disc list-inside mt-1 ml-4">
+            <li><strong>Coexistence &rarr; coexistence:</strong> they should stay in the Messaging account you already have. Meta doesn't spell it out, so check them after you connect.</li>
+            <li><strong>Standard &rarr; Standard on the old model:</strong> approved templates are copied for you.</li>
+            <li><strong>Every other move, including Standard &rarr; coexistence:</strong> you copy them yourself.
+              <ul class="flex flex-col gap-1 list-disc list-inside mt-1 ml-4">
+                <li><strong>Meta's template migration API</strong> copies approved templates with a green or unknown quality rating between Messaging accounts owned by the same Meta business. The call needs a token that can reach both accounts, so it is your new provider that makes it, if it supports this. Add it as a partner on the old Messaging account first (see the card at the top of Step 1).</li>
+                <li><strong>Otherwise re-create them</strong> in the new Messaging account: name, language, category and text.</li>
+                <li><strong>If the old Messaging account is the provider's,</strong> the API can't be used. Ask the old provider for the list.</li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+        <li><strong>Template reputation:</strong> copied templates start with their quality rating reset, and Meta says they take roughly 2 to 4 weeks to ramp back up. Your number's sending limit isn't affected, because that is set at the portfolio level. Re-created templates are new and go through review again.</li>
         <li><strong>Billing:</strong> if the new provider is a <strong>Solution Partner</strong>, it can extend its own credit line. Otherwise you add <strong>your own payment method</strong> to the new Messaging account (on the old model, to the WhatsApp Business account), in WhatsApp Manager or Meta Business Suite. Until you do, template messages won't go.</li>
         <li><strong>Registration:</strong> a standard-onboarding provider will probably register the number itself and may need the PIN. Coexistence numbers are already registered. <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-number-registration-and-pin.html">When a number gets registered, and how the PIN works</a>.</li>
       </ul>
@@ -384,8 +396,18 @@
       <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
         <li><strong>Standard &rarr; Standard:</strong> none. On the new model both providers are attached at once, and on the old model Meta describes the move as instant.</li>
         <li><strong>Coexistence &rarr; coexistence:</strong> 15 minutes. Meta asks you to wait that long between disconnecting and connecting the new provider. The Business app keeps working meanwhile.</li>
-        <li><strong>Standard &rarr; coexistence:</strong> up to 3 minutes. Meta's signup error says it can take that long for the number to become available after it's deregistered.</li>
-        <li><strong>Coexistence &rarr; standard:</strong> a few minutes. <em>Not documented by Meta.</em> The Business app is also gone from the number.</li>
+        <li><strong>Standard &rarr; coexistence:</strong>
+          <ul class="flex flex-col gap-1 list-disc list-inside mt-1 ml-4">
+            <li><strong>The number:</strong> up to 3 minutes. Meta's signup error says it can take that long for the number to become available after it's deregistered.</li>
+            <li><strong>Template messages:</strong> not available until your templates are copied or re-created and approved. This is the longer wait. It depends on your new provider's import support, on whether you own the old Messaging account, and on Meta's review, which "can take up to 24 hours". That is a ceiling, not a fixed wait, and Meta doesn't say whether migrated copies are reviewed again.</li>
+          </ul>
+        </li>
+        <li><strong>Coexistence &rarr; standard:</strong>
+          <ul class="flex flex-col gap-1 list-disc list-inside mt-1 ml-4">
+            <li><strong>The number:</strong> a few minutes. <em>Not documented by Meta.</em> The Business app is also gone from the number.</li>
+            <li><strong>Template messages:</strong> the same wait as above, because the templates have to be copied or re-created in the new Messaging account.</li>
+          </ul>
+        </li>
       </ul>
 
       <h2 class="section-title text-on-surface mt-6">Also worth asking your new Service Provider</h2>
