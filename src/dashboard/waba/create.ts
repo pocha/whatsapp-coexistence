@@ -38,10 +38,59 @@ const resumeId = params.get('id');
 const keyInput = el<HTMLInputElement>('key-input');
 const status = el('onboarding-status');
 const lastError = el('last-error');
-const VIEWS = ['view-start', 'view-checks', 'view-override', 'view-not-on-app', 'view-register', 'view-sync', 'view-templates'];
+// The sub-views of steps 6 and 7. Steps 1 to 5 are plain panels.
+const VIEWS = ['view-override', 'view-not-on-app', 'view-register', 'view-sync', 'view-templates'];
+const STEP_OF: Record<string, number> = {
+  'view-override': 6,
+  'view-not-on-app': 6,
+  'view-register': 6,
+  'view-sync': 6,
+  'view-templates': 7,
+};
+const TOTAL_STEPS = 7;
+const STEP_TITLES = [
+  'Enter your Watobot API key',
+  'Testing your callback URL',
+  'Checking the number on the WhatsApp Business app',
+  'Message template check',
+  'Connect with Meta',
+  'Sync your contacts, or register the number',
+  'Bring your message templates across',
+];
 
+const wizard = el('wizard');
+const backBtn = el<HTMLButtonElement>('wizard-back');
+const nextBtn = el<HTMLButtonElement>('wizard-next');
+let currentStep = 1;
+// Once Meta's popup has finished the number has a record, and closing the window leaves the page.
+let numberExists = false;
+
+function goStep(n: number) {
+  currentStep = n;
+  for (let i = 1; i <= TOTAL_STEPS; i++) el(`step-${i}`).classList.toggle('hidden', i !== n);
+  el('wizard-step-label').textContent = `Step ${n} of ${TOTAL_STEPS} · ${STEP_TITLES[n - 1]}`;
+  Array.from(el('wizard-progress').children).forEach((bar, i) => {
+    bar.classList.toggle('bg-primary', i < n);
+    bar.classList.toggle('bg-surface-container-high', i >= n);
+  });
+  refreshNav();
+  // Focus goes to the first thing to do in the step.
+  requestAnimationFrame(() => el(`step-${n}`).querySelector<HTMLElement>('input:not([type=checkbox]):not([type=radio]), textarea, button')?.focus());
+}
+
+/** Shows one of the sub-views in step 6 or 7 (and the step it belongs to). */
 function show(view: string | null) {
   for (const id of VIEWS) el(id).classList.toggle('hidden', id !== view);
+  if (!view) return;
+  goStep(STEP_OF[view]);
+  // Step 6 is one of four things, depending on the number.
+  const title: Record<string, string> = {
+    'view-override': 'Connect your callback URL',
+    'view-not-on-app': 'Choose how to continue',
+    'view-register': 'Register the number',
+    'view-sync': 'Sync your contacts and chat history',
+  };
+  if (title[view]) el('wizard-step-label').textContent = `Step 6 of ${TOTAL_STEPS} · ${title[view]}`;
 }
 
 function fail(message: string | undefined) {
@@ -66,6 +115,8 @@ let signupEvent: SignupEvent | null = null;
 let wabaId: string | null = null;
 let phoneNumberId: string | null = resumeId;
 let exchanging = false;
+// When resuming: the step the number is at, to open once the key has been entered.
+let resumeStep: OnboardingStep | null = null;
 
 const apiKey = () => keyInput.value.trim();
 
@@ -99,8 +150,7 @@ async function checkKey() {
   } else {
     status.textContent = 'That is not the key for this account.';
   }
-  el<HTMLButtonElement>('start-btn').disabled = !keyVerified;
-  refreshGate();
+  refreshNav();
 }
 keyInput.addEventListener('input', checkKey);
 
@@ -114,14 +164,14 @@ wireTestEvents(
   () => cbUrl.value,
   (ok) => {
     testCodesOk = ok;
-    refreshGate();
+    refreshNav();
   },
 );
 
 cbUrl.addEventListener('input', () => {
   urlVerified = false;
   cbStatus.textContent = '';
-  refreshGate();
+  refreshNav();
 });
 
 el('cb-verify').addEventListener('click', async () => {
@@ -136,7 +186,7 @@ el('cb-verify').addEventListener('click', async () => {
     urlVerified = false;
     cbStatus.textContent = errorMessage(err);
   }
-  refreshGate();
+  refreshNav();
 });
 
 const tplRadios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="tpl"]'));
@@ -156,8 +206,8 @@ function readTemplateChoice() {
   el('tpl-own').classList.toggle('hidden', templateChoice !== 'own');
   el('tpl-provider').classList.toggle('hidden', templateChoice !== 'provider');
 }
-for (const r of tplRadios) r.addEventListener('change', () => (readTemplateChoice(), refreshGate()));
-tplSource.addEventListener('input', refreshGate);
+for (const r of tplRadios) r.addEventListener('change', () => (readTemplateChoice(), refreshNav()));
+tplSource.addEventListener('input', refreshNav);
 tplJson.addEventListener('input', () => {
   templateList = null;
   templateCount = 0;
@@ -174,34 +224,67 @@ tplJson.addEventListener('input', () => {
       out.textContent = 'That is not valid JSON.';
     }
   }
-  refreshGate();
+  refreshNav();
 });
 
-/** What is still missing before the Meta popup can open. */
-function missing(): string[] {
-  const gaps: string[] = [];
-  if (!keyVerified) gaps.push('your API key');
-  if (!urlVerified) gaps.push('a verified callback URL');
-  if (!el<HTMLInputElement>('cb-confirm').checked) gaps.push('the confirmation that your endpoint stores the data');
-  if (!testCodesOk) gaps.push('the four test codes');
-  if (!el<HTMLInputElement>('app-confirm').checked) gaps.push('the Business app confirmation');
-  if (templateChoice === null) gaps.push('where your templates are');
-  else if (templateChoice === 'own' && !ID_RE.test(tplSource.value.trim())) gaps.push('your previous Messaging account ID');
-  else if (templateChoice === 'provider' && !templateCount) gaps.push('your provider\'s template list');
-  return gaps;
+/** What step n still needs before the user can go on, or null when it is done. */
+function missingFor(n: number): string | null {
+  switch (n) {
+    case 1:
+      return keyVerified ? null : 'Enter your API key.';
+    case 2:
+      if (!urlVerified) return 'Verify your callback URL.';
+      if (!el<HTMLInputElement>('cb-confirm').checked) return 'Confirm your endpoint stores the data.';
+      return testCodesOk ? null : 'Send the test data and check the four codes.';
+    case 3:
+      return el<HTMLInputElement>('app-confirm').checked ? null : 'Confirm the number is on the WhatsApp Business app.';
+    case 4:
+      if (templateChoice === null) return 'Say where your templates are.';
+      if (templateChoice === 'own' && !ID_RE.test(tplSource.value.trim())) return 'Enter the previous Messaging account ID (digits).';
+      if (templateChoice === 'provider' && !templateCount) return 'Paste your provider\'s template list.';
+      return null;
+    default:
+      return null;
+  }
 }
 
-function refreshGate() {
-  const gaps = missing();
-  metaBtn.disabled = gaps.length > 0 || !sdkReady;
-  el('meta-hint').textContent = gaps.length ? `Still needed: ${gaps.join(', ')}.` : sdkReady ? 'Ready.' : 'Loading Meta\'s sign-up…';
-}
-for (const id of ['cb-confirm', 'app-confirm']) el(id).addEventListener('change', refreshGate);
+/** Back and Next follow the step: Next waits for the step to be done, and the later steps have their own buttons. */
+function refreshNav() {
+  const beforeMeta = currentStep <= 4;
+  const gap = missingFor(currentStep);
+  nextBtn.classList.toggle('hidden', !beforeMeta);
+  nextBtn.disabled = Boolean(gap);
+  backBtn.classList.toggle('hidden', currentStep === 1 || currentStep > 5);
+  el('wizard-hint').textContent = beforeMeta ? (gap ?? '') : '';
 
-el('start-btn').addEventListener('click', () => {
-  show('view-checks');
-  status.textContent = '';
-  refreshGate();
+  const everything = [1, 2, 3, 4].every((n) => missingFor(n) === null);
+  metaBtn.disabled = !everything || !sdkReady;
+  el('meta-hint').textContent = !everything ? 'Go back and finish the earlier steps.' : sdkReady ? '' : 'Loading Meta\'s sign-up…';
+}
+for (const id of ['cb-confirm', 'app-confirm']) el(id).addEventListener('change', refreshNav);
+
+nextBtn.addEventListener('click', async () => {
+  // Picking up a number part-way through: the key is the only thing to ask again.
+  if (currentStep === 1 && resumeStep) {
+    await showStep(resumeStep);
+    return;
+  }
+  goStep(currentStep + 1);
+});
+backBtn.addEventListener('click', () => goStep(currentStep - 1));
+
+el('wizard-close').addEventListener('click', () => {
+  if (numberExists) {
+    location.href = '/dashboard/';
+    return;
+  }
+  wizard.classList.add('hidden');
+  el('reopen-btn').classList.remove('hidden');
+});
+el('reopen-btn').addEventListener('click', () => {
+  wizard.classList.remove('hidden');
+  el('reopen-btn').classList.add('hidden');
+  goStep(currentStep);
 });
 
 // --- Meta's popup ----------------------------------------------------------------------------
@@ -210,7 +293,7 @@ function initEmbeddedSignup() {
   window.fbAsyncInit = function () {
     FB.init({ appId: META_APP_ID, cookie: true, xfbml: false, version: 'v26.0' });
     sdkReady = true;
-    refreshGate();
+    refreshNav();
   };
   const script = document.createElement('script');
   script.src = 'https://connect.facebook.net/en_US/sdk.js';
@@ -283,6 +366,7 @@ async function maybeFinish() {
     signupCode = null;
     return;
   }
+  numberExists = true;
   await connectOverride(callbackUrl);
 }
 
@@ -314,6 +398,7 @@ el('ov-btn').addEventListener('click', async () => {
 // --- The steps after the popup ---------------------------------------------------------------
 
 async function showStep(step: OnboardingStep) {
+  numberExists = true;
   fail(undefined);
   fillSidebar(auth.currentUser!.uid, phoneNumberId);
   switch (step) {
@@ -522,11 +607,12 @@ onAuthStateChanged(auth, async (user) => {
     location.replace('/dashboard/key/');
     return;
   }
-  el('key-card').classList.remove('hidden');
+
+  wizard.classList.remove('hidden');
+  goStep(1);
 
   if (!resumeId) {
-    status.textContent = 'Enter your API key to continue.';
-    show('view-start');
+    status.textContent = '';
     initEmbeddedSignup();
     return;
   }
@@ -543,6 +629,6 @@ onAuthStateChanged(auth, async (user) => {
   }
   status.textContent = 'Enter your API key to carry on where you left off.';
   if (data.overrideUrl) callbackUrl = data.overrideUrl;
-  await showStep(data.onboarding.step);
+  resumeStep = data.onboarding.step;
   if (data.onboarding.error) fail(data.onboarding.error);
 });
