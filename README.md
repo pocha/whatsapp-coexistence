@@ -6,6 +6,69 @@ generated from `views/` and the browser scripts are TypeScript in `src/`, both b
 into `public/` (`npm run build:pages`; `npm run typecheck` checks the types). The backend (`functions/`) is
 Firebase Functions, Firestore and Firebase Auth.
 
+## Roadmap
+
+What an ideal Tech Provider needs, from the research behind the how-to guides on the site
+(`views/pages/how-to/`). Tick items as they ship, and correct an entry if Meta's docs say
+otherwise. The app is still waitlist-only, so the guides may describe things not built yet.
+Last reviewed 2026-10-16.
+
+### Built
+- [x] Phone + WhatsApp OTP sign-in, per-account Watobot API key, key rotation
+- [x] Meta token stored encrypted under the user's Watobot API key (decrypted in memory per request)
+- [x] Message relay, incoming-URL override (`setWebhook`), template manager (list, create, edit, delete)
+- [x] `registerNumber` (manual, from the number page)
+- [x] Rate limiting for template sends (ramp-up, attempts vs accepted, per-number override) and usage counters
+- [x] Embedded Signup launched with `featureType: whatsapp_business_app_onboarding`
+- [x] App-level webhook fields subscribed (checked through the Meta MCP, 2026-10-16): `account_alerts`, `account_review_update`, `account_update`, `message_template_quality_update`, `message_template_status_update`, `messages`, `phone_number_name_update`, `phone_number_quality_update`, `security`, `history`, `smb_message_echoes`, `smb_app_state_sync`
+
+### P0: the migration promise and launch
+Design: run onboarding only once the user has what they need afterwards.
+1. [ ] **Pre-onboarding gate.** Collect the callback URL first and verify it (the challenge check already exists). Send sample `history`, `smb_app_state_sync` and `smb_message_echoes` payloads to it and ask the user to confirm they received and saved them. Ask for the phone number and have the user confirm it is on the WhatsApp Business app (Meta can't be asked about an arbitrary number before onboarding; `is_on_biz_app` needs a phone number ID and a token).
+2. [ ] **Subscribe and set the override inside onboarding** (today `setWebhook` runs later, after the user sets a URL).
+3. [ ] **Start the contacts and history syncs right after onboarding** (`POST /<PHONE_NUMBER_ID>/smb_app_data`, `sync_type` `smb_app_state_sync`, then `history`). Meta gives 24 hours, otherwise the number must be offboarded and the signup repeated. Each can be started only once. The data goes to the user's callback URL, so Watobot stores only the sync state (requested at, accepted), not the data. Watobot can't see sync progress, because those webhooks are overridden.
+4. [ ] **Branch on the signup event.** `FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING` = coexistence, skip registration. `FINISH` = the customer took the new-number path, which needs registration (a six-digit `pin` is still required on the register call) and a warning that they won't have the Business app on it. Pass the event to `exchangeCode`.
+5. [ ] **After onboarding, verify with `is_on_biz_app` and `platform_type`** (expect `true` and `CLOUD_API`). Make `registerNumber` refuse when `is_on_biz_app` is true.
+6. [ ] **Help for Meta's signup errors** on the onboarding page (they are shown in Meta's popup): 2655093, 3441049, 2655094, 3441030, 3441045, 2655095 / 2655048, and "registered to an existing WhatsApp account". See the move guide.
+7. [ ] **`account_update` handling** in the `webhook` function (it currently returns 200 and drops everything): `PARTNER_REMOVED` (clean up, notify), `ACCOUNT_OFFBOARDED` (pause sends), `ACCOUNT_RECONNECTED` (resume). Account-level and template webhooks are never overridden, so they always reach Watobot.
+8. [ ] **Verify the webhook signature** (`X-Hub-Signature-256` with the app secret) before trusting anything at the app URL.
+9. [ ] **Number status endpoint** (key-authenticated; `GET /<PHONE_NUMBER_ID>?fields=status,code_verification_status,is_on_biz_app,platform_type`) and a command on the number page.
+
+### P1: moving in and out
+- [ ] Disconnect / leave Watobot: unsubscribe the app from the account, delete the stored token, remove the record (today "Delete account" makes no Meta calls)
+- [ ] Deregister endpoint, standard numbers only (Meta's deregister can't be used on a number that is on both the app and the API)
+- [ ] Ownership check on the number page: is the Messaging account in the user's portfolio
+- [ ] Template import with Meta's template migration API (`POST /<DEST_WABA_ID>/migrate_message_templates`), with a report of `failed_templates`
+- [ ] Template status and quality in the manager, and alerts on `message_template_status_update` / `message_template_quality_update`
+- [ ] Number quality alerts (`phone_number_quality_update`), optional throttling on quality drops
+
+### P2: reliability and trust
+- [ ] Per-recipient ordering, retries when the customer's endpoint is down, de-duplication, published latency figures
+- [ ] `messaging_account_id` in send calls (required in multi-Messaging-account setups from Phase 2)
+- [ ] Data export and deletion with Meta-side cleanup; say plainly what is stored (the server decrypts the token per request, so don't call it "zero knowledge")
+- [ ] Status page, uptime and error alerting, support channel, documented migration-help SLA
+- [ ] App goes live: it is in `dev_mode`, contact email unverified, no support URL or description yet
+- [ ] A "Move to Watobot" wizard and a "Move out" kit
+
+### Meta behaviours we rely on
+| Behaviour | Source (Meta for Developers) | As of |
+| --- | --- | --- |
+| Coexistence does not create a partner-specific Messaging account; the existing account is converted and keeps its ID | Embedded Signup > Onboard WhatsApp Business app users, and Account model evolution > Onboarding | 2026-06-26 |
+| 24 hours after onboarding to start the contacts and history syncs; each only once | Onboard WhatsApp Business app users | 2026-06-26 |
+| Overrides apply to `messages`, `message_echoes`, `smb_message_echoes`, `smb_app_state_sync`, `history` and more; template and account-level webhooks (`account_update`, `account_review_update`, `account_alerts`) always go to the app's own URL | Webhooks > Override the callback URL | 2026-09-28 |
+| The Deregister API can't be used on a number in use with both Cloud API and the Business app; disconnect in the app instead | Onboard WhatsApp Business app users; Graph API reference for deregister | 2026-06-26 |
+| A number can only be registered through the API (not WhatsApp Manager or the App Dashboard) | Business phone numbers > Register a phone number | 2026-06-26 |
+| The two-step PIN is being deprecated for eligible numbers; keep sending a six-digit `pin` on register for now | Account model evolution (Updates to WhatsApp Business accounts) | 2026-09-22 |
+| Template migration: same Meta business, `APPROVED` with `GREEN` or `UNKNOWN` quality; it recreates the templates | Templates > Migration | 2026-06-24 |
+| New account model GA 2026-09-23; Phase 2 (H1 2027) adds `waac_id` to message events; Phase 3 (H1 2028) requires WAAC IDs in API paths | Account model evolution | 2026-09-22 |
+
+### Open questions
+- Whether migrated templates are reviewed again (Meta says only that migration "recreates" them; review "can take up to 24 hours")
+- What happens to templates on a second coexistence onboarding, and which Messaging account a standard-to-coexistence move ends up in
+- Whether unsharing a coexistence partner in Business Settings disconnects it (Meta documents only the Business app disconnect)
+- Whether several numbers can share one display name
+- A Messaging account is shareable with "up to two partners" on one Meta page and "only one" on another
+
 ## Setup
 
 ### 1. Business Portfolio
