@@ -1,5 +1,5 @@
 import { auth, db, functionsBase, onAuthStateChanged } from '/assets/firebase-init.js';
-import { META_APP_ID, META_CONFIG_ID } from '/assets/app-config.js';
+import { META_APP_ID, META_CONFIG_ID, WEBHOOK_VERIFY_TOKEN } from '/assets/app-config.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
 import { isValidApiKey } from '/assets/api-key.js';
@@ -187,6 +187,14 @@ el('cb-verify').addEventListener('click', async () => {
     cbStatus.textContent = errorMessage(err);
   }
   refreshNav();
+});
+
+// The test chatbot's settings, for someone who has no endpoint yet (same as on the number page).
+el('chatbot-env').textContent =
+  `WEBHOOK_VERIFY_TOKEN=${WEBHOOK_VERIFY_TOKEN}\nRELAY_BASE=${functionsBase()}/relayMessage\nWATOBOT_API_KEY=`;
+el('copy-env-btn').addEventListener('click', async () => {
+  await navigator.clipboard.writeText(el('chatbot-env').textContent ?? '');
+  el('copy-env-btn').textContent = 'Copied';
 });
 
 const tplRadios = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="tpl"]'));

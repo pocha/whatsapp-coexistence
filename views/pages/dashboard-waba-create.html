@@ -72,6 +72,21 @@
             <button id="cb-verify" class="rounded-xl border border-outline-variant bg-white px-5 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all disabled:opacity-50">Verify</button>
           </div>
           <p id="cb-status" class="text-on-surface-variant font-body-md text-sm"></p>
+          <details>
+            <summary class="label-strong text-on-surface-variant cursor-pointer">Don't have an endpoint yet? Use the test chatbot</summary>
+            <p class="text-on-surface-variant font-body-md text-sm mt-2">
+              The <a class="text-primary font-bold hover:underline" href="https://github.com/pocha/whatsapp-coexistence/tree/main/test-chatbot" target="_blank" rel="noopener">test chatbot</a>
+              is a small server that answers Meta's handshake and prints every event it receives, with
+              any test code, so you can try this step without building anything. Follow its README to
+              start it (it gives you a public HTTPS URL to paste above), and copy these into its
+              <code>.env</code>, adding your Watobot API key as <code>WATOBOT_API_KEY</code>.
+              It prints events instead of saving them, so it's for trying this flow: a real endpoint has to save the data.
+            </p>
+            <div class="relative">
+              <pre class="bg-surface-container-low rounded-lg p-3 mt-2 text-xs overflow-x-auto whitespace-pre-wrap pr-20" id="chatbot-env"></pre>
+              <button id="copy-env-btn" type="button" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+            </div>
+          </details>
           <label class="flex items-start gap-2 text-on-surface-variant font-body-md text-sm">
             <input id="cb-confirm" type="checkbox" class="mt-1"/>
             <span>My endpoint parses and stores history, contacts and echoed messages.</span>

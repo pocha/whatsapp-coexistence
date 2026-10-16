@@ -2,7 +2,7 @@
 
 A tiny chatbot for trying WA Coexistence when you don't have an app of your own
 that uses the WhatsApp API. It answers Meta's verification handshake and logs
-every incoming message. Add your Watobot API key and it also replies "You said:
+every incoming message, with any Watobot test code (from the "Send test data" button) shown on one line. Add your Watobot API key and it also replies "You said:
 ..." to text messages through our relay. It has no dependencies.
 
 ## Setup
@@ -11,8 +11,9 @@ every incoming message. Add your Watobot API key and it also replies "You said:
 2. Run `npm install`. It installs the dependencies, including `cloudflared`,
    which gives the bot its public HTTPS URL.
 3. Copy `.env.example` to `.env` (`cp .env.example .env`, or `copy` on Windows),
-   and fill it in with the values from the **Using the test chatbot?** box on
-   your WABA's page on Watobot (the page that sent you here).
+   and fill it in with the values from the **Using the test chatbot** box in
+   step 2 of the onboarding window, or on your number's page on Watobot (the page
+   that sent you here).
 4. Run `npm start`. It launches the server and prints your webhook URL:
 
    ```
