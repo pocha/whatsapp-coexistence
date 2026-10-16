@@ -5,7 +5,7 @@ import { isValidApiKey } from '/assets/api-key.js';
 import '/assets/nav-auth.js';
 import { wireTestEvents } from '/assets/test-events.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { OnboardingStep, PhoneNumberDoc, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
+import type { NumberReputationResponse, OnboardingStep, PhoneNumberDoc, SetWebhookRequest, SyncStatus, TemplateReputationResponse } from '../../../functions/src/helpers/types';
 import { effectiveConfig, view } from '../../../functions/src/helpers/rateLimiter';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
@@ -246,6 +246,61 @@ function renderOnboardingCard(data: PhoneNumberDoc) {
   card.classList.remove('hidden');
 }
 
+/** The reputation section: what Meta last told us about the number and the templates that are not in good standing. */
+function renderReputation(data: PhoneNumberDoc) {
+  const rep = data.reputation;
+  const when = (at?: number) => (at ? new Date(at).toLocaleString() : 'never');
+  const n = rep?.number;
+  el('reputation-number').textContent = n
+    ? `Number quality: ${n.qualityRating ?? 'not read yet'}${n.event ? ` · last update: ${n.event}${n.currentLimit ? ` (${n.currentLimit})` : ''}, ${when(n.at)}` : ` (${when(n.at)})`}`
+    : 'Nothing from Meta about this number yet. Refresh to read it now.';
+
+  const list = Object.values(rep?.templates ?? {});
+  const box = el('reputation-templates');
+  box.replaceChildren();
+  if (!list.length) {
+    box.textContent = rep?.templatesCheckedAt ? `None, as of ${when(rep.templatesCheckedAt)}.` : 'Not read yet. Refresh to check.';
+  } else {
+    for (const t of list.sort((a, b) => a.name.localeCompare(b.name))) {
+      const row = document.createElement('p');
+      row.textContent = `${t.name} (${t.language}): ${[t.score, t.status].filter(Boolean).join(', ')} · ${when(t.at)}`;
+      box.append(row);
+    }
+  }
+  el('reputation-card').classList.remove('hidden');
+}
+
+el('reputation-refresh').addEventListener('click', async () => {
+  const apiKey = apiKeyInput.value.trim();
+  const out = el('reputation-status');
+  if (!isValidApiKey(apiKey)) {
+    out.textContent = 'Enter your API key at the top first.';
+    return;
+  }
+  el<HTMLButtonElement>('reputation-refresh').disabled = true;
+  out.textContent = 'Asking Meta…';
+  try {
+    const post = async <T extends { ok: boolean; error?: string }>(fn: string): Promise<T> => {
+      const res = await fetch(`${functionsBase()}/${fn}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumberId, apiKey }),
+      });
+      const body = (await res.json().catch(() => ({}))) as T;
+      if (!res.ok || !body.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      return body;
+    };
+    await post<NumberReputationResponse>('numberReputation');
+    await post<TemplateReputationResponse>('templateReputation');
+    out.textContent = '';
+    await loadRecord();
+  } catch (err) {
+    out.textContent = errorMessage(err);
+  } finally {
+    el<HTMLButtonElement>('reputation-refresh').disabled = false;
+  }
+});
+
 // The rules let just the owner read phoneNumbers/{phoneNumberId}. Returns false if the record
 // is missing or isn't this user's; the page still works then, just without the saved details.
 async function loadRecord(): Promise<boolean> {
@@ -263,16 +318,18 @@ async function loadRecord(): Promise<boolean> {
   if (data.displayPhoneNumber) el('page-title').textContent = data.displayPhoneNumber;
   renderIds(data.wabaId);
   const finished = !data.onboarding || data.onboarding.step === 'done';
-  if (data.deregisteredAt) {
-    const chip = el('type-chip');
-    chip.textContent = 'De-registered';
-    chip.className = 'rounded-full px-3 py-1 label-strong bg-error/10 text-error';
-  } else if (finished && data.isOnBizApp !== undefined) {
+  if (finished && data.isOnBizApp !== undefined) {
     const chip = el('type-chip');
     chip.textContent = data.isOnBizApp ? 'Coexistence' : 'API only';
     chip.className = `rounded-full px-3 py-1 label-strong ${data.isOnBizApp ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`;
   }
+  // A number that has not finished onboarding (or was de-registered) goes to the wizard, at its step.
+  if (data.onboarding && data.onboarding.step !== 'done') {
+    location.replace(`/dashboard/waba/create.html?id=${encodeURIComponent(phoneNumberId)}`);
+    return true;
+  }
   renderOnboardingCard(data);
+  renderReputation(data);
   renderStats(data);
   return true;
 }
@@ -356,20 +413,17 @@ function renderCommands() {
     `  -d '${text}'`,
   ].join('\n');
 
-  // Only for a brand-new number (not coexistence): Meta needs it registered before it can send.
-  const register = JSON.stringify({ phoneNumberId, apiKey: key, pin: 'YOUR_6_DIGIT_PIN' });
-  el<HTMLTextAreaElement>('register-command').value = [
-    `curl -X POST '${base}/registerNumber' \\`,
-    `  ${json} \\`,
-    `  -d '${register}'`,
-  ].join('\n');
 
-  el<HTMLTextAreaElement>('status-command').value = [
-    `curl -X POST '${base}/numberStatus' \\`,
+  el<HTMLTextAreaElement>('number-reputation-command').value = [
+    `curl -X POST '${base}/numberReputation' \\`,
     `  ${json} \\`,
     `  -d '${JSON.stringify({ phoneNumberId, apiKey: key })}'`,
   ].join('\n');
-
+  el<HTMLTextAreaElement>('template-reputation-command').value = [
+    `curl -X POST '${base}/templateReputation' \\`,
+    `  ${json} \\`,
+    `  -d '${JSON.stringify({ phoneNumberId, apiKey: key })}'`,
+  ].join('\n');
   el<HTMLTextAreaElement>('deregister-command').value = [
     `curl -X POST '${base}/deregisterNumber' \\`,
     `  ${json} \\`,
@@ -421,11 +475,11 @@ apiKeyInput.addEventListener('input', renderCommands);
 for (const [button, box] of [
   ['copy-send-btn', 'send-command'],
   ['copy-send-text-btn', 'send-text-command'],
-  ['copy-status-btn', 'status-command'],
+  ['copy-number-reputation-btn', 'number-reputation-command'],
+  ['copy-template-reputation-btn', 'template-reputation-command'],
   ['copy-deregister-btn', 'deregister-command'],
   ['copy-tpl-import-btn', 'tpl-import-command'],
   ['copy-tpl-migrate-btn', 'tpl-migrate-command'],
-  ['copy-register-btn', 'register-command'],
   ['copy-tpl-list-btn', 'tpl-list-command'],
   ['copy-tpl-create-btn', 'tpl-create-command'],
   ['copy-tpl-edit-btn', 'tpl-edit-command'],

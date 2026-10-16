@@ -50,6 +50,13 @@ function startMetaStub(port) {
       return;
     }
 
+    // A number's status and quality rating.
+    const reputation = req.url.match(/^\/(\d+)\?fields=status,quality_rating$/);
+    if (req.method === 'GET' && reputation) {
+      res.writeHead(200).end(JSON.stringify({ id: reputation[1], status: 'CONNECTED', quality_rating: 'GREEN' }));
+      return;
+    }
+
     // Registering: 229 is refused (a wrong PIN, say), the rest work.
     if (req.method === 'POST' && req.url.match(/^\/\d+\/register$/)) {
       if (req.url === '/229/register') {
@@ -102,6 +109,24 @@ function startMetaStub(port) {
         return;
       }
       res.writeHead(200).end(JSON.stringify({ messages: [{ id: 'wamid.stub-message-id' }] }));
+      return;
+    }
+
+    // Reading every template with its quality score (the reputation call): one green, two not.
+    if (req.method === 'GET' && req.url.includes('/message_templates') && req.url.includes('quality_score')) {
+      if (!onMetaToken) {
+        res.writeHead(401).end(JSON.stringify({ error: { message: 'meta-stub: wrong token' } }));
+        return;
+      }
+      res.writeHead(200).end(
+        JSON.stringify({
+          data: [
+            { name: 'good', language: 'en_US', status: 'APPROVED', quality_score: { score: 'GREEN' } },
+            { name: 'meh', language: 'en_US', status: 'APPROVED', quality_score: { score: 'YELLOW' } },
+            { name: 'fresh', language: 'en_US', status: 'APPROVED', quality_score: { score: 'UNKNOWN' } },
+          ],
+        }),
+      );
       return;
     }
 

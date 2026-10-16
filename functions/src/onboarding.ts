@@ -7,7 +7,9 @@ import { authenticateKey } from './accounts';
 import {
   createTemplate,
   deregisterPhoneNumber,
+  getNumberReputation,
   getPhoneNumberInfo,
+  listTemplateScores,
   migrateTemplatesPage,
   requestSmbAppData,
   verifyWabaAccess,
@@ -16,21 +18,25 @@ import { checkPublicUrl, verifyEndpointChallenge } from './helpers/endpointCheck
 import { config } from './helpers/config';
 import { newCodes, sendTestEvent, TEST_EVENT_TYPES } from './helpers/testEvents';
 import { parseTemplateExport } from './helpers/templateImport';
+import { templateKey } from './helpers/reputation';
 import type {
   DeregisterNumberRequest,
   ImportTemplatesRequest,
   ImportTemplatesResponse,
   MigrateTemplatesRequest,
   MigrateTemplatesResponse,
-  NumberStatusResponse,
+  NumberReputationResponse,
   OnboardingState,
   OnboardingStep,
   PhoneNumberDoc,
+  ReputationRequest,
   SendTestEventsRequest,
   SendTestEventsResponse,
   SetOnboardingStepRequest,
   StartSyncRequest,
   SyncType,
+  TemplateReputation,
+  TemplateReputationResponse,
   TestEventType,
   VerifyTestCodesRequest,
   VerifyTestCodesResponse,
@@ -92,6 +98,7 @@ export async function advanceAfterOverride(phoneNumberId: string, accessToken: s
   const step: OnboardingStep = coexistence ? 'sync' : 'not_on_app';
   await ref.update({
     isOnBizApp: info.isOnBizApp ?? false,
+    ...(info.status ? { metaStatus: info.status } : {}),
     platformType: info.platformType ?? FieldValue.delete(),
     ...(coexistence ? { sync: { contacts: { state: 'none' }, history: { state: 'none' } } } : {}),
     onboarding: movedTo(doc.onboarding!, step),
@@ -110,18 +117,53 @@ export const checkCallbackUrl = post(async (req, res) => {
   res.status(200).send({ ok: true });
 });
 
-// ---- number status ----
+// ---- reputation ----
 
-export const numberStatus = post(async (req, res) => {
-  const { phoneNumberId, apiKey } = (req.body ?? {}) as { phoneNumberId?: string; apiKey?: string };
+/**
+ * Puts an API-only number back at the register step, so the dashboard sends the user to the wizard.
+ * A number that is also on the Business app is never touched: it is registered by the app.
+ */
+async function markUnregistered(phoneNumberId: string, status: string): Promise<void> {
+  const ref = numbers().doc(phoneNumberId);
+  const doc = (await ref.get()).data() as PhoneNumberDoc;
+  const update: Record<string, unknown> = { metaStatus: status };
+  if (doc.isOnBizApp !== true && (!doc.onboarding || doc.onboarding.step === 'done')) {
+    update.onboarding = { step: 'register', event: doc.onboarding?.event ?? 'FINISH', updatedAt: Date.now() };
+  }
+  await ref.update(update);
+}
+
+/** Asks Meta for the number's status and quality rating, and keeps them. A number that is not connected goes back to the register step. */
+export const numberReputation = post(async (req, res) => {
+  const { phoneNumberId, apiKey } = (req.body ?? {}) as Partial<ReputationRequest>;
   if (!phoneNumberId || !apiKey) throw new HttpError(400, 'phoneNumberId and apiKey are required');
   const { accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
-  const info = await getPhoneNumberInfo(String(phoneNumberId), accessToken);
+  const info = await getNumberReputation(String(phoneNumberId), accessToken);
   await numbers().doc(String(phoneNumberId)).update({
-    ...(info.isOnBizApp === undefined ? {} : { isOnBizApp: info.isOnBizApp }),
-    ...(info.platformType ? { platformType: info.platformType } : {}),
+    ...(info.status ? { metaStatus: info.status } : {}),
+    'reputation.number.qualityRating': info.qualityRating ?? null,
+    'reputation.number.at': Date.now(),
   });
-  const body: NumberStatusResponse = { ok: true, ...info };
+  if (info.status && info.status !== 'CONNECTED') await markUnregistered(String(phoneNumberId), info.status);
+  const body: NumberReputationResponse = { ok: true, status: info.status, qualityRating: info.qualityRating };
+  res.status(200).send(body);
+});
+
+/** Reads every template's quality score from Meta, and keeps the ones that are not green. */
+export const templateReputation = post(async (req, res) => {
+  const { phoneNumberId, apiKey } = (req.body ?? {}) as Partial<ReputationRequest>;
+  if (!phoneNumberId || !apiKey) throw new HttpError(400, 'phoneNumberId and apiKey are required');
+  const { wabaId, accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
+  const all = await listTemplateScores(wabaId, accessToken);
+  const now = Date.now();
+  const flagged: TemplateReputation[] = all
+    .filter((t) => t.score !== 'GREEN')
+    .map((t) => ({ name: t.name, language: t.language, score: t.score, ...(t.status ? { status: t.status } : {}), at: now }));
+  await numbers().doc(String(phoneNumberId)).update({
+    'reputation.templates': Object.fromEntries(flagged.map((t) => [templateKey(t.name, t.language), t])),
+    'reputation.templatesCheckedAt': now,
+  });
+  const body: TemplateReputationResponse = { ok: true, templates: flagged, total: all.length };
   res.status(200).send(body);
 });
 
@@ -144,7 +186,13 @@ export const deregisterNumber = post(async (req, res) => {
     );
   }
   await deregisterPhoneNumber(String(phoneNumberId), accessToken);
-  await numbers().doc(String(phoneNumberId)).update({ deregisteredAt: Date.now() });
+  // Back to the register step: the dashboard sends the user to the wizard, which registers it again.
+  const doc = (await numbers().doc(String(phoneNumberId)).get()).data() as PhoneNumberDoc;
+  await numbers().doc(String(phoneNumberId)).update({
+    metaStatus: 'DEREGISTERED',
+    isOnBizApp: false,
+    onboarding: { step: 'register', event: doc.onboarding?.event ?? 'FINISH', updatedAt: Date.now() },
+  });
   res.status(200).send({ ok: true });
 });
 

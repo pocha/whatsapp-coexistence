@@ -274,6 +274,71 @@ test('templates: a source we cannot read sends the user to their provider; a rea
   assert.deepEqual(done.failed, [{ id: '4', reason: 'Incorrect category' }]);
 });
 
+// ---- reputation, and a number going back to the register step ----
+
+test('reputation: the number and the non-green templates are read from Meta and kept; the webhook then updates them', async () => {
+  await db.collection('phoneNumbers').doc('240').set({
+    userId,
+    wabaId: '9240',
+    phoneNumberId: '240',
+    displayPhoneNumber: '+1 555-000-1111',
+    encAccessToken: encryptToken(META_TOKEN, KEY),
+  });
+
+  const number = await (await post('/numberReputation', { phoneNumberId: '240', apiKey: KEY })).json();
+  assert.equal(number.status, 'CONNECTED');
+  assert.equal(number.qualityRating, 'GREEN');
+  const afterNumber = await numberDoc('240');
+  assert.equal(afterNumber.metaStatus, 'CONNECTED');
+  assert.equal(afterNumber.reputation.number.qualityRating, 'GREEN');
+
+  const templates = await (await post('/templateReputation', { phoneNumberId: '240', apiKey: KEY })).json();
+  assert.equal(templates.total, 3);
+  assert.deepEqual(templates.templates.map((t) => `${t.name}:${t.score}`).sort(), ['fresh:UNKNOWN', 'meh:YELLOW']);
+  assert.deepEqual(Object.keys((await numberDoc('240')).reputation.templates).sort(), ['fresh__en_US', 'meh__en_US']);
+
+  // Meta's webhooks for the same Messaging account: the number's quality, one template turning
+  // green, another going red and a third being paused.
+  const event = (field, value) => ({ field, value });
+  const webhook = await post('/webhook', {
+    object: 'whatsapp_business_account',
+    entry: [
+      {
+        id: '9240',
+        changes: [
+          event('phone_number_quality_update', { display_phone_number: '15550001111', event: 'DOWNGRADE', current_limit: 'TIER_1K' }),
+          event('message_template_quality_update', { message_template_name: 'meh', message_template_language: 'en_US', new_quality_score: 'GREEN' }),
+          event('message_template_quality_update', { message_template_name: 'fresh', message_template_language: 'en_US', new_quality_score: 'RED' }),
+          event('message_template_status_update', { event: 'PAUSED', message_template_name: 'good', message_template_language: 'en_US' }),
+        ],
+      },
+    ],
+  });
+  assert.equal(webhook.status, 200);
+  const kept = (await numberDoc('240')).reputation;
+  assert.equal(kept.number.event, 'DOWNGRADE');
+  assert.equal(kept.number.currentLimit, 'TIER_1K');
+  assert.equal(kept.number.qualityRating, 'GREEN', 'what Meta last reported is kept alongside the event');
+  assert.equal(kept.templates.meh__en_US, undefined, 'a template that turned green is dropped');
+  assert.equal(kept.templates.fresh__en_US.score, 'RED');
+  assert.equal(kept.templates.good__en_US.status, 'PAUSED');
+});
+
+test('de-registering a plain number puts it back at the register step', async () => {
+  await db.collection('phoneNumbers').doc('241').set({
+    userId,
+    wabaId: '9241',
+    phoneNumberId: '241',
+    encAccessToken: encryptToken(META_TOKEN, KEY),
+    onboarding: { step: 'done', event: 'FINISH', updatedAt: 1 },
+  });
+  const res = await post('/deregisterNumber', { phoneNumberId: '241', apiKey: KEY });
+  assert.equal(res.status, 200);
+  const after = await numberDoc('241');
+  assert.equal(after.metaStatus, 'DEREGISTERED');
+  assert.equal(after.onboarding.step, 'register');
+});
+
 test('login: a new phone number gets a user, sets a key, and then needs that key to log in', async () => {
   const phone = '919000000099';
   const otp = async () => db.collection('otps').doc(phone).set({ code: '123456', expiresAt: Date.now() + 60_000, attempts: 0, lastSentAt: 0 });

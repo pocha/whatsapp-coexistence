@@ -12,10 +12,11 @@ export {
   deregisterNumber,
   importTemplates,
   migrateTemplates,
-  numberStatus,
+  numberReputation,
   sendTestEvents,
   setOnboardingStep,
   startSync,
+  templateReputation,
   verifyTestCodes,
 } from './onboarding';
 export { joinWaitlist } from './joinWaitlist';
