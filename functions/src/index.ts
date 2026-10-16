@@ -9,6 +9,7 @@ export { sendOtp, verifyOtp } from './otp';
 export { webhook } from './webhook';
 export {
   checkCallbackUrl,
+  deregisterNumber,
   importTemplates,
   migrateTemplates,
   numberStatus,

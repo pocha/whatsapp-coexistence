@@ -6,6 +6,7 @@ import { HttpError, requireAuth } from './helpers/auth';
 import { authenticateKey } from './accounts';
 import {
   createTemplate,
+  deregisterPhoneNumber,
   getPhoneNumberInfo,
   migrateTemplatesPage,
   requestSmbAppData,
@@ -16,6 +17,7 @@ import { config } from './helpers/config';
 import { newCodes, sendTestEvent, TEST_EVENT_TYPES } from './helpers/testEvents';
 import { parseTemplateExport } from './helpers/templateImport';
 import type {
+  DeregisterNumberRequest,
   ImportTemplatesRequest,
   ImportTemplatesResponse,
   MigrateTemplatesRequest,
@@ -121,6 +123,29 @@ export const numberStatus = post(async (req, res) => {
   });
   const body: NumberStatusResponse = { ok: true, ...info };
   res.status(200).send(body);
+});
+
+// ---- leaving the API ----
+
+/**
+ * Takes a standard (API-only) number off the Cloud API, so another provider can onboard it. A
+ * number that is also on the WhatsApp Business app can't be deregistered: the way off is to
+ * disconnect in the app, so that is what the answer says.
+ */
+export const deregisterNumber = post(async (req, res) => {
+  const { phoneNumberId, apiKey } = (req.body ?? {}) as Partial<DeregisterNumberRequest>;
+  if (!phoneNumberId || !apiKey) throw new HttpError(400, 'phoneNumberId and apiKey are required');
+  const { accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
+  const info = await getPhoneNumberInfo(String(phoneNumberId), accessToken);
+  if (info.isOnBizApp === true) {
+    throw new HttpError(
+      409,
+      'This number is also on the WhatsApp Business app, which Meta does not allow it to be deregistered from. In the app, go to Settings > Account > Business Platform and disconnect it.',
+    );
+  }
+  await deregisterPhoneNumber(String(phoneNumberId), accessToken);
+  await numbers().doc(String(phoneNumberId)).update({ deregisteredAt: Date.now() });
+  res.status(200).send({ ok: true });
 });
 
 // ---- the contacts and history syncs ----

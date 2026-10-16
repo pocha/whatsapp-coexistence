@@ -83,6 +83,8 @@ export interface PhoneNumberDoc {
   /** From Meta, after onboarding: whether the number is also on the WhatsApp Business app. */
   isOnBizApp?: boolean;
   platformType?: string;
+  /** When the number was taken off the Cloud API from here (deregisterNumber). */
+  deregisteredAt?: number;
   /** When each Meta data sync was requested. The data itself goes to the customer's URL and is never kept here. */
   sync?: Partial<Record<SyncType, SyncStatus>>;
 }
@@ -112,6 +114,11 @@ export interface SetOnboardingStepRequest {
   phoneNumberId: string;
   apiKey: string;
   step: 'register' | 'templates' | 'done';
+}
+
+export interface DeregisterNumberRequest {
+  phoneNumberId: string;
+  apiKey: string;
 }
 
 export interface NumberStatusResponse extends ApiResponse {

@@ -186,6 +186,19 @@ function renderStats(data: PhoneNumberDoc) {
   el('stats').classList.remove('hidden');
 }
 
+/** The IDs under the title. The Messaging account's ID is what used to be called the WABA ID. */
+function renderIds(messagingAccountId: string | undefined) {
+  const lines = [`Phone number ID: ${phoneNumberId}`];
+  if (messagingAccountId) lines.push(`Messaging account ID (previously WABA ID): ${messagingAccountId}`);
+  el('ids-line').replaceChildren(
+    ...lines.map((text) => {
+      const p = document.createElement('p');
+      p.textContent = text;
+      return p;
+    }),
+  );
+}
+
 const STEP_NAMES: Record<OnboardingStep, string> = {
   override: 'connecting your callback URL',
   not_on_app: 'choosing coexistence or API only',
@@ -248,9 +261,13 @@ async function loadRecord(): Promise<boolean> {
 
   // The number is the title; whether it also runs on the Business app is a chip beside it.
   if (data.displayPhoneNumber) el('page-title').textContent = data.displayPhoneNumber;
-  el('ids-line').textContent = `WABA ID: ${data.wabaId ?? 'unknown'} · Phone number ID: ${phoneNumberId}`;
+  renderIds(data.wabaId);
   const finished = !data.onboarding || data.onboarding.step === 'done';
-  if (finished && data.isOnBizApp !== undefined) {
+  if (data.deregisteredAt) {
+    const chip = el('type-chip');
+    chip.textContent = 'De-registered';
+    chip.className = 'rounded-full px-3 py-1 label-strong bg-error/10 text-error';
+  } else if (finished && data.isOnBizApp !== undefined) {
     const chip = el('type-chip');
     chip.textContent = data.isOnBizApp ? 'Coexistence' : 'API only';
     chip.className = `rounded-full px-3 py-1 label-strong ${data.isOnBizApp ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`;
@@ -353,6 +370,22 @@ function renderCommands() {
     `  -d '${JSON.stringify({ phoneNumberId, apiKey: key })}'`,
   ].join('\n');
 
+  el<HTMLTextAreaElement>('deregister-command').value = [
+    `curl -X POST '${base}/deregisterNumber' \\`,
+    `  ${json} \\`,
+    `  -d '${JSON.stringify({ phoneNumberId, apiKey: key })}'`,
+  ].join('\n');
+  el<HTMLTextAreaElement>('tpl-migrate-command').value = [
+    `curl -X POST '${base}/migrateTemplates' \\`,
+    `  ${json} \\`,
+    `  -d '${JSON.stringify({ phoneNumberId, apiKey: key, sourceWabaId: 'PREVIOUS_MESSAGING_ACCOUNT_ID' })}'`,
+  ].join('\n');
+  el<HTMLTextAreaElement>('tpl-import-command').value = [
+    `curl -X POST '${base}/importTemplates' \\`,
+    `  ${json} \\`,
+    `  -d '{"phoneNumberId":"${phoneNumberId}","apiKey":"${key}","templates":[ ...the exported templates... ]}'`,
+  ].join('\n');
+
   const create = JSON.stringify({
     name: 'order_update',
     language: 'en_US',
@@ -389,6 +422,9 @@ for (const [button, box] of [
   ['copy-send-btn', 'send-command'],
   ['copy-send-text-btn', 'send-text-command'],
   ['copy-status-btn', 'status-command'],
+  ['copy-deregister-btn', 'deregister-command'],
+  ['copy-tpl-import-btn', 'tpl-import-command'],
+  ['copy-tpl-migrate-btn', 'tpl-migrate-command'],
   ['copy-register-btn', 'register-command'],
   ['copy-tpl-list-btn', 'tpl-list-command'],
   ['copy-tpl-create-btn', 'tpl-create-command'],
@@ -417,7 +453,7 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
   fillSidebar(user.uid, phoneNumberId);
-  el('ids-line').textContent = `Phone number ID: ${phoneNumberId}`;
+  renderIds(undefined);
   // What the buttons and commands do is authorised by the API key, not by this sign-in, so
   // the sections show either way.
   renderCommands();

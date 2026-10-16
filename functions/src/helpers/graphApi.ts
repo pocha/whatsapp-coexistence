@@ -159,3 +159,15 @@ export async function createTemplate(wabaId: string, accessToken: string, payloa
     20000,
   );
 }
+
+/**
+ * Takes a number off the Cloud API: it stops sending and receiving, and can be registered again
+ * (or moved to another provider). Meta refuses it for a number that is also on the WhatsApp
+ * Business app, and allows 10 requests per number in 72 hours. It takes no PIN.
+ */
+export async function deregisterPhoneNumber(phoneNumberId: string, accessToken: string): Promise<void> {
+  await graphFetch(`/${encodeURIComponent(phoneNumberId)}/deregister`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}

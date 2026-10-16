@@ -127,6 +127,7 @@ export const registerNumber = onRequest({ timeoutSeconds: 90 }, (req, res) => {
       // The API-only path of the wizard continues with templates once the number is registered.
       const ref = getFirestore().collection('phoneNumbers').doc(String(phoneNumberId));
       const doc = (await ref.get()).data() as PhoneNumberDoc;
+      if (doc.deregisteredAt) await ref.update({ deregisteredAt: FieldValue.delete() });
       if (doc.onboarding?.step === 'register') {
         await ref.update({ onboarding: movedTo(doc.onboarding, 'templates') });
         const body: OnboardingResponse = { ok: true, step: 'templates' };

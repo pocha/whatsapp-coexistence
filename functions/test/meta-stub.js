@@ -60,6 +60,11 @@ function startMetaStub(port) {
       return;
     }
 
+    if (req.method === 'POST' && req.url.match(/^\/\d+\/deregister$/)) {
+      res.writeHead(200).end(JSON.stringify({ success: true }));
+      return;
+    }
+
     // Coexistence sync requests: 230 fails.
     if (req.method === 'POST' && req.url.match(/^\/\d+\/smb_app_data$/)) {
       if (req.url === '/230/smb_app_data') {
