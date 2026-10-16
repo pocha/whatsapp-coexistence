@@ -5,6 +5,7 @@ import { auth, db, signOutUser } from '/assets/firebase-init.js';
 import { deleteAccount } from '/assets/account.js';
 import { el, errorMessage } from '/assets/dom.js';
 import type { PhoneNumberDoc, UserDoc } from '../../functions/src/helpers/types';
+import { effectiveStep } from '../../functions/src/helpers/onboardingSteps';
 import {
   collection,
   doc,
@@ -74,7 +75,7 @@ export async function fillSidebar(uid: string, currentId?: string | null): Promi
     const waba = docSnap.data() as PhoneNumberDoc;
     numbers.push({ id: docSnap.id, ...waba });
     // A number whose onboarding is not finished goes back into the wizard, where it left off.
-    const unfinished = Boolean(waba.onboarding && waba.onboarding.step !== 'done');
+    const unfinished = effectiveStep(waba) !== 'done';
     const link = document.createElement('a');
     link.href = unfinished
       ? `/dashboard/waba/create.html?id=${encodeURIComponent(docSnap.id)}`

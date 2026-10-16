@@ -119,21 +119,7 @@ export const checkCallbackUrl = post(async (req, res) => {
 
 // ---- reputation ----
 
-/**
- * Puts an API-only number back at the register step, so the dashboard sends the user to the wizard.
- * A number that is also on the Business app is never touched: it is registered by the app.
- */
-async function markUnregistered(phoneNumberId: string, status: string): Promise<void> {
-  const ref = numbers().doc(phoneNumberId);
-  const doc = (await ref.get()).data() as PhoneNumberDoc;
-  const update: Record<string, unknown> = { metaStatus: status };
-  if (doc.isOnBizApp !== true && (!doc.onboarding || doc.onboarding.step === 'done')) {
-    update.onboarding = { step: 'register', event: doc.onboarding?.event ?? 'FINISH', updatedAt: Date.now() };
-  }
-  await ref.update(update);
-}
-
-/** Asks Meta for the number's status and quality rating, and keeps them. A number that is not connected goes back to the register step. */
+/** Asks Meta for the number's status and quality rating, and keeps them. A number that is not connected is then sent to the register step by effectiveStep. */
 export const numberReputation = post(async (req, res) => {
   const { phoneNumberId, apiKey } = (req.body ?? {}) as Partial<ReputationRequest>;
   if (!phoneNumberId || !apiKey) throw new HttpError(400, 'phoneNumberId and apiKey are required');
@@ -144,7 +130,6 @@ export const numberReputation = post(async (req, res) => {
     'reputation.number.qualityRating': info.qualityRating ?? null,
     'reputation.number.at': Date.now(),
   });
-  if (info.status && info.status !== 'CONNECTED') await markUnregistered(String(phoneNumberId), info.status);
   const body: NumberReputationResponse = { ok: true, status: info.status, qualityRating: info.qualityRating };
   res.status(200).send(body);
 });
@@ -186,13 +171,9 @@ export const deregisterNumber = post(async (req, res) => {
     );
   }
   await deregisterPhoneNumber(String(phoneNumberId), accessToken);
-  // Back to the register step: the dashboard sends the user to the wizard, which registers it again.
-  const doc = (await numbers().doc(String(phoneNumberId)).get()).data() as PhoneNumberDoc;
-  await numbers().doc(String(phoneNumberId)).update({
-    metaStatus: 'DEREGISTERED',
-    isOnBizApp: false,
-    onboarding: { step: 'register', event: doc.onboarding?.event ?? 'FINISH', updatedAt: Date.now() },
-  });
+  // The record now shows an API-only number that is not connected, so effectiveStep sends the user
+  // to the wizard's register step.
+  await numbers().doc(String(phoneNumberId)).update({ metaStatus: 'DEREGISTERED', isOnBizApp: false });
   res.status(200).send({ ok: true });
 });
 

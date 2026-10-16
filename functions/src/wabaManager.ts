@@ -10,6 +10,7 @@ import { HttpError } from './helpers/auth';
 import type { OnboardingResponse, PhoneNumberDoc, RegisterNumberRequest, SetWebhookRequest } from './helpers/types';
 import { authenticateKey } from './accounts';
 import { advanceAfterOverride, movedTo, noteOnboardingError } from './onboarding';
+import { effectiveStep } from './helpers/onboardingSteps';
 
 // What a customer does with a number through its Watobot API key: set where incoming
 // messages go (setWebhook), register a new number (registerNumber), send messages
@@ -124,17 +125,15 @@ export const registerNumber = onRequest({ timeoutSeconds: 90 }, (req, res) => {
       }
       await rememberDisplayNumber(String(phoneNumberId), accessToken);
 
-      // The API-only path of the wizard continues with templates once the number is registered.
       const ref = getFirestore().collection('phoneNumbers').doc(String(phoneNumberId));
       const doc = (await ref.get()).data() as PhoneNumberDoc;
       await ref.update({ metaStatus: 'CONNECTED' });
+      // The API-only path of the wizard continues with templates once the number is registered.
       if (doc.onboarding?.step === 'register') {
         await ref.update({ onboarding: movedTo(doc.onboarding, 'templates') });
-        const body: OnboardingResponse = { ok: true, step: 'templates' };
-        res.status(200).send(body);
-        return;
       }
-      res.status(200).send({ ok: true });
+      const body: OnboardingResponse = { ok: true, step: effectiveStep((await ref.get()).data() as PhoneNumberDoc) };
+      res.status(200).send(body);
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;
       res.status(status).send({ ok: false, error: (err as Error).message });

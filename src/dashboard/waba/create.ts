@@ -24,6 +24,7 @@ import type {
   SyncType,
   UserDoc,
 } from '../../../functions/src/helpers/types';
+import { effectiveStep } from '../../../functions/src/helpers/onboardingSteps';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 // The onboarding wizard. Before Meta's popup opens it checks what the user will need afterwards
@@ -658,12 +659,13 @@ onAuthStateChanged(auth, async (user) => {
     status.textContent = 'We could not find that number under your account.';
     return;
   }
-  if (!data.onboarding || data.onboarding.step === 'done') {
+  const step = effectiveStep(data);
+  if (step === 'done') {
     location.href = `/dashboard/waba/?id=${encodeURIComponent(resumeId)}`;
     return;
   }
   status.textContent = 'Enter your API key to carry on where you left off.';
   if (data.overrideUrl) callbackUrl = data.overrideUrl;
-  resumeStep = data.onboarding.step;
-  if (data.onboarding.error) fail(data.onboarding.error);
+  resumeStep = step;
+  if (data.onboarding?.error) fail(data.onboarding.error);
 });

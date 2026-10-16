@@ -324,19 +324,28 @@ test('reputation: the number and the non-green templates are read from Meta and 
   assert.equal(kept.templates.good__en_US.status, 'PAUSED');
 });
 
-test('de-registering a plain number puts it back at the register step', async () => {
+test('de-registering a plain number sends it to the register step', async () => {
+  const { effectiveStep } = require('../../lib/helpers/onboardingSteps');
   await db.collection('phoneNumbers').doc('241').set({
     userId,
     wabaId: '9241',
     phoneNumberId: '241',
+    overrideUrl: BUSINESS_ENDPOINT,
+    isOnBizApp: false,
+    metaStatus: 'CONNECTED',
     encAccessToken: encryptToken(META_TOKEN, KEY),
-    onboarding: { step: 'done', event: 'FINISH', updatedAt: 1 },
   });
+  assert.equal(effectiveStep(await numberDoc('241')), 'done');
+
   const res = await post('/deregisterNumber', { phoneNumberId: '241', apiKey: KEY });
   assert.equal(res.status, 200);
   const after = await numberDoc('241');
   assert.equal(after.metaStatus, 'DEREGISTERED');
-  assert.equal(after.onboarding.step, 'register');
+  assert.equal(effectiveStep(after), 'register');
+
+  // Registering it again brings it back to done, with nothing else to do.
+  const registered = await (await post('/registerNumber', { phoneNumberId: '241', apiKey: KEY, pin: '123456' })).json();
+  assert.equal(registered.step, 'done');
 });
 
 test('login: a new phone number gets a user, sets a key, and then needs that key to log in', async () => {

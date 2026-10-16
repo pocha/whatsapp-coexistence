@@ -7,6 +7,7 @@ import { wireTestEvents } from '/assets/test-events.js';
 import { el, errorMessage } from '/assets/dom.js';
 import type { NumberReputationResponse, OnboardingStep, PhoneNumberDoc, SetWebhookRequest, SyncStatus, TemplateReputationResponse } from '../../../functions/src/helpers/types';
 import { effectiveConfig, view } from '../../../functions/src/helpers/rateLimiter';
+import { effectiveStep } from '../../../functions/src/helpers/onboardingSteps';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 // The page for one number, identified by ?id= in the URL (its phone number ID). Signed-in
@@ -323,8 +324,9 @@ async function loadRecord(): Promise<boolean> {
     chip.textContent = data.isOnBizApp ? 'Coexistence' : 'API only';
     chip.className = `rounded-full px-3 py-1 label-strong ${data.isOnBizApp ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`;
   }
-  // A number that has not finished onboarding (or was de-registered) goes to the wizard, at its step.
-  if (data.onboarding && data.onboarding.step !== 'done') {
+  // A number that needs a step (no URL saved, no longer connected, syncs not requested, or onboarding
+  // unfinished) goes to the wizard, which opens at that step.
+  if (effectiveStep(data) !== 'done') {
     location.replace(`/dashboard/waba/create.html?id=${encodeURIComponent(phoneNumberId)}`);
     return true;
   }
