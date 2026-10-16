@@ -51,10 +51,10 @@ A step-by-step wizard: `checks → Meta onboarding → callback override → (co
 - [x] Fallback: create templates in the template manager, or skip for now.
 
 ### P1: moving in and out
-- [ ] Disconnect / leave Watobot: unsubscribe the app from the account, delete the stored token, remove the record (today "Delete account" makes no Meta calls)
-- [ ] Deregister endpoint, standard numbers only (Meta's deregister can't be used on a number that is on both the app and the API)
+- [x] Disconnect / leave Watobot: Delete account first disconnects each number from Meta (`disconnectNumber`: unsubscribe our app, and de-register an API-only number unless the user unticks it; a coexistence number is only unsubscribed, and the user is told to disconnect it in the Business app), then deletes the records. Needs the API key; "I've lost my key" skips the Meta calls.
+- [x] Deregister endpoint, standard numbers only (`deregisterNumber`; Meta's deregister can't be used on a number that is on both the app and the API)
 - [ ] Ownership check on the number page: is the Messaging account in the user's portfolio
-- [ ] Template status and quality in the manager, and alerts on `message_template_status_update` / `message_template_quality_update`
+- [x] Template status and quality: the Reputation section. Alerts on `message_template_status_update` / `message_template_quality_update` are still to build.
 - [ ] Number quality alerts (`phone_number_quality_update`), optional throttling on quality drops
 
 ### P2: reliability and trust

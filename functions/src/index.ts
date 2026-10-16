@@ -10,6 +10,7 @@ export { webhook } from './webhook';
 export {
   checkCallbackUrl,
   deregisterNumber,
+  disconnectNumber,
   importTemplates,
   migrateTemplates,
   numberReputation,

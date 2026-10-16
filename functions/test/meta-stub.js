@@ -35,7 +35,7 @@ function startMetaStub(port) {
       return;
     }
 
-    if (req.method === 'POST' && req.url.endsWith('/subscribed_apps')) {
+    if ((req.method === 'POST' || req.method === 'DELETE') && req.url.endsWith('/subscribed_apps')) {
       res.writeHead(200).end(JSON.stringify({ success: true }));
       return;
     }

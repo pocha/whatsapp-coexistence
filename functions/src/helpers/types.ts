@@ -147,6 +147,19 @@ export interface DeregisterNumberRequest {
   apiKey: string;
 }
 
+export interface DisconnectNumberRequest {
+  phoneNumberId: string;
+  apiKey: string;
+  /** Also take an API-only number off the Cloud API. Never done for a number that is on the Business app. */
+  deregister: boolean;
+}
+
+export interface DisconnectNumberResponse extends ApiResponse {
+  /** The number is also on the WhatsApp Business app, so the user still has to disconnect it there. */
+  coexistence?: boolean;
+  deregistered?: boolean;
+}
+
 export interface ReputationRequest {
   phoneNumberId: string;
   apiKey: string;

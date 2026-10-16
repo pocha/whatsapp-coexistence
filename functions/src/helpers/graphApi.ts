@@ -207,3 +207,11 @@ export async function listTemplateScores(wabaId: string, accessToken: string): P
   }
   return found;
 }
+
+/** Stops this app receiving the Messaging account's webhooks (and removes the callback URL override). */
+export async function unsubscribeApp(wabaId: string, accessToken: string): Promise<void> {
+  await graphFetch(`/${encodeURIComponent(wabaId)}/subscribed_apps`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}

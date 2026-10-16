@@ -12,6 +12,7 @@ import {
   listTemplateScores,
   migrateTemplatesPage,
   requestSmbAppData,
+  unsubscribeApp,
   verifyWabaAccess,
 } from './helpers/graphApi';
 import { checkPublicUrl, verifyEndpointChallenge } from './helpers/endpointCheck';
@@ -21,6 +22,8 @@ import { parseTemplateExport } from './helpers/templateImport';
 import { templateKey } from './helpers/reputation';
 import type {
   DeregisterNumberRequest,
+  DisconnectNumberRequest,
+  DisconnectNumberResponse,
   ImportTemplatesRequest,
   ImportTemplatesResponse,
   MigrateTemplatesRequest,
@@ -175,6 +178,30 @@ export const deregisterNumber = post(async (req, res) => {
   // to the wizard's register step.
   await numbers().doc(String(phoneNumberId)).update({ metaStatus: 'DEREGISTERED', isOnBizApp: false });
   res.status(200).send({ ok: true });
+});
+
+/**
+ * What leaving Watobot does on Meta's side, for one number: our app stops receiving its webhooks
+ * and, if asked and it is API-only, the number comes off the Cloud API (so another provider can
+ * take it). A number that is also on the Business app is only unsubscribed: Meta can't de-register
+ * it, and the way off is the app's own Disconnect, which the answer tells the caller to point out.
+ * The records are deleted by the caller afterwards.
+ */
+export const disconnectNumber = post(async (req, res) => {
+  const { phoneNumberId, apiKey, deregister } = (req.body ?? {}) as Partial<DisconnectNumberRequest>;
+  if (!phoneNumberId || !apiKey) throw new HttpError(400, 'phoneNumberId and apiKey are required');
+  const { wabaId, accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
+  const info = await getPhoneNumberInfo(String(phoneNumberId), accessToken);
+  const coexistence = info.isOnBizApp === true;
+
+  await unsubscribeApp(wabaId, accessToken);
+  let deregistered = false;
+  if (deregister && !coexistence) {
+    await deregisterPhoneNumber(String(phoneNumberId), accessToken);
+    deregistered = true;
+  }
+  const body: DisconnectNumberResponse = { ok: true, coexistence, deregistered };
+  res.status(200).send(body);
 });
 
 // ---- the contacts and history syncs ----

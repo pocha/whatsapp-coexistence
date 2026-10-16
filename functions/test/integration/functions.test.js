@@ -325,6 +325,21 @@ test('reputation: the number and the non-green templates are read from Meta and 
   assert.equal(kept.templates.good__en_US.status, 'PAUSED');
 });
 
+test('disconnecting: an API-only number is unsubscribed and de-registered, a coexistence one only unsubscribed', async () => {
+  await seedNumber('250', '9250');
+  await db.collection('phoneNumbers').doc('250').update({ isOnBizApp: false });
+  const plain = await (await post('/disconnectNumber', { phoneNumberId: '250', apiKey: KEY, deregister: true })).json();
+  assert.deepEqual([plain.coexistence, plain.deregistered], [false, true]);
+
+  // 222 is the number the stub reports as also on the WhatsApp Business app.
+  const before = (await metaCalls()).length;
+  const coexistence = await (await post('/disconnectNumber', { phoneNumberId: '222', apiKey: KEY, deregister: true })).json();
+  assert.deepEqual([coexistence.coexistence, coexistence.deregistered], [true, false]);
+  const calls = (await metaCalls()).slice(before);
+  assert.equal(calls.some((c) => c.startsWith('DELETE') && c.includes('/9222/subscribed_apps')), true);
+  assert.equal(calls.some((c) => c.includes('/222/deregister')), false, 'Meta cannot de-register a number on the Business app');
+});
+
 test('de-registering a plain number sends it to the register step', async () => {
   const { effectiveStep } = require('../../lib/helpers/onboardingSteps');
   await db.collection('phoneNumbers').doc('241').set({
