@@ -97,9 +97,9 @@ export async function authenticateKey(
 }
 
 /**
- * Seals a Meta access token under the API key and saves it on the WABA record. When `event` is
- * given the number starts (or restarts) the onboarding wizard at the override step, and anything
- * left from an earlier attempt (sync state, whether it was on the Business app) is cleared.
+ * Seals a Meta access token under the API key and saves it on the WABA record. The number starts
+ * (or restarts) the onboarding wizard at the override step, and anything left from an earlier
+ * attempt (sync state, whether it was on the Business app, its status) is cleared.
  */
 export async function storeWabaToken(args: {
   userId: string;
@@ -107,7 +107,7 @@ export async function storeWabaToken(args: {
   phoneNumberId: string;
   accessToken: string;
   apiKey: string;
-  event?: SignupEvent;
+  event: SignupEvent;
 }): Promise<void> {
   await getFirestore()
     .collection('phoneNumbers')
@@ -118,14 +118,11 @@ export async function storeWabaToken(args: {
         wabaId: args.wabaId,
         phoneNumberId: args.phoneNumberId,
         encAccessToken: encryptToken(args.accessToken, args.apiKey),
-        ...(args.event
-          ? {
-              onboarding: { step: 'override', event: args.event, updatedAt: Date.now() },
-              sync: FieldValue.delete(),
-              isOnBizApp: FieldValue.delete(),
-              platformType: FieldValue.delete(),
-            }
-          : {}),
+        onboarding: { step: 'override', event: args.event, updatedAt: Date.now() },
+        sync: FieldValue.delete(),
+        isOnBizApp: FieldValue.delete(),
+        platformType: FieldValue.delete(),
+        metaStatus: FieldValue.delete(),
       },
       { merge: true },
     );

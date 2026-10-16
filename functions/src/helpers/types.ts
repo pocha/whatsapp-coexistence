@@ -28,8 +28,7 @@ export interface Usage {
 
 /**
  * Where a number is in the onboarding wizard. Only numbers with a phone number ID have a record, so
- * nothing here exists before the Meta popup finishes. A record without `onboarding` is a number
- * onboarded before the wizard existed, and counts as done.
+ * nothing here exists before the Meta popup finishes.
  *   override    token stored; the callback URL still has to be subscribed
  *   not_on_app  Meta reports the number is not on the WhatsApp Business app: the user chooses
  *   register    API-only path: the number still has to be registered (needs a PIN)
@@ -104,7 +103,7 @@ export interface PhoneNumberDoc {
   /** Per-number override of the default rate limits. Set by us, never by the customer. */
   rateLimits?: RateLimitOverride;
   /** Wizard progress. Written only by the Functions. */
-  onboarding?: OnboardingState;
+  onboarding: OnboardingState;
   /** From Meta, after onboarding: whether the number is also on the WhatsApp Business app. */
   isOnBizApp?: boolean;
   platformType?: string;

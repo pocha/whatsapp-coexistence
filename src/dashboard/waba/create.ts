@@ -454,7 +454,7 @@ async function showStep(step: OnboardingStep) {
 
 /** The failure the server kept on the number, shown again after a reload. */
 async function surfaceSavedError() {
-  const saved = (await loadNumber())?.onboarding?.error;
+  const saved = (await loadNumber())?.onboarding.error;
   if (saved) fail(saved);
 }
 
@@ -549,7 +549,7 @@ el('sync-done-btn').addEventListener('click', async () => {
 // Templates
 async function renderTemplates() {
   const data = await loadNumber();
-  el<HTMLInputElement>('tpl2-source').value ||= tplSource.value.trim() || data?.onboarding?.templateSourceWabaId || '';
+  el<HTMLInputElement>('tpl2-source').value ||= tplSource.value.trim() || data?.onboarding.templateSourceWabaId || '';
   if (templateList && !el<HTMLTextAreaElement>('tpl2-json').value) el<HTMLTextAreaElement>('tpl2-json').value = JSON.stringify(templateList);
 
   const found = el('tpl-found');
@@ -667,5 +667,5 @@ onAuthStateChanged(auth, async (user) => {
   status.textContent = 'Enter your API key to carry on where you left off.';
   if (data.overrideUrl) callbackUrl = data.overrideUrl;
   resumeStep = step;
-  if (data.onboarding?.error) fail(data.onboarding.error);
+  if (data.onboarding.error) fail(data.onboarding.error);
 });

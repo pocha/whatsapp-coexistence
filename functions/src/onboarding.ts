@@ -200,7 +200,7 @@ export const startSync = post(async (req, res) => {
   // Claim the request in a transaction, so two clicks cannot both send it.
   await getFirestore().runTransaction(async (tx) => {
     const doc = (await tx.get(ref)).data() as PhoneNumberDoc;
-    if (doc.onboarding?.step !== 'sync') throw new HttpError(409, 'This number is not at the sync step.');
+    if (doc.onboarding.step !== 'sync') throw new HttpError(409, 'This number is not at the sync step.');
     const current = doc.sync?.[type];
     const inFlight = current?.state === 'requesting' && Date.now() - (current.at ?? 0) < REQUESTING_STALE_MS;
     if (current?.state === 'requested') throw new HttpError(409, `The ${type} sync was already requested. Meta allows it only once.`);
@@ -233,7 +233,7 @@ export const setOnboardingStep = post(async (req, res) => {
 
   const next = await getFirestore().runTransaction(async (tx) => {
     const doc = (await tx.get(ref)).data() as PhoneNumberDoc;
-    const current = doc.onboarding?.step;
+    const current = doc.onboarding.step;
     const allowed =
       (step === 'register' && current === 'not_on_app') ||
       (step === 'templates' && current === 'sync' && doc.sync?.contacts?.state === 'requested' && doc.sync?.history?.state === 'requested') ||

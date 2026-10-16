@@ -20,7 +20,7 @@ import { effectiveStep } from './helpers/onboardingSteps';
 
 const corsHandler = cors({ origin: true });
 
-/** Saves how the number is shown (best-effort, so older records fill in the next time they are used). */
+/** Saves how the number is shown (best-effort; the sidebar falls back to the phone number ID). */
 async function rememberDisplayNumber(phoneNumberId: string, accessToken: string): Promise<void> {
   try {
     const displayPhoneNumber = await getDisplayPhoneNumber(phoneNumberId, accessToken);
@@ -70,9 +70,9 @@ export const setWebhook = onRequest((req, res) => {
           .update({ overrideUrl: overrideCallbackUrl, activatedAt: Date.now() });
         await rememberDisplayNumber(String(phoneNumberId), accessToken);
 
-        // A number in the onboarding wizard moves on from here; an older one just gets its URL.
+        // A number in the onboarding wizard moves on from here; a finished one just gets its new URL.
         const doc = (await getFirestore().collection('phoneNumbers').doc(String(phoneNumberId)).get()).data() as PhoneNumberDoc;
-        if (doc.onboarding?.step === 'override') {
+        if (doc.onboarding.step === 'override') {
           const next = await advanceAfterOverride(String(phoneNumberId), accessToken);
           const body: OnboardingResponse = { ok: true, ...next };
           res.status(200).send(body);
@@ -129,7 +129,7 @@ export const registerNumber = onRequest({ timeoutSeconds: 90 }, (req, res) => {
       const doc = (await ref.get()).data() as PhoneNumberDoc;
       await ref.update({ metaStatus: 'CONNECTED' });
       // The API-only path of the wizard continues with templates once the number is registered.
-      if (doc.onboarding?.step === 'register') {
+      if (doc.onboarding.step === 'register') {
         await ref.update({ onboarding: movedTo(doc.onboarding, 'templates') });
       }
       const body: OnboardingResponse = { ok: true, step: effectiveStep((await ref.get()).data() as PhoneNumberDoc) };

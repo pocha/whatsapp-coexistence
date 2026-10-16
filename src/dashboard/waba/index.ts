@@ -5,7 +5,7 @@ import { isValidApiKey } from '/assets/api-key.js';
 import '/assets/nav-auth.js';
 import { wireTestEvents } from '/assets/test-events.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { NumberReputationResponse, OnboardingStep, PhoneNumberDoc, SetWebhookRequest, SyncStatus, TemplateReputationResponse } from '../../../functions/src/helpers/types';
+import type { NumberReputationResponse, PhoneNumberDoc, SetWebhookRequest, SyncStatus, TemplateReputationResponse } from '../../../functions/src/helpers/types';
 import { effectiveConfig, view } from '../../../functions/src/helpers/rateLimiter';
 import { effectiveStep } from '../../../functions/src/helpers/onboardingSteps';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
@@ -200,14 +200,6 @@ function renderIds(messagingAccountId: string | undefined) {
   );
 }
 
-const STEP_NAMES: Record<OnboardingStep, string> = {
-  override: 'connecting your callback URL',
-  not_on_app: 'choosing coexistence or API only',
-  register: 'registering the number',
-  sync: 'syncing contacts and chat history',
-  templates: 'bringing your templates across',
-  done: 'done',
-};
 
 /** "requested 16 Oct 2026, 10:12", or what went wrong. */
 function syncText(s: SyncStatus | undefined): string {
@@ -217,8 +209,8 @@ function syncText(s: SyncStatus | undefined): string {
   return `requested ${new Date(s.at ?? 0).toLocaleString()}`;
 }
 
-/** The number's state at the top of the page: unfinished onboarding, or how it is connected and when its syncs were requested. */
-function renderOnboardingCard(data: PhoneNumberDoc) {
+/** For a coexistence number: when the contacts and history syncs were requested. */
+function renderSyncCard(data: PhoneNumberDoc) {
   const card = el('onboarding-card');
   card.replaceChildren();
   const line = (text: string, className = 'text-on-surface-variant font-body-md text-sm') => {
@@ -228,22 +220,9 @@ function renderOnboardingCard(data: PhoneNumberDoc) {
     card.append(p);
   };
 
-  if (data.onboarding && data.onboarding.step !== 'done') {
-    card.classList.add('whatsapp-border');
-    line('ONBOARDING NOT FINISHED', 'label-strong text-primary mb-1');
-    line(`This number is at the step: ${STEP_NAMES[data.onboarding.step]}.`);
-    if (data.onboarding.error) line(`Last problem: ${data.onboarding.error}`, 'text-error font-body-md text-sm mt-1');
-    const link = document.createElement('a');
-    link.href = `/dashboard/waba/create.html?id=${encodeURIComponent(phoneNumberId)}`;
-    link.className = 'inline-block mt-3 rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 transition-all';
-    link.textContent = 'Continue onboarding';
-    card.append(link);
-  } else if (data.isOnBizApp) {
-    line(`Contacts sync: ${syncText(data.sync?.contacts)}`);
-    line(`History sync: ${syncText(data.sync?.history)}`);
-  } else {
-    return;
-  }
+  if (!data.isOnBizApp) return;
+  line(`Contacts sync: ${syncText(data.sync?.contacts)}`);
+  line(`History sync: ${syncText(data.sync?.history)}`);
   card.classList.remove('hidden');
 }
 
@@ -318,8 +297,7 @@ async function loadRecord(): Promise<boolean> {
   // The number is the title; whether it also runs on the Business app is a chip beside it.
   if (data.displayPhoneNumber) el('page-title').textContent = data.displayPhoneNumber;
   renderIds(data.wabaId);
-  const finished = !data.onboarding || data.onboarding.step === 'done';
-  if (finished && data.isOnBizApp !== undefined) {
+  if (data.isOnBizApp !== undefined) {
     const chip = el('type-chip');
     chip.textContent = data.isOnBizApp ? 'Coexistence' : 'API only';
     chip.className = `rounded-full px-3 py-1 label-strong ${data.isOnBizApp ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`;
@@ -330,7 +308,7 @@ async function loadRecord(): Promise<boolean> {
     location.replace(`/dashboard/waba/create.html?id=${encodeURIComponent(phoneNumberId)}`);
     return true;
   }
-  renderOnboardingCard(data);
+  renderSyncCard(data);
   renderReputation(data);
   renderStats(data);
   return true;

@@ -32,6 +32,7 @@ async function seedNumber(phoneNumberId, wabaId, key = KEY) {
     wabaId,
     phoneNumberId,
     encAccessToken: encryptToken(META_TOKEN, key),
+    onboarding: { step: 'done', event: 'FINISH', updatedAt: 1 },
   });
 }
 
@@ -334,6 +335,7 @@ test('de-registering a plain number sends it to the register step', async () => 
     isOnBizApp: false,
     metaStatus: 'CONNECTED',
     encAccessToken: encryptToken(META_TOKEN, KEY),
+    onboarding: { step: 'done', event: 'FINISH', updatedAt: 1 },
   });
   assert.equal(effectiveStep(await numberDoc('241')), 'done');
 
