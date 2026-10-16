@@ -107,25 +107,25 @@
 
       <h2 class="section-title text-on-surface mt-6">Step 1. Disconnect from the old provider</h2>
       <div class="card p-6 whatsapp-border">
-        <p class="label-strong text-primary mb-1">YOU MAY NEED TO EXPORT YOUR TEMPLATES BEFORE DISCONNECTING</p>
+        <p class="label-strong text-primary mb-1">CHECK WHO OWNS YOUR TEMPLATES' MESSAGING ACCOUNT BEFORE DISCONNECTING</p>
         <p class="text-on-surface-variant font-body-md">
-          Templates are always associated with Messaging Account.
+          Templates are always associated with a Messaging account, not with the number.
+          Disconnecting doesn't delete them. What matters is whether you can still reach
+          that account afterwards.
         </p>
         <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md mt-3">
           <li>
-            <strong>New model: sort this out before you disconnect.</strong> The new
-            provider starts with an empty Messaging account, so your templates have to be
-            copied or re-created there. Open
+            <strong>New model: check where the account sits.</strong> Open
             <a class="text-primary font-bold hover:underline" href="https://business.facebook.com/settings" target="_blank" rel="noopener">Business Settings</a>
-            &rarr; Accounts &rarr; <strong>Messaging accounts</strong> and check whether
-            the old provider's account is listed.
+            &rarr; Accounts &rarr; <strong>Messaging accounts</strong> and look for the old
+            provider's account.
             <ul class="flex flex-col gap-1 list-disc list-inside mt-1 ml-4">
-              <li><strong>If it is listed, you own it.</strong> You can read the templates in WhatsApp Manager at any time. If the new provider supports importing templates through Meta's template migration API, add it as a partner on that Messaging account (<em>Assign partner</em>), and ask it to run the import once its own onboarding is done. The copy needs the destination account to exist, so it can only run after onboarding, but you can share the old account before.</li>
-              <li><strong>If it isn't listed,</strong> it sits in the old provider's portfolio and you can't see or share it. Ask the provider <em>before</em> you disconnect for a list with each template's name, language, category and text (an API export is the easiest for them), and re-create them.</li>
+              <li><strong>If it is listed, you own it, and there is nothing to export.</strong> You keep access after you disconnect, and you can read the templates in WhatsApp Manager at any time. Once the new provider's onboarding is done, copy them across with Meta's template migration API, either yourself or by adding the new provider as a partner on that account (<em>Assign partner</em>) and asking it to run the import. Keeping a copy of the template texts is optional.</li>
+              <li><strong>If it isn't listed,</strong> it sits in the old provider's portfolio and you can't see or share it, so the migration API can't be used. This is the only case where you need the list: ask the provider <em>before</em> you disconnect for each template's name, language, category and text (an API export is the easiest for them), and re-create them.</li>
             </ul>
           </li>
           <li>
-            <strong>Old model: no export needed.</strong> The account is already yours, and
+            <strong>Old model: nothing to do.</strong> The account is already yours, and
             the signup copies approved templates in good standing across when the number
             moves.
           </li>
