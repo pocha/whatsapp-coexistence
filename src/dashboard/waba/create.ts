@@ -53,12 +53,28 @@ const STEP_TITLES = [
   'Testing your callback URL',
   'Checking the number on the WhatsApp Business app',
   'Message template check',
-  'Connect with Meta',
+  'Onboard to WhatsApp API through Meta',
   'Sync your contacts, or register the number',
   'Bring your message templates across',
 ];
 
 const wizard = el('wizard');
+
+/** Greys the whole window out with a spinner, so nothing is clicked while we wait for something. */
+let busyTimer: ReturnType<typeof setTimeout> | undefined;
+function busy(text: string | null) {
+  clearTimeout(busyTimer);
+  el('wizard-busy').classList.toggle('hidden', text === null);
+  el('wizard-busy').classList.toggle('flex', text !== null);
+  el('wizard-busy-text').textContent = text ?? '';
+  if (text !== null) {
+    // A way out if something never answers.
+    busyTimer = setTimeout(() => {
+      busy(null);
+      fail('This is taking longer than expected. If your number now shows in the sidebar, open it to carry on; otherwise try again.');
+    }, 120_000);
+  }
+}
 const backBtn = el<HTMLButtonElement>('wizard-back');
 const nextBtn = el<HTMLButtonElement>('wizard-next');
 let currentStep = 1;
@@ -321,6 +337,7 @@ function initEmbeddedSignup() {
         maybeFinish();
       } else if (data.event === 'CANCEL' || data.event === 'ERROR') {
         // Nothing was set up on our side, so there is nothing to clean up: the user starts again.
+        busy(null);
         const detail = data.data?.error_message ?? data.data?.current_step;
         fail(`Meta's signup did not finish${detail ? ` (${detail})` : ''}. See "If Meta's popup shows an error" above, then continue to Meta again.`);
       }
@@ -333,7 +350,9 @@ function initEmbeddedSignup() {
     fail(undefined);
     FB.login(
       (response) => {
+        // Meta's window is gone: grey ours out until we know how it went.
         if (response.authResponse?.code) {
+          busy('Finishing your onboarding…');
           signupCode = response.authResponse.code;
           maybeFinish();
         } else {
@@ -369,6 +388,7 @@ async function maybeFinish() {
   } catch (err) {
     // The code is spent, so the popup has to run again.
     status.textContent = '';
+    busy(null);
     fail(`Could not connect the number: ${errorMessage(err)}`);
     exchanging = false;
     signupCode = null;
@@ -382,7 +402,7 @@ async function maybeFinish() {
 
 /** Subscribes the user's URL (and, for a number in the wizard, finds the next step). */
 async function connectOverride(url: string) {
-  status.textContent = 'Pointing Meta at your URL…';
+  busy('Pointing Meta at your URL…');
   fail(undefined);
   try {
     const res = await withKey<OnboardingResponse>('setWebhook', { overrideCallbackUrl: url } satisfies Partial<SetWebhookRequest>);
@@ -393,6 +413,8 @@ async function connectOverride(url: string) {
     fail(`Could not connect your URL: ${errorMessage(err)}`);
     el<HTMLInputElement>('ov-url').value = url;
     show('view-override');
+  } finally {
+    busy(null);
   }
 }
 

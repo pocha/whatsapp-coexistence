@@ -19,7 +19,11 @@
 
   <!-- The wizard: a window over the page, one step at a time -->
   <div id="wizard" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[92vh] flex flex-col">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[92vh] flex flex-col">
+      <div id="wizard-busy" class="hidden absolute inset-0 z-10 flex-col items-center justify-center gap-3 rounded-2xl bg-white/80" aria-live="polite">
+        <div class="h-10 w-10 animate-spin rounded-full border-4 border-outline-variant border-t-primary"></div>
+        <p id="wizard-busy-text" class="text-on-surface-variant font-body-md text-sm"></p>
+      </div>
       <div class="flex items-start justify-between gap-4 p-5 border-b border-outline-variant">
         <div>
           <p id="wizard-title" class="section-title text-on-surface">Onboard a number</p>
@@ -97,24 +101,26 @@
         <!-- Step 3: the Business app -->
         <div id="step-3" class="hidden flex flex-col gap-2">
           <p class="section-title text-on-surface">Checking the number on the WhatsApp Business app</p>
-          <label class="flex items-start gap-2 text-on-surface-variant font-body-md text-sm">
-            <input id="app-confirm" type="checkbox" class="mt-1"/>
-            <span>The number is active on the WhatsApp Business app on my phone (version 2.24.17 or higher).</span>
-          </label>
           <p class="text-on-surface-variant font-body-md text-sm">
-            Meta can't tell us this before onboarding, so we ask you. Right after the Meta step we check
-            it with Meta and tell you if it isn't so. Linked devices (WhatsApp Web and so on) are unlinked
-            when the number connects, and your choice about sharing chat history can't be changed
-            afterwards. Keep the app open while the sync runs.
+            Meta can't tell us before onboarding whether the number is on the WhatsApp Business app, so we
+            ask you. Right after the Meta step we check it with Meta and tell you if it isn't so. Linked
+            devices (WhatsApp Web and so on) are unlinked when the number connects, and your choice about
+            sharing chat history can't be changed afterwards. Keep the app open while the sync runs.
           </p>
+          <label class="flex items-start gap-2 text-on-surface-variant font-body-md text-sm mt-2">
+            <input id="app-confirm" type="checkbox" class="mt-1"/>
+            <span>I confirm that I am logged into the WhatsApp Business app with the phone number I want to
+              onboard to the API, and that the Business app version is 2.24.17 or higher.</span>
+          </label>
         </div>
 
         <!-- Step 4: where the templates are -->
         <div id="step-4" class="hidden flex flex-col gap-2">
           <p class="section-title text-on-surface">Message template check</p>
           <p class="text-on-surface-variant font-body-md text-sm">
-            Templates live in a Messaging account, not on the number. Tell us where yours are now, so
-            there are no surprises after you disconnect from your previous provider.
+            If the number you are going to onboard was with a different provider before (or you had API
+            access through your own Meta app), we need to migrate your templates into the Messaging account
+            Watobot will use. Templates live in a Messaging account, not on the number. Tell us where yours are.
           </p>
           <label class="flex items-start gap-2 text-on-surface-variant font-body-md text-sm">
             <input type="radio" name="tpl" value="none" class="mt-1"/>
@@ -122,7 +128,7 @@
           </label>
           <label class="flex items-start gap-2 text-on-surface-variant font-body-md text-sm">
             <input type="radio" name="tpl" value="own" class="mt-1"/>
-            <span>I can see my previous provider's Messaging account in my own
+            <span>I can see the previous Messaging account (my provider's, or one from my own Meta app) in my own
               <a class="text-primary font-bold hover:underline" href="https://business.facebook.com/settings" target="_blank" rel="noopener">Business Settings</a>
               &rarr; Accounts &rarr; Messaging accounts.</span>
           </label>
@@ -152,7 +158,7 @@
 
         <!-- Step 5: Meta -->
         <div id="step-5" class="hidden flex flex-col gap-3">
-          <p class="section-title text-on-surface">Connect with Meta</p>
+          <p class="section-title text-on-surface">Onboard to WhatsApp API through Meta</p>
           <p class="text-on-surface-variant font-body-md text-sm">
             Meta's window opens next. Choose <em>Connect your existing WhatsApp Business App</em> and follow
             its steps. When it finishes, we point Meta at your callback URL.
