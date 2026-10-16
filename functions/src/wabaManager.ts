@@ -3,12 +3,13 @@ import express from 'express';
 import cors from 'cors';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { config } from './helpers/config';
-import { getDisplayPhoneNumber, graphApiBase, registerPhoneNumber, subscribeApp } from './helpers/graphApi';
+import { getDisplayPhoneNumber, getPhoneNumberInfo, graphApiBase, registerPhoneNumber, subscribeApp } from './helpers/graphApi';
 import { effectiveConfig, reserve, type Verdict } from './helpers/rateLimiter';
 import { verifyEndpointChallenge } from './helpers/endpointCheck';
 import { HttpError } from './helpers/auth';
-import type { PhoneNumberDoc, RegisterNumberRequest, SetWebhookRequest } from './helpers/types';
+import type { OnboardingResponse, PhoneNumberDoc, RegisterNumberRequest, SetWebhookRequest } from './helpers/types';
 import { authenticateKey } from './accounts';
+import { advanceAfterOverride, movedTo, noteOnboardingError } from './onboarding';
 
 // What a customer does with a number through its Watobot API key: set where incoming
 // messages go (setWebhook), register a new number (registerNumber), send messages
@@ -57,19 +58,30 @@ export const setWebhook = onRequest((req, res) => {
     try {
       const { wabaId, accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
 
-      const check = await verifyEndpointChallenge(overrideCallbackUrl, config.webhookVerifyToken);
-      if (!check.ok) {
-        res.status(400).send(check);
-        return;
-      }
+      try {
+        const check = await verifyEndpointChallenge(overrideCallbackUrl, config.webhookVerifyToken);
+        if (!check.ok) throw new HttpError(400, check.error!);
 
-      await subscribeApp(wabaId, accessToken, overrideCallbackUrl, config.webhookVerifyToken);
-      await getFirestore()
-        .collection('phoneNumbers')
-        .doc(String(phoneNumberId))
-        .update({ overrideUrl: overrideCallbackUrl, activatedAt: Date.now() });
-      await rememberDisplayNumber(String(phoneNumberId), accessToken);
-      res.status(200).send({ ok: true });
+        await subscribeApp(wabaId, accessToken, overrideCallbackUrl, config.webhookVerifyToken);
+        await getFirestore()
+          .collection('phoneNumbers')
+          .doc(String(phoneNumberId))
+          .update({ overrideUrl: overrideCallbackUrl, activatedAt: Date.now() });
+        await rememberDisplayNumber(String(phoneNumberId), accessToken);
+
+        // A number in the onboarding wizard moves on from here; an older one just gets its URL.
+        const doc = (await getFirestore().collection('phoneNumbers').doc(String(phoneNumberId)).get()).data() as PhoneNumberDoc;
+        if (doc.onboarding?.step === 'override') {
+          const next = await advanceAfterOverride(String(phoneNumberId), accessToken);
+          const body: OnboardingResponse = { ok: true, ...next };
+          res.status(200).send(body);
+          return;
+        }
+        res.status(200).send({ ok: true });
+      } catch (err) {
+        await noteOnboardingError(String(phoneNumberId), 'override', (err as Error).message);
+        throw err;
+      }
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;
       res.status(status).send({ ok: false, error: (err as Error).message });
@@ -98,8 +110,29 @@ export const registerNumber = onRequest({ timeoutSeconds: 90 }, (req, res) => {
 
     try {
       const { accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
-      await registerPhoneNumber(String(phoneNumberId), accessToken, String(pin));
+      try {
+        // A number that is also on the WhatsApp Business app is already registered. Registering it
+        // for the API alone would take it off the app, so it is refused.
+        const info = await getPhoneNumberInfo(String(phoneNumberId), accessToken);
+        if (info.isOnBizApp === true) {
+          throw new HttpError(409, 'This number is on the WhatsApp Business app, which already registers it. Registering it for the API alone would take it off the app, so it is not done.');
+        }
+        await registerPhoneNumber(String(phoneNumberId), accessToken, String(pin));
+      } catch (err) {
+        await noteOnboardingError(String(phoneNumberId), 'register', (err as Error).message);
+        throw err;
+      }
       await rememberDisplayNumber(String(phoneNumberId), accessToken);
+
+      // The API-only path of the wizard continues with templates once the number is registered.
+      const ref = getFirestore().collection('phoneNumbers').doc(String(phoneNumberId));
+      const doc = (await ref.get()).data() as PhoneNumberDoc;
+      if (doc.onboarding?.step === 'register') {
+        await ref.update({ onboarding: movedTo(doc.onboarding, 'templates') });
+        const body: OnboardingResponse = { ok: true, step: 'templates' };
+        res.status(200).send(body);
+        return;
+      }
       res.status(200).send({ ok: true });
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;

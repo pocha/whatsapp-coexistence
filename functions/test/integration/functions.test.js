@@ -69,11 +69,12 @@ test('webhook GET verify handshake echoes the challenge for a matching token', a
 test('exchangeCode stores the Meta token encrypted under the API key and never returns it', async () => {
   const res = await post(
     '/exchangeCode',
-    { code: 'fake-signup-code', wabaId: '111', phoneNumberId: '222', apiKey: KEY },
+    { code: 'fake-signup-code', wabaId: '111', phoneNumberId: '222', apiKey: KEY, event: 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING' },
     asUser(),
   );
   const body = await res.json();
   assert.equal(res.status, 200);
+  assert.equal(body.step, 'override', 'a new number starts the wizard at the override step');
   assert.equal(JSON.stringify(body).includes(META_TOKEN), false, 'the token must not be in the response');
 
   const stored = (await db.collection('phoneNumbers').doc('222').get()).data();
@@ -85,7 +86,7 @@ test('exchangeCode stores the Meta token encrypted under the API key and never r
 });
 
 test('exchangeCode refuses a wrong API key and an unauthenticated caller', async () => {
-  const body = { code: 'c', wabaId: '111', phoneNumberId: '223', apiKey: NEW_KEY };
+  const body = { code: 'c', wabaId: '111', phoneNumberId: '223', apiKey: NEW_KEY, event: 'FINISH' };
   assert.equal((await post('/exchangeCode', body, asUser())).status, 401);
   assert.equal((await post('/exchangeCode', { ...body, apiKey: KEY })).status, 401);
   assert.equal((await db.collection('phoneNumbers').doc('223').get()).exists, false);
@@ -187,6 +188,90 @@ test('templates lists, creates and deletes through the stored token', async () =
 
   const wrong = await fetch(`${FUNCTIONS_BASE}/templates/777`, { headers: { Authorization: `Bearer ${NEW_KEY}` } });
   assert.equal(wrong.status, 401);
+});
+
+// ---- the onboarding wizard ----
+
+const META_STUB = 'http://127.0.0.1:9905';
+const metaCalls = async () => (await fetch(`${META_STUB}/__calls`)).json();
+const numberDoc = async (id) => (await db.collection('phoneNumbers').doc(id).get()).data();
+
+async function onboard(phoneNumberId, event) {
+  const exchanged = await post(
+    '/exchangeCode',
+    { code: 'c', wabaId: `9${phoneNumberId}`, phoneNumberId, apiKey: KEY, event },
+    asUser(),
+  );
+  assert.equal(exchanged.status, 200, JSON.stringify(await exchanged.clone().json()));
+  const webhook = await post('/setWebhook', { phoneNumberId, apiKey: KEY, overrideCallbackUrl: BUSINESS_ENDPOINT });
+  return { status: webhook.status, body: await webhook.json() };
+}
+
+test('a coexistence signup goes on to the sync step and is never registered; a plain number is asked what to do', async () => {
+  const coexistence = await onboard('222', 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING');
+  assert.equal(coexistence.status, 200, JSON.stringify(coexistence.body));
+  assert.equal(coexistence.body.step, 'sync');
+  assert.equal((await numberDoc('222')).isOnBizApp, true);
+  assert.equal((await numberDoc('222')).sync.contacts.state, 'none');
+  assert.equal((await metaCalls()).some((c) => c.includes('/222/register')), false, 'a coexistence number is already registered');
+
+  const plain = await onboard('224', 'FINISH');
+  assert.equal(plain.body.step, 'not_on_app');
+  assert.equal((await numberDoc('224')).isOnBizApp, false);
+});
+
+test('register refuses a number on the Business app, moves a plain number on, and keeps the step when Meta refuses', async () => {
+  const register = (id) => post('/registerNumber', { phoneNumberId: id, apiKey: KEY, pin: '123456' });
+
+  // 222 is on the Business app (see the test above).
+  assert.equal((await register('222')).status, 409);
+  assert.equal((await metaCalls()).some((c) => c.includes('/222/register')), false);
+
+  await db.collection('phoneNumbers').doc('224').update({ 'onboarding.step': 'register' });
+  const ok = await register('224');
+  assert.equal(ok.status, 200);
+  assert.equal((await ok.json()).step, 'templates');
+
+  await seedNumber('229', '9229');
+  await db.collection('phoneNumbers').doc('229').update({ onboarding: { step: 'register', event: 'FINISH', updatedAt: 1 } });
+  const refused = await register('229');
+  assert.equal(refused.status, 502);
+  const kept = await numberDoc('229');
+  assert.equal(kept.onboarding.step, 'register', 'the user can try again');
+  assert.match(kept.onboarding.error, /wrong PIN/);
+});
+
+test('each sync can be requested once: contacts first, no repeat after it was accepted, a failed one can be tried again', async () => {
+  const sync = (id, syncType) => post('/startSync', { phoneNumberId: id, apiKey: KEY, syncType });
+
+  assert.equal((await sync('222', 'history')).status, 409, 'contacts come first');
+  assert.equal((await sync('222', 'contacts')).status, 200);
+  assert.equal((await sync('222', 'contacts')).status, 409, 'Meta allows it only once');
+  assert.equal((await sync('222', 'history')).status, 200);
+  assert.equal((await numberDoc('222')).sync.history.state, 'requested');
+
+  await seedNumber('230', '9230');
+  await db
+    .collection('phoneNumbers')
+    .doc('230')
+    .update({ onboarding: { step: 'sync', event: 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING', updatedAt: 1 }, sync: { contacts: { state: 'none' }, history: { state: 'none' } } });
+  assert.equal((await sync('230', 'contacts')).status, 502);
+  assert.equal((await numberDoc('230')).sync.contacts.state, 'failed');
+  assert.equal((await sync('230', 'contacts')).status, 502, 'a failed request is tried again, not refused as a repeat');
+});
+
+test('templates: a source we cannot read sends the user to their provider; a readable one is copied', async () => {
+  const migrate = (sourceWabaId) => post('/migrateTemplates', { phoneNumberId: '222', apiKey: KEY, sourceWabaId });
+
+  const before = (await metaCalls()).length;
+  const unreadable = await (await migrate('99999999')).json();
+  assert.equal(unreadable.outcome, 'unreadable');
+  assert.equal((await metaCalls()).slice(before).some((c) => c.includes('migrate_message_templates')), false);
+
+  const done = await (await migrate('123456789')).json();
+  assert.equal(done.outcome, 'done');
+  assert.equal(done.migrated, 3);
+  assert.deepEqual(done.failed, [{ id: '4', reason: 'Incorrect category' }]);
 });
 
 test('login: a new phone number gets a user, sets a key, and then needs that key to log in', async () => {

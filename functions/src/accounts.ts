@@ -3,7 +3,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import cors from 'cors';
 import { config } from './helpers/config';
 import { exchangeCodeForToken, getDisplayPhoneNumber } from './helpers/graphApi';
-import type { ExchangeCodeRequest, PhoneNumberDoc, RotateKeyRequest } from './helpers/types';
+import type { ExchangeCodeRequest, OnboardingResponse, PhoneNumberDoc, RotateKeyRequest, SignupEvent } from './helpers/types';
 import { HttpError, requireAuth } from './helpers/auth';
 import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKey } from './helpers/apiKey';
 
@@ -96,13 +96,18 @@ export async function authenticateKey(
   }
 }
 
-/** Seals a Meta access token under the API key and saves it on the WABA record. */
+/**
+ * Seals a Meta access token under the API key and saves it on the WABA record. When `event` is
+ * given the number starts (or restarts) the onboarding wizard at the override step, and anything
+ * left from an earlier attempt (sync state, whether it was on the Business app) is cleared.
+ */
 export async function storeWabaToken(args: {
   userId: string;
   wabaId: string;
   phoneNumberId: string;
   accessToken: string;
   apiKey: string;
+  event?: SignupEvent;
 }): Promise<void> {
   await getFirestore()
     .collection('phoneNumbers')
@@ -113,6 +118,14 @@ export async function storeWabaToken(args: {
         wabaId: args.wabaId,
         phoneNumberId: args.phoneNumberId,
         encAccessToken: encryptToken(args.accessToken, args.apiKey),
+        ...(args.event
+          ? {
+              onboarding: { step: 'override', event: args.event, updatedAt: Date.now() },
+              sync: FieldValue.delete(),
+              isOnBizApp: FieldValue.delete(),
+              platformType: FieldValue.delete(),
+            }
+          : {}),
       },
       { merge: true },
     );
@@ -198,14 +211,17 @@ export const exchangeCode = onRequest((req, res) => {
 
     try {
       const userId = await requireAuth(req);
-      const { code, wabaId, phoneNumberId, apiKey } = (req.body ?? {}) as Partial<ExchangeCodeRequest>;
+      const { code, wabaId, phoneNumberId, apiKey, event } = (req.body ?? {}) as Partial<ExchangeCodeRequest>;
       if (!code || !ID_RE.test(String(wabaId)) || !ID_RE.test(String(phoneNumberId))) {
         throw new HttpError(400, 'code, wabaId and phoneNumberId are required.');
+      }
+      if (event !== 'FINISH' && event !== 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING') {
+        throw new HttpError(400, 'event must be the Embedded Signup event the popup sent.');
       }
       await requireUserKey(userId, apiKey);
 
       const accessToken = await exchangeCodeForToken(code, config.metaAppId, config.metaAppSecret);
-      await storeWabaToken({ userId, wabaId: String(wabaId), phoneNumberId: String(phoneNumberId), accessToken, apiKey: apiKey as string });
+      await storeWabaToken({ userId, wabaId: String(wabaId), phoneNumberId: String(phoneNumberId), accessToken, apiKey: apiKey as string, event });
       // How the number is shown in the dashboard. Best-effort: it falls back to the phone number ID.
       try {
         const displayPhoneNumber = await getDisplayPhoneNumber(String(phoneNumberId), accessToken);
@@ -215,7 +231,8 @@ export const exchangeCode = onRequest((req, res) => {
       } catch {
         // Not fatal.
       }
-      res.status(200).send({ ok: true, wabaId, phoneNumberId });
+      const body: OnboardingResponse = { ok: true, step: 'override' };
+      res.status(200).send({ ...body, wabaId, phoneNumberId });
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;
       res.status(status).send({ ok: false, error: (err as Error).message });
