@@ -9,9 +9,11 @@
     <section class="flex-1 min-w-0 px-gutter md:px-10 py-12">
       <div class="max-w-6xl mx-auto flex flex-col gap-6 w-full min-w-0">
         <div>
-          <h1 class="font-headline-lg text-headline-lg text-on-surface">WhatsApp number</h1>
-          <p id="number-id-line" class="text-on-surface-variant font-body-md text-sm mt-1 break-all"></p>
-          <p id="waba-id-line" class="text-on-surface-variant font-body-md text-sm break-all"></p>
+          <div class="flex flex-wrap items-center gap-3">
+            <h1 id="page-title" class="font-headline-lg text-headline-lg text-on-surface break-all">WhatsApp number</h1>
+            <span id="type-chip" class="hidden rounded-full px-3 py-1 label-strong"></span>
+          </div>
+          <p id="ids-line" class="text-on-surface-variant font-body-md text-sm mt-1 break-all"></p>
           <p id="not-found" class="hidden text-on-surface-variant font-body-md text-sm mt-1">
             We couldn't load this number's saved details (usage, saved URL) under your account.
             The sections below still work with the right API key.

@@ -224,15 +224,9 @@ function renderOnboardingCard(data: PhoneNumberDoc) {
     link.className = 'inline-block mt-3 rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 transition-all';
     link.textContent = 'Continue onboarding';
     card.append(link);
-  } else if (data.isOnBizApp !== undefined) {
-    line(data.isOnBizApp ? 'COEXISTENCE' : 'API ONLY', 'label-strong text-primary mb-1');
-    if (data.isOnBizApp) {
-      line('This number is on the WhatsApp Business app and the API.');
-      line(`Contacts sync: ${syncText(data.sync?.contacts)}`);
-      line(`History sync: ${syncText(data.sync?.history)}`);
-    } else {
-      line('No WhatsApp Business app on this number.');
-    }
+  } else if (data.isOnBizApp) {
+    line(`Contacts sync: ${syncText(data.sync?.contacts)}`);
+    line(`History sync: ${syncText(data.sync?.history)}`);
   } else {
     return;
   }
@@ -250,10 +244,17 @@ async function loadRecord(): Promise<boolean> {
   }
   if (!data) return false;
 
-  if (data.wabaId) el('waba-id-line').textContent = `WABA ID: ${data.wabaId}`;
   if (data.overrideUrl && !overrideUrl.value) overrideUrl.value = data.overrideUrl;
 
-  if (data.displayPhoneNumber) el('number-id-line').textContent = `Phone number: ${data.displayPhoneNumber} · ID ${phoneNumberId}`;
+  // The number is the title; whether it also runs on the Business app is a chip beside it.
+  if (data.displayPhoneNumber) el('page-title').textContent = data.displayPhoneNumber;
+  el('ids-line').textContent = `WABA ID: ${data.wabaId ?? 'unknown'} · Phone number ID: ${phoneNumberId}`;
+  const finished = !data.onboarding || data.onboarding.step === 'done';
+  if (finished && data.isOnBizApp !== undefined) {
+    const chip = el('type-chip');
+    chip.textContent = data.isOnBizApp ? 'Coexistence' : 'API only';
+    chip.className = `rounded-full px-3 py-1 label-strong ${data.isOnBizApp ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`;
+  }
   renderOnboardingCard(data);
   renderStats(data);
   return true;
@@ -416,7 +417,7 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
   fillSidebar(user.uid, phoneNumberId);
-  el('number-id-line').textContent = `Phone number ID: ${phoneNumberId}`;
+  el('ids-line').textContent = `Phone number ID: ${phoneNumberId}`;
   // What the buttons and commands do is authorised by the API key, not by this sign-in, so
   // the sections show either way.
   renderCommands();
