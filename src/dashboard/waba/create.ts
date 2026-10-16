@@ -470,6 +470,11 @@ el('api-only-btn').addEventListener('click', async () => {
   }
 });
 
+// Back to the start, for a number that should have been coexistence. The new signup replaces its saved state.
+el('restart-btn').addEventListener('click', () => {
+  location.href = '/dashboard/waba/create.html';
+});
+
 // Register (API only)
 el('register-btn').addEventListener('click', async () => {
   const pin = el<HTMLInputElement>('pin-input').value.trim();
