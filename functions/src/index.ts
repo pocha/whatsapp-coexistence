@@ -8,6 +8,7 @@ export { setWebhook, registerNumber, relayMessage, templates } from './wabaManag
 export { sendOtp, verifyOtp } from './otp';
 export { webhook } from './webhook';
 export {
+  checkCallbackUrl,
   importTemplates,
   migrateTemplates,
   numberStatus,

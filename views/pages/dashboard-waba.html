@@ -18,6 +18,8 @@
           </p>
         </div>
 
+        <div id="onboarding-card" class="hidden card p-6"></div>
+
         <div id="stats" class="hidden flex flex-col gap-4">
           <div class="card p-6">
             <p class="label-strong text-on-surface-variant mb-3">MESSAGES SENT <span class="label-muted">all messages · UTC</span></p>
@@ -63,6 +65,7 @@
             <input id="ov-url" placeholder="https://your-app.example.com/webhook" class="w-full mt-1 mb-3 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"/>
             <button id="ov-btn" class="rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">Verify &amp; save</button>
             <p class="text-on-surface-variant font-body-md text-sm mt-3" id="ov-status"></p>
+            <!--#include partial="test-events"-->
             <details class="mt-4">
               <summary class="label-strong text-on-surface-variant cursor-pointer">Using the test chatbot?</summary>
               <p class="text-on-surface-variant font-body-md text-sm mt-2">
@@ -79,6 +82,24 @@
 
           <div class="card p-6">
             <p class="label-strong text-on-surface-variant mb-1">MORE</p>
+            <details data-accordion class="border-t border-outline-variant">
+              <summary class="cursor-pointer py-3 section-title text-on-surface">Check this number's status</summary>
+              <div class="pb-4">
+                <p class="text-on-surface-variant font-body-md text-sm mb-3">
+                  Shows whether Meta has the number connected (<code>status</code>), whether it is verified,
+                  and whether it is also on the WhatsApp Business app (<code>isOnBizApp</code>, with
+                  <code>platformType</code> <code>CLOUD_API</code> for coexistence). A number must be
+                  <code>CONNECTED</code> to send and receive.
+                </p>
+                <div>
+                  <p class="label-strong text-on-surface-variant mb-1">STATUS</p>
+                  <div class="relative">
+                    <textarea id="status-command" rows="3" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none pr-20"></textarea>
+                    <button id="copy-status-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  </div>
+                </div>
+              </div>
+            </details>
             <details data-accordion class="border-t border-outline-variant">
               <summary class="cursor-pointer py-3 section-title text-on-surface">Register this number</summary>
               <div class="pb-4">

@@ -73,19 +73,26 @@ export async function fillSidebar(uid: string, currentId?: string | null): Promi
   snapshot.forEach((docSnap) => {
     const waba = docSnap.data() as PhoneNumberDoc;
     numbers.push({ id: docSnap.id, ...waba });
+    // A number whose onboarding is not finished goes back into the wizard, where it left off.
+    const unfinished = Boolean(waba.onboarding && waba.onboarding.step !== 'done');
     const link = document.createElement('a');
-    link.href = `/dashboard/waba/?id=${encodeURIComponent(docSnap.id)}`;
+    link.href = unfinished
+      ? `/dashboard/waba/create.html?id=${encodeURIComponent(docSnap.id)}`
+      : `/dashboard/waba/?id=${encodeURIComponent(docSnap.id)}`;
     link.className = `${LINK} text-on-surface-variant`;
     const shown = waba.displayPhoneNumber ?? `Number ${docSnap.id}`;
-    link.title = `${shown} (phone number ID ${docSnap.id})`;
+    link.title = unfinished
+      ? `${shown}: onboarding not finished. Continue where you left off.`
+      : `${shown} (phone number ID ${docSnap.id})`;
 
     const icon = document.createElement('span');
     icon.className = 'material-symbols-outlined text-[22px] flex-shrink-0';
-    icon.textContent = waba.overrideUrl && waba.encAccessToken ? 'chat' : 'chat_bubble_outline';
+    if (unfinished) icon.style.color = '#b45309'; // amber: needs attention
+    icon.textContent = unfinished ? 'pending' : waba.overrideUrl && waba.encAccessToken ? 'chat' : 'chat_bubble_outline';
 
     const label = document.createElement('span');
     label.className = 'hidden lg:inline truncate';
-    label.textContent = shown;
+    label.textContent = unfinished ? `${shown} · finish setup` : shown;
 
     link.append(icon, label);
     if (docSnap.id === currentId) markActive(link);

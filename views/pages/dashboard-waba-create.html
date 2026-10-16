@@ -1,4 +1,4 @@
-<!--#var title="Onboard a WABA — WA Coexistence"-->
+<!--#var title="Onboard a number — WA Coexistence"-->
 <!--#var description="Connect your WhatsApp Business app number to get WhatsApp API access with coexistence."-->
 <!--#include partial="head"-->
 <!--#include partial="header"-->
@@ -8,30 +8,219 @@
 
     <section class="flex-1 min-w-0 px-gutter md:px-10 py-12">
       <div class="max-w-4xl mx-auto flex flex-col gap-6 w-full">
-        <h1 class="font-headline-lg text-headline-lg text-on-surface">Onboard a WABA</h1>
+        <h1 class="font-headline-lg text-headline-lg text-on-surface">Onboard a number</h1>
 
-        <div id="intro-card" class="hidden card p-6">
-          <p class="text-on-surface-variant font-body-md">
-            If you haven't already, create a Business Portfolio, connect your
-            phone number on the WhatsApp Business app, and add it under
-            <strong>Business Portfolio &rarr; WhatsApp accounts</strong>. Our
-            <a class="text-primary font-bold hover:underline" href="/how-to/create-meta-business-portfolio-add-whatsapp-number.html">guide</a>
-            walks through it.
+        <div id="key-card" class="hidden card p-6">
+          <label class="section-title text-on-surface block" for="key-input">Your Watobot API key</label>
+          <p class="text-on-surface-variant font-body-md text-sm mt-1 mb-3">
+            Every step below uses it. It stays in this page and is never saved.
           </p>
-          <p class="text-on-surface-variant font-body-md mt-3">
-            Enter your Watobot API key, so we can check it before you go through
-            Meta's popup.
-          </p>
-          <label class="label-strong text-on-surface-variant block mt-4" for="key-input">Your Watobot API key</label>
-          <input id="key-input" type="password" autocomplete="off" placeholder="64 characters" class="w-full mt-1 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-xs"/>
-          <a href="/dashboard/key/" class="self-start mt-2 text-error font-body-md text-sm hover:underline">I forgot my API key</a>
-
-          <p class="text-on-surface-variant font-body-md mt-4">
-            Then click the button below to get API access with coexistence.
-          </p>
-          <button id="fetch-btn" disabled class="mt-3 self-start rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">Fetch my WABAs</button>
+          <input id="key-input" type="password" autocomplete="off" placeholder="64 characters" class="w-full px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-xs"/>
+          <a href="/dashboard/key/" class="inline-block mt-2 text-error font-body-md text-sm hover:underline">I forgot my API key</a>
         </div>
+
         <p class="text-on-surface-variant font-body-md text-sm" id="onboarding-status">Loading…</p>
+
+        <!-- Start -->
+        <div id="view-start" class="hidden card p-6">
+          <p class="text-on-surface-variant font-body-md">
+            If you haven't already, create a Business Portfolio, connect your phone number on the
+            WhatsApp Business app, and add it under <strong>Business Portfolio &rarr; WhatsApp accounts</strong>.
+            Our <a class="text-primary font-bold hover:underline" href="/how-to/create-meta-business-portfolio-add-whatsapp-number.html">guide</a>
+            walks through it. Then we check a few things before Meta's popup opens, so nothing
+            catches you out afterwards.
+          </p>
+          <button id="start-btn" disabled class="mt-4 self-start rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">Start onboarding</button>
+        </div>
+
+        <!-- Step 1: checks -->
+        <div id="view-checks" class="hidden flex flex-col gap-6">
+          <div class="card p-6">
+            <p class="label-strong text-primary mb-1">1. WHERE SHOULD YOUR DATA GO?</p>
+            <p class="text-on-surface-variant font-body-md text-sm mb-3">
+              Right after onboarding, Meta sends your contacts and past chats (once, and it can't be
+              repeated) to this URL, and every message and echo after that. Watobot doesn't keep any of it, so
+              your endpoint must parse and save it. Meta gives 24 hours to request that sync, so we
+              check your endpoint first.
+            </p>
+            <label class="label-strong text-on-surface-variant block" for="cb-url">Your callback URL</label>
+            <div class="flex flex-col sm:flex-row gap-2 mt-1">
+              <input id="cb-url" placeholder="https://your-app.example.com/webhook" class="flex-1 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"/>
+              <button id="cb-verify" class="rounded-xl border border-outline-variant bg-white px-5 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all disabled:opacity-50">Verify</button>
+            </div>
+            <p id="cb-status" class="text-on-surface-variant font-body-md text-sm mt-2"></p>
+            <label class="flex items-start gap-2 mt-3 text-on-surface-variant font-body-md text-sm">
+              <input id="cb-confirm" type="checkbox" class="mt-1"/>
+              <span>My endpoint parses and stores history, contacts and echoed messages.</span>
+            </label>
+            <!--#include partial="test-events"-->
+          </div>
+
+          <div class="card p-6">
+            <p class="label-strong text-primary mb-1">2. IS THE NUMBER ON THE WHATSAPP BUSINESS APP?</p>
+            <label class="flex items-start gap-2 text-on-surface-variant font-body-md text-sm">
+              <input id="app-confirm" type="checkbox" class="mt-1"/>
+              <span>The number is active on the WhatsApp Business app on my phone (version 2.24.17 or higher).</span>
+            </label>
+            <p class="text-on-surface-variant font-body-md text-sm mt-2">
+              Linked devices (WhatsApp Web and so on) are unlinked when it connects, and your choice
+              about sharing chat history can't be changed afterwards. Keep the app open while the sync runs.
+            </p>
+          </div>
+
+          <div class="card p-6">
+            <p class="label-strong text-primary mb-1">3. YOUR MESSAGE TEMPLATES</p>
+            <p class="text-on-surface-variant font-body-md text-sm mb-3">
+              Templates live in a Messaging account, not on the number. Tell us where yours are now, so
+              there are no surprises after you disconnect from your previous provider.
+            </p>
+            <label class="flex items-start gap-2 text-on-surface-variant font-body-md text-sm">
+              <input type="radio" name="tpl" value="none" class="mt-1"/>
+              <span>I have no previous provider, or no templates to bring.</span>
+            </label>
+            <label class="flex items-start gap-2 mt-2 text-on-surface-variant font-body-md text-sm">
+              <input type="radio" name="tpl" value="own" class="mt-1"/>
+              <span>I can see my previous provider's Messaging account in my own
+                <a class="text-primary font-bold hover:underline" href="https://business.facebook.com/settings" target="_blank" rel="noopener">Business Settings</a>
+                &rarr; Accounts &rarr; Messaging accounts.</span>
+            </label>
+            <div id="tpl-own" class="hidden ml-6 mt-2">
+              <p class="text-on-surface-variant font-body-md text-sm">
+                Add Watobot as a partner on that Messaging account (<em>Assign partner</em>) using our
+                business portfolio ID <code id="our-business-id">1821963108976783</code>, then paste the
+                Messaging account's ID.
+              </p>
+              <input id="tpl-source" placeholder="Previous Messaging account ID (digits)" class="w-full mt-2 px-4 py-2 bg-white border border-outline-variant rounded-lg outline-none font-mono text-xs"/>
+            </div>
+            <label class="flex items-start gap-2 mt-2 text-on-surface-variant font-body-md text-sm">
+              <input type="radio" name="tpl" value="provider" class="mt-1"/>
+              <span>It belongs to my provider, so I can't see it.</span>
+            </label>
+            <div id="tpl-provider" class="hidden ml-6 mt-2">
+              <p class="text-on-surface-variant font-body-md text-sm">
+                Ask your provider to run this read call and send you the result, while they still
+                cooperate, then paste it here:
+              </p>
+              <pre class="bg-surface-container-low rounded-lg p-3 mt-2 text-xs overflow-x-auto whitespace-pre-wrap">curl 'https://graph.facebook.com/v26.0/&lt;THEIR_MESSAGING_ACCOUNT_ID&gt;/message_templates?fields=name,language,category,components&amp;limit=100' \
+  -H 'Authorization: Bearer &lt;THEIR_TOKEN&gt;'</pre>
+              <textarea id="tpl-json" rows="5" placeholder="Paste the JSON here" class="w-full mt-2 px-3 py-2 bg-white border border-outline-variant rounded-lg outline-none font-mono text-xs"></textarea>
+              <p id="tpl-json-status" class="text-on-surface-variant font-body-md text-sm mt-1"></p>
+            </div>
+            <p id="tpl-status" class="text-on-surface-variant font-body-md text-sm mt-2"></p>
+          </div>
+
+          <div class="card p-6">
+            <button id="meta-btn" disabled class="rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">Continue to Meta</button>
+            <p id="meta-hint" class="text-on-surface-variant font-body-md text-sm mt-2">Complete the checks above to continue.</p>
+            <details class="mt-4">
+              <summary class="label-strong text-on-surface-variant cursor-pointer">If Meta's popup shows an error</summary>
+              <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md text-sm mt-2">
+                <li><strong>"Switching partners is not supported in this flow" (2655093), "This phone number is already registered with the product" (3441049), "Please disconnect your business platform to continue" (2655094):</strong> disconnect the previous provider in the WhatsApp Business app (Settings &rarr; Account &rarr; Business Platform), wait 15 minutes, and start again.</li>
+                <li><strong>"The phone number you entered is already registered" (3441030):</strong> the number is still registered with another provider's API. De-register it first (<a class="text-primary font-bold hover:underline" href="/how-to/deregister-whatsapp-number-from-provider.html">how</a>).</li>
+                <li><strong>"This number is registered to an existing WhatsApp account":</strong> the signup treated it as a new number. Pick the option to connect your existing WhatsApp Business app.</li>
+                <li><strong>"Your phone number isn't eligible to connect to the WhatsApp Business Platform" (3441045):</strong> use the WhatsApp Business app for a while, then try again.</li>
+                <li><strong>"Your phone number isn't registered with WhatsApp Business" (2655095, 2655048):</strong> the number has to be set up on the WhatsApp Business app first.</li>
+              </ul>
+              <p class="text-on-surface-variant font-body-md text-sm mt-2">
+                More in the <a class="text-primary font-bold hover:underline" href="/how-to/move-whatsapp-api-between-providers.html">move guide</a>.
+              </p>
+            </details>
+          </div>
+        </div>
+
+        <!-- Connecting the callback URL (after the popup, or when resuming) -->
+        <div id="view-override" class="hidden card p-6">
+          <p class="label-strong text-primary mb-1">CONNECT YOUR CALLBACK URL</p>
+          <p class="text-on-surface-variant font-body-md text-sm mb-2">Your number is connected. The last step here is pointing Meta's deliveries at your URL.</p>
+          <input id="ov-url" placeholder="https://your-app.example.com/webhook" class="w-full px-4 py-2 bg-white border border-outline-variant rounded-lg outline-none"/>
+          <button id="ov-btn" class="mt-3 rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">Connect</button>
+        </div>
+
+        <!-- The number is not on the Business app -->
+        <div id="view-not-on-app" class="hidden card p-6 whatsapp-border">
+          <p class="label-strong text-primary mb-1">THIS NUMBER IS NOT ON THE WHATSAPP BUSINESS APP</p>
+          <p class="text-on-surface-variant font-body-md text-sm">
+            Coexistence needs the number on the app. You can continue with it as an API-only number
+            (you won't be able to use the app on it), or switch it to coexistence first.
+          </p>
+          <div class="flex flex-wrap gap-3 mt-4">
+            <button id="api-only-btn" class="rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">Continue as API only</button>
+          </div>
+          <details class="mt-4">
+            <summary class="label-strong text-on-surface-variant cursor-pointer">I want coexistence instead</summary>
+            <ol class="flex flex-col gap-1 list-decimal list-inside text-on-surface-variant font-body-md text-sm mt-2">
+              <li>If the number is registered with another provider's API, de-register it (<a class="text-primary font-bold hover:underline" href="/how-to/deregister-whatsapp-number-from-provider.html">how</a>).</li>
+              <li>Set the number up on the WhatsApp Business app.</li>
+              <li>Come back here and start onboarding again.</li>
+            </ol>
+            <a href="/dashboard/" class="inline-block mt-3 text-primary font-bold font-body-md text-sm hover:underline">I'll do that and come back</a>
+          </details>
+        </div>
+
+        <!-- Register (API only) -->
+        <div id="view-register" class="hidden card p-6">
+          <p class="label-strong text-primary mb-1">REGISTER THE NUMBER</p>
+          <p class="text-on-surface-variant font-body-md text-sm mb-2">
+            Meta needs the number registered before it can send. Enter its two-step verification PIN
+            if it has one, or choose any six digits. We don't keep it.
+            <a class="text-primary font-bold hover:underline" href="/how-to/whatsapp-number-registration-and-pin.html">What this is</a>.
+          </p>
+          <input id="pin-input" inputmode="numeric" maxlength="6" placeholder="6-digit PIN" autocomplete="off" class="w-40 px-4 py-2 bg-white border border-outline-variant rounded-lg outline-none font-mono"/>
+          <button id="register-btn" class="ml-2 rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">Register</button>
+          <p id="register-status" class="text-on-surface-variant font-body-md text-sm mt-2"></p>
+        </div>
+
+        <!-- Sync (coexistence) -->
+        <div id="view-sync" class="hidden card p-6">
+          <p class="label-strong text-primary mb-1">SYNC YOUR CONTACTS AND CHAT HISTORY</p>
+          <p class="text-on-surface-variant font-body-md text-sm mb-2">
+            Meta gives 24 hours from onboarding to request this, once. It is sent to your callback
+            URL, not to Watobot. Keep your server running and the WhatsApp Business app open.
+          </p>
+          <p id="sync-deadline" class="text-on-surface-variant font-body-md text-sm mb-3"></p>
+          <ul class="flex flex-col gap-1 text-on-surface-variant font-body-md text-sm mb-3">
+            <li>Contacts: <strong id="sync-contacts">not requested</strong></li>
+            <li>History: <strong id="sync-history">not requested</strong></li>
+          </ul>
+          <button id="sync-btn" class="rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">Start sync</button>
+          <button id="sync-done-btn" disabled class="ml-2 rounded-xl border border-outline-variant bg-white px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all disabled:opacity-50 disabled:cursor-not-allowed">Finished</button>
+          <p id="sync-status" class="text-on-surface-variant font-body-md text-sm mt-2"></p>
+        </div>
+
+        <!-- Templates -->
+        <div id="view-templates" class="hidden card p-6">
+          <p class="label-strong text-primary mb-1">YOUR MESSAGE TEMPLATES</p>
+          <p id="tpl-found" class="text-on-surface-variant font-body-md text-sm mb-3"></p>
+
+          <div class="border-t border-outline-variant pt-3">
+            <p class="font-bold text-on-surface text-sm">Copy them from my previous Messaging account</p>
+            <p class="text-on-surface-variant font-body-md text-sm mt-1">
+              Add Watobot as a partner on that account first (our business portfolio ID is
+              <code>1821963108976783</code>), then paste its ID.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-2 mt-2">
+              <input id="tpl2-source" placeholder="Previous Messaging account ID (digits)" class="flex-1 px-4 py-2 bg-white border border-outline-variant rounded-lg outline-none font-mono text-xs"/>
+              <button id="tpl2-migrate" class="rounded-xl bg-primary text-on-primary px-5 py-2 font-label-md text-label-md font-bold hover:opacity-90 transition-all disabled:opacity-50">Copy templates</button>
+            </div>
+            <p id="tpl2-migrate-status" class="text-on-surface-variant font-body-md text-sm mt-2"></p>
+          </div>
+
+          <div class="border-t border-outline-variant pt-3 mt-3">
+            <p class="font-bold text-on-surface text-sm">Create them from a list my provider gave me</p>
+            <textarea id="tpl2-json" rows="4" placeholder="Paste the JSON your provider sent" class="w-full mt-2 px-3 py-2 bg-white border border-outline-variant rounded-lg outline-none font-mono text-xs"></textarea>
+            <button id="tpl2-import" class="mt-2 rounded-xl bg-primary text-on-primary px-5 py-2 font-label-md text-label-md font-bold hover:opacity-90 transition-all disabled:opacity-50">Create templates</button>
+            <p id="tpl2-import-status" class="text-on-surface-variant font-body-md text-sm mt-2"></p>
+          </div>
+
+          <p class="text-on-surface-variant font-body-md text-sm mt-3">
+            Meta reviews templates, which can take up to 24 hours. Check them in your
+            <a class="text-primary font-bold hover:underline" href="https://business.facebook.com/settings" target="_blank" rel="noopener">Messaging account</a>
+            (Business Settings &rarr; Accounts &rarr; Messaging accounts &rarr; WhatsApp Manager).
+          </p>
+          <button id="tpl-finish" class="mt-4 rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">Finish onboarding</button>
+        </div>
+
+        <p id="last-error" class="hidden text-error font-body-md text-sm"></p>
       </div>
     </section>
   </div>

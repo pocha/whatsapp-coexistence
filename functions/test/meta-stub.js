@@ -29,6 +29,12 @@ function startMetaStub(port) {
       return;
     }
 
+    // The business endpoint also takes the test events the wizard posts to it.
+    if (req.method === 'POST' && req.url.startsWith('/business-endpoint')) {
+      res.writeHead(200).end(JSON.stringify({ ok: true }));
+      return;
+    }
+
     if (req.method === 'POST' && req.url.endsWith('/subscribed_apps')) {
       res.writeHead(200).end(JSON.stringify({ success: true }));
       return;

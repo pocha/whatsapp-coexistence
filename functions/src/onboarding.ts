@@ -11,7 +11,8 @@ import {
   requestSmbAppData,
   verifyWabaAccess,
 } from './helpers/graphApi';
-import { checkPublicUrl } from './helpers/endpointCheck';
+import { checkPublicUrl, verifyEndpointChallenge } from './helpers/endpointCheck';
+import { config } from './helpers/config';
 import { newCodes, sendTestEvent, TEST_EVENT_TYPES } from './helpers/testEvents';
 import { parseTemplateExport } from './helpers/templateImport';
 import type {
@@ -95,6 +96,17 @@ export async function advanceAfterOverride(phoneNumberId: string, accessToken: s
   });
   return { step, isOnBizApp: info.isOnBizApp };
 }
+
+// ---- the callback URL, before there is a number ----
+
+/** The same handshake Meta does, so the wizard can check the URL before the Meta popup opens. */
+export const checkCallbackUrl = post(async (req, res) => {
+  await requireAuth(req);
+  const { overrideCallbackUrl } = (req.body ?? {}) as Partial<SendTestEventsRequest>;
+  const check = await verifyEndpointChallenge(String(overrideCallbackUrl ?? ''), config.webhookVerifyToken);
+  if (!check.ok) throw new HttpError(400, check.error!);
+  res.status(200).send({ ok: true });
+});
 
 // ---- number status ----
 

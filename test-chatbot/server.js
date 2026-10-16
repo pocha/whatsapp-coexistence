@@ -40,6 +40,13 @@ async function reply(phoneNumberId, to, text) {
   console.log(`  reply to ${to}: relay answered ${res.status} ${await res.text()}`);
 }
 
+/** One line per event: which webhook field it was, and any Watobot test code in it (see "Test your endpoint"). */
+function summarise(body) {
+  const fields = (body.entry ?? []).flatMap((entry) => (entry.changes ?? []).map((change) => change.field));
+  const codes = JSON.stringify(body).match(/WB-[A-Z0-9]{5}/g) ?? [];
+  return `${fields.join(', ') || 'no fields'}${codes.length ? `  | test code: ${codes.join(', ')}` : ''}`;
+}
+
 async function handleEvent(body) {
   for (const entry of body.entry ?? []) {
     for (const change of entry.changes ?? []) {
@@ -80,8 +87,12 @@ http
         res.writeHead(200).end('ok'); // acknowledge first; Meta retries on slow responses
         try {
           const body = JSON.parse(raw);
-          console.log('POST /webhook:', JSON.stringify(body, null, 2));
-          handleEvent(body).catch((err) => console.error('  handler error:', err.message));
+          console.log(`POST /webhook: ${summarise(body)}`);
+          console.log(JSON.stringify(body, null, 2));
+          // Test data from the dashboard is for checking the endpoint, so it isn't answered.
+          if (req.headers['x-watobot-test'] !== 'true') {
+            handleEvent(body).catch((err) => console.error('  handler error:', err.message));
+          }
         } catch {
           console.log('POST /webhook: body was not JSON');
         }

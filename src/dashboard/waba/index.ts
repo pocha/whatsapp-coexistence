@@ -3,8 +3,9 @@ import { WEBHOOK_VERIFY_TOKEN } from '/assets/app-config.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import { isValidApiKey } from '/assets/api-key.js';
 import '/assets/nav-auth.js';
+import { wireTestEvents } from '/assets/test-events.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { PhoneNumberDoc, SetWebhookRequest } from '../../../functions/src/helpers/types';
+import type { OnboardingStep, PhoneNumberDoc, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
 import { effectiveConfig, view } from '../../../functions/src/helpers/rateLimiter';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
@@ -185,6 +186,59 @@ function renderStats(data: PhoneNumberDoc) {
   el('stats').classList.remove('hidden');
 }
 
+const STEP_NAMES: Record<OnboardingStep, string> = {
+  override: 'connecting your callback URL',
+  not_on_app: 'choosing coexistence or API only',
+  register: 'registering the number',
+  sync: 'syncing contacts and chat history',
+  templates: 'bringing your templates across',
+  done: 'done',
+};
+
+/** "requested 16 Oct 2026, 10:12", or what went wrong. */
+function syncText(s: SyncStatus | undefined): string {
+  if (!s || s.state === 'none') return 'not requested';
+  if (s.state === 'requesting') return 'being requested';
+  if (s.state === 'failed') return `failed (${s.error ?? 'unknown error'})`;
+  return `requested ${new Date(s.at ?? 0).toLocaleString()}`;
+}
+
+/** The number's state at the top of the page: unfinished onboarding, or how it is connected and when its syncs were requested. */
+function renderOnboardingCard(data: PhoneNumberDoc) {
+  const card = el('onboarding-card');
+  card.replaceChildren();
+  const line = (text: string, className = 'text-on-surface-variant font-body-md text-sm') => {
+    const p = document.createElement('p');
+    p.className = className;
+    p.textContent = text;
+    card.append(p);
+  };
+
+  if (data.onboarding && data.onboarding.step !== 'done') {
+    card.classList.add('whatsapp-border');
+    line('ONBOARDING NOT FINISHED', 'label-strong text-primary mb-1');
+    line(`This number is at the step: ${STEP_NAMES[data.onboarding.step]}.`);
+    if (data.onboarding.error) line(`Last problem: ${data.onboarding.error}`, 'text-error font-body-md text-sm mt-1');
+    const link = document.createElement('a');
+    link.href = `/dashboard/waba/create.html?id=${encodeURIComponent(phoneNumberId)}`;
+    link.className = 'inline-block mt-3 rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 transition-all';
+    link.textContent = 'Continue onboarding';
+    card.append(link);
+  } else if (data.isOnBizApp !== undefined) {
+    line(data.isOnBizApp ? 'COEXISTENCE' : 'API ONLY', 'label-strong text-primary mb-1');
+    if (data.isOnBizApp) {
+      line('This number is on the WhatsApp Business app and the API.');
+      line(`Contacts sync: ${syncText(data.sync?.contacts)}`);
+      line(`History sync: ${syncText(data.sync?.history)}`);
+    } else {
+      line('No WhatsApp Business app on this number.');
+    }
+  } else {
+    return;
+  }
+  card.classList.remove('hidden');
+}
+
 // The rules let just the owner read phoneNumbers/{phoneNumberId}. Returns false if the record
 // is missing or isn't this user's; the page still works then, just without the saved details.
 async function loadRecord(): Promise<boolean> {
@@ -200,6 +254,7 @@ async function loadRecord(): Promise<boolean> {
   if (data.overrideUrl && !overrideUrl.value) overrideUrl.value = data.overrideUrl;
 
   if (data.displayPhoneNumber) el('number-id-line').textContent = `Phone number: ${data.displayPhoneNumber} · ID ${phoneNumberId}`;
+  renderOnboardingCard(data);
   renderStats(data);
   return true;
 }
@@ -211,6 +266,8 @@ el('copy-env-btn').addEventListener('click', async () => {
   await navigator.clipboard.writeText(el('chatbot-env').textContent ?? '');
   el('copy-env-btn').textContent = 'Copied';
 });
+
+wireTestEvents(() => overrideUrl.value);
 
 overrideBtn.addEventListener('click', async () => {
   const apiKey = apiKeyInput.value.trim();
@@ -289,6 +346,12 @@ function renderCommands() {
     `  -d '${register}'`,
   ].join('\n');
 
+  el<HTMLTextAreaElement>('status-command').value = [
+    `curl -X POST '${base}/numberStatus' \\`,
+    `  ${json} \\`,
+    `  -d '${JSON.stringify({ phoneNumberId, apiKey: key })}'`,
+  ].join('\n');
+
   const create = JSON.stringify({
     name: 'order_update',
     language: 'en_US',
@@ -324,6 +387,7 @@ apiKeyInput.addEventListener('input', renderCommands);
 for (const [button, box] of [
   ['copy-send-btn', 'send-command'],
   ['copy-send-text-btn', 'send-text-command'],
+  ['copy-status-btn', 'status-command'],
   ['copy-register-btn', 'register-command'],
   ['copy-tpl-list-btn', 'tpl-list-command'],
   ['copy-tpl-create-btn', 'tpl-create-command'],
