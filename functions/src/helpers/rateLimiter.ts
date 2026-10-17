@@ -66,6 +66,11 @@ export function advance(state: RateState | undefined, now: number): RateState {
   return next;
 }
 
+/** When the window `now` falls in ends (milliseconds since the epoch). */
+export function windowEnd(unit: Unit, now: number): number {
+  return (Math.floor(now / PERIOD_MS[unit]) + 1) * PERIOD_MS[unit];
+}
+
 export function limitFor(previous: number, window: WindowConfig, headroomSigmas: number): number {
   return Math.floor(Math.max(window.floor, previous * (1 + window.growthPercent / 100) + headroomSigmas * Math.sqrt(previous)));
 }
@@ -84,14 +89,13 @@ export function reserve(stored: RateState | undefined, config: RateLimitConfig, 
   for (const unit of UNITS) {
     const limit = limitFor(state[unit].previous, config[unit], config.headroomSigmas);
     if (state[unit].current + 1 > limit) {
-      const windowEnd = (Math.floor(now / PERIOD_MS[unit]) + 1) * PERIOD_MS[unit];
       return {
         allowed: false,
         state,
         unit,
         limit,
         current: state[unit].current,
-        retryAfterSeconds: Math.max(1, Math.ceil((windowEnd - now) / 1000)),
+        retryAfterSeconds: Math.max(1, Math.ceil((windowEnd(unit, now) - now) / 1000)),
       };
     }
   }
@@ -108,4 +112,35 @@ export function view(stored: RateState | undefined, config: RateLimitConfig, now
       { ...state[unit], limit: limitFor(state[unit].previous, config[unit], config.headroomSigmas) },
     ]),
   ) as Record<Unit, WindowCount & { limit: number }>;
+}
+
+/** What a sender needs to pace itself: per window, what went through, what is left, and when it resets. */
+export interface WindowLimits {
+  accepted: number;
+  attempted: number;
+  previousAccepted: number;
+  limit: number;
+  remaining: number;
+  /** Milliseconds since the epoch. */
+  resetsAt: number;
+}
+
+export function limitsView(stored: RateState | undefined, config: RateLimitConfig, now: number): Record<Unit, WindowLimits> {
+  const windows = view(stored, config, now);
+  return Object.fromEntries(
+    UNITS.map((unit) => {
+      const w = windows[unit];
+      return [
+        unit,
+        {
+          accepted: w.current,
+          attempted: w.currentAttempts,
+          previousAccepted: w.previous,
+          limit: w.limit,
+          remaining: Math.max(0, w.limit - w.current),
+          resetsAt: windowEnd(unit, now),
+        },
+      ];
+    }),
+  ) as Record<Unit, WindowLimits>;
 }

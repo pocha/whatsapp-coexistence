@@ -19,7 +19,8 @@ Three kinds of credential:
 
 | Method and path | What it does | Body |
 | --- | --- | --- |
-| `POST /relayMessage/<id>/messages` | Sends a message through Meta with the stored token. Template sends are rate limited: a refused one gets 429 with `Retry-After`. | Meta's messages body |
+| `POST /relayMessage/<id>/messages` | Sends a message through Meta with the stored token. Template sends are rate limited: a refused one gets 429 with `Retry-After`, and every template send answers with `X-RateLimit-Remaining-<Minute|Hour|Day>` and `X-RateLimit-Reset-<...>` (epoch seconds). | Meta's messages body |
+| `GET /relayMessage/<id>/limits` | Where the number stands against its template-send limits, per minute, hour and day window: accepted, attempted, previous window's count, limit, remaining and when it resets. Free-form messages are not limited. | |
 | `GET /templates/<id>` | Lists the account's templates (id, name, status, category, language, components). The response is what `/import` takes. | |
 | `POST /templates/<id>` | Creates a template. | Meta's template body |
 | `POST /templates/<id>/<templateId>` | Edits a template. | Meta's template body |

@@ -201,6 +201,14 @@ export interface VerifyTestCodesResponse extends ApiResponse {
   correct?: Record<TestEventType, boolean>;
 }
 
+/** GET /relayMessage/<id>/limits (the key is the bearer token). */
+export interface RelayLimitsResponse extends ApiResponse {
+  /** Only template messages are limited; free-form replies are not. */
+  appliesTo: 'template messages';
+  enabled: boolean;
+  windows: Record<'minute' | 'hour' | 'day', { accepted: number; attempted: number; previousAccepted: number; limit: number; remaining: number; resetsAt: string; resetsInSeconds: number }>;
+}
+
 export interface SetWebhookRequest {
   phoneNumberId: string;
   apiKey: string;

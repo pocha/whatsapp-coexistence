@@ -161,11 +161,33 @@ test('template sends are rate limited per number, and free-form text is not', as
     });
   const template = { type: 'template', template: { name: 'hello_world', language: { code: 'en_US' } } };
 
-  assert.equal((await send(template)).status, 200);
-  assert.equal((await send(template)).status, 200);
+  const limits = (key = KEY) =>
+    fetch(`${FUNCTIONS_BASE}/relayMessage/556/limits`, { headers: { Authorization: `Bearer ${key}` } });
+
+  // Before anything is sent, the whole allowance is there.
+  const start = await (await limits()).json();
+  assert.equal(start.appliesTo, 'template messages');
+  assert.deepEqual([start.windows.day.accepted, start.windows.day.limit, start.windows.day.remaining], [0, 2, 2]);
+  assert.equal((await limits(NEW_KEY)).status, 401, 'the limits need the API key too');
+
+  // Each send says what is left, so a sender can pace itself without asking.
+  const first = await send(template);
+  assert.equal(first.status, 200);
+  assert.equal(first.headers.get('x-ratelimit-remaining-day'), '1');
+  const second = await send(template);
+  assert.equal(second.status, 200);
+  assert.equal(second.headers.get('x-ratelimit-remaining-day'), '0');
+  assert.ok(Number(second.headers.get('x-ratelimit-reset-day')) > Date.now() / 1000, 'the reset time is in the future');
+
   const refused = await send(template);
   assert.equal(refused.status, 429);
+  assert.equal(refused.headers.get('x-ratelimit-remaining-day'), '0');
   assert.ok(Number(refused.headers.get('retry-after')) >= 1, 'tells the caller when to retry');
+
+  // After two sent and one refused: two went through, three were tried, none left.
+  const after = (await (await limits()).json()).windows.day;
+  assert.deepEqual([after.accepted, after.attempted, after.remaining], [2, 3, 0]);
+  assert.ok(after.resetsInSeconds >= 1);
 
   assert.equal((await send({ type: 'text', text: { body: 'hi' } })).status, 200, 'free-form text is not limited');
   const state = (await db.collection('phoneNumbers').doc('556').get()).data().rateState;

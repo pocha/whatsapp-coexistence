@@ -4,10 +4,11 @@ import cors from 'cors';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { config } from './helpers/config';
 import { getDisplayPhoneNumber, getPhoneNumberInfo, graphApiBase, registerPhoneNumber, subscribeApp } from './helpers/graphApi';
-import { effectiveConfig, reserve, type Verdict } from './helpers/rateLimiter';
+import { effectiveConfig, limitsView, reserve, UNITS, type RateState, type Verdict } from './helpers/rateLimiter';
+import type { RateLimitConfig } from './helpers/rateLimitConfig';
 import { verifyEndpointChallenge } from './helpers/endpointCheck';
 import { HttpError } from './helpers/auth';
-import type { OnboardingResponse, PhoneNumberDoc, RegisterNumberRequest, SetWebhookRequest } from './helpers/types';
+import type { OnboardingResponse, PhoneNumberDoc, RegisterNumberRequest, RelayLimitsResponse, SetWebhookRequest } from './helpers/types';
 import { authenticateKey } from './accounts';
 import { advanceAfterOverride, importTemplatesFor, migrateTemplatesFor, movedTo, noteOnboardingError } from './onboarding';
 import { effectiveStep } from './helpers/onboardingSteps';
@@ -165,17 +166,28 @@ export function isoWeekKey(d: Date): string {
  * check and the count happen in one transaction, so sends arriving together cannot all slip under
  * the limit. Limits come from helpers/rateLimitConfig.ts, overridden per number by `rateLimits`.
  */
-async function reserveTemplateSend(phoneNumberId: string): Promise<Verdict | { allowed: true }> {
+async function reserveTemplateSend(phoneNumberId: string): Promise<{ verdict: Verdict | { allowed: true }; config: RateLimitConfig; now: number }> {
   const db = getFirestore();
   const ref = db.collection('phoneNumbers').doc(phoneNumberId);
+  const now = Date.now();
   return db.runTransaction(async (tx) => {
     const data = (await tx.get(ref)).data() as PhoneNumberDoc | undefined;
     const config = effectiveConfig(data?.rateLimits);
-    if (!config.enabled) return { allowed: true as const };
-    const verdict = reserve(data?.rateState, config, Date.now());
+    if (!config.enabled) return { verdict: { allowed: true as const }, config, now };
+    const verdict = reserve(data?.rateState, config, now);
     tx.update(ref, { rateState: verdict.state });
-    return verdict;
+    return { verdict, config, now };
   });
+}
+
+/** What is left in each window and when it resets, as headers on a template send, so a sender can pace itself. */
+function setRateHeaders(res: express.Response, state: RateState, config: RateLimitConfig, now: number) {
+  const windows = limitsView(state, config, now);
+  for (const unit of UNITS) {
+    const name = unit[0].toUpperCase() + unit.slice(1);
+    res.set(`X-RateLimit-Remaining-${name}`, String(windows[unit].remaining));
+    res.set(`X-RateLimit-Reset-${name}`, String(Math.ceil(windows[unit].resetsAt / 1000)));
+  }
 }
 
 const relayApp = express();
@@ -209,7 +221,8 @@ relayApp.post('/:phoneNumberId/messages', async (req, res) => {
 
   // Only template messages are limited; free-form replies go straight through.
   if (req.body?.type === 'template') {
-    const verdict = await reserveTemplateSend(phoneNumberId);
+    const { verdict, config, now } = await reserveTemplateSend(phoneNumberId);
+    if ('state' in verdict) setRateHeaders(res, verdict.state, config, now);
     if (!verdict.allowed && 'unit' in verdict) {
       res.set('Retry-After', String(verdict.retryAfterSeconds));
       res.status(429).send({
@@ -253,6 +266,37 @@ relayApp.post('/:phoneNumberId/messages', async (req, res) => {
   }
 
   res.status(metaRes.status).send(body);
+});
+
+// Where the number stands against its template-send limits, so a sender (or an AI tool) can pace
+// itself: per window what went through, what is left and when it resets.
+relayApp.get('/:phoneNumberId/limits', async (req, res) => {
+  const key = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : undefined;
+  if (!key) {
+    res.status(401).send({ ok: false, error: 'Missing Authorization: Bearer <your Watobot API key>' });
+    return;
+  }
+  try {
+    await authenticateKey(req.params.phoneNumberId, key);
+    const data = (await getFirestore().collection('phoneNumbers').doc(req.params.phoneNumberId).get()).data() as PhoneNumberDoc;
+    const config = effectiveConfig(data.rateLimits);
+    const now = Date.now();
+    const windows = limitsView(data.rateState, config, now);
+    const body: RelayLimitsResponse = {
+      ok: true,
+      appliesTo: 'template messages',
+      enabled: config.enabled,
+      windows: Object.fromEntries(
+        UNITS.map((unit) => [
+          unit,
+          { ...windows[unit], resetsAt: new Date(windows[unit].resetsAt).toISOString(), resetsInSeconds: Math.max(1, Math.ceil((windows[unit].resetsAt - now) / 1000)) },
+        ]),
+      ) as RelayLimitsResponse['windows'],
+    };
+    res.status(200).send(body);
+  } catch (err) {
+    res.status(err instanceof HttpError ? err.status : 502).send({ ok: false, error: (err as Error).message });
+  }
 });
 
 export const relayMessage = onRequest(relayApp);

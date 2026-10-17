@@ -48,7 +48,7 @@ A step-by-step wizard: `checks → Meta onboarding → callback override → (co
 - [ ] Ownership check on the number page: is the Messaging account in the user's portfolio
 - [x] Template status and quality: the Reputation section. Alerts on `message_template_status_update` / `message_template_quality_update` are still to build.
 - [ ] Alerts when a template or the number's quality drops (the data is already kept from Meta's webhooks; Meta's own emails may cover it), and optional throttling on quality drops
-- [ ] **Rate-limit read API and headers:** a call returning each window's accepted count, allowance, remaining and reset time, and rate-limit headers on every relay response, so a client (or an AI tool) can pace itself
+- [x] **Rate-limit read API and headers:** `GET /relayMessage/<id>/limits`, and `X-RateLimit-Remaining-*` / `X-RateLimit-Reset-*` headers on template sends, so a client (or an AI tool) can pace itself.
 
 ### P2: reliability and trust
 - [ ] **MCP server**, local first (a small package an AI tool launches, with the API key in its setup): tools over the functions in the API section, server instructions that say how to sign up and get a key, and a hand-off link for the Meta step (a short-lived onboarding session holds the results of the checks). Needs key-only authentication for the functions that use sign-in today, read functions for numbers and their state, and later a hosted version with OAuth. Documentation for AI tools: an OpenAPI description of the functions and `llms.txt`.
