@@ -20,6 +20,7 @@ import { effectiveConfig, limitsView, UNITS, type RateState } from './helpers/ra
 import type { RateLimitConfig } from './helpers/rateLimitConfig';
 import { verifyEndpointChallenge } from './helpers/endpointCheck';
 import { HttpError } from './helpers/auth';
+import { failedRequest, logEvent } from './helpers/log';
 import type {
   DeregisterNumberRequest,
   DisconnectNumberRequest,
@@ -112,11 +113,12 @@ export const setWebhook = onRequest((req, res) => {
         }
         res.status(200).send({ ok: true });
       } catch (err) {
+        logEvent('override subscription failed', { phoneNumberId, error: (err as Error).message });
         await noteOnboardingError(String(phoneNumberId), 'override', (err as Error).message);
         throw err;
       }
     } catch (err) {
-      const status = err instanceof HttpError ? err.status : 502;
+      const status = failedRequest(req, err);
       res.status(status).send({ ok: false, error: (err as Error).message });
     }
   });
@@ -160,10 +162,11 @@ export const registerNumber = onRequest({ timeoutSeconds: 90 }, (req, res) => {
       // The API-only path of the wizard continues with templates once the number is registered.
       const doc = (await readNumber(String(phoneNumberId)))!;
       await markRegistered(String(phoneNumberId), doc.onboarding.step === 'register' ? movedTo(doc.onboarding, 'templates') : undefined);
+      logEvent('number registered', { phoneNumberId });
       const body: OnboardingResponse = { ok: true, step: effectiveStep((await readNumber(String(phoneNumberId)))!) };
       res.status(200).send(body);
     } catch (err) {
-      const status = err instanceof HttpError ? err.status : 502;
+      const status = failedRequest(req, err);
       res.status(status).send({ ok: false, error: (err as Error).message });
     }
   });
@@ -191,6 +194,7 @@ export const deregisterNumber = post(async (req, res) => {
   // The record now shows an API-only number that is not connected, so effectiveStep sends the user
   // to the wizard's register step.
   await markDeregistered(String(phoneNumberId));
+  logEvent('number deregistered', { phoneNumberId });
   res.status(200).send({ ok: true });
 });
 
@@ -209,6 +213,7 @@ export const disconnectNumber = post(async (req, res) => {
   const coexistence = info.isOnBizApp === true;
 
   await unsubscribeApp(wabaId, accessToken);
+  logEvent('number disconnected', { phoneNumberId, wabaId, coexistence, deregister });
   let deregistered = false;
   if (deregister && !coexistence) {
     await deregisterPhoneNumber(String(phoneNumberId), accessToken);
@@ -273,7 +278,7 @@ relayApp.post('/:phoneNumberId/messages', async (req, res) => {
   try {
     ({ accessToken } = await authenticateKey(phoneNumberId, key));
   } catch (err) {
-    res.status(err instanceof HttpError ? err.status : 502).send({ error: (err as Error).message });
+    res.status(failedRequest(req, err)).send({ error: (err as Error).message });
     return;
   }
 
@@ -283,6 +288,7 @@ relayApp.post('/:phoneNumberId/messages', async (req, res) => {
     if ('state' in verdict) setRateHeaders(res, verdict.state, config, now);
     if (!verdict.allowed && 'unit' in verdict) {
       res.set('Retry-After', String(verdict.retryAfterSeconds));
+      logEvent('template send limited', { phoneNumberId, window: verdict.unit, limit: verdict.limit });
       res.status(429).send({
         error: `Rate limit reached: ${verdict.current} template messages this ${verdict.unit} (limit ${verdict.limit}). Try again in ${verdict.retryAfterSeconds}s.`,
         window: verdict.unit,
@@ -312,6 +318,7 @@ relayApp.post('/:phoneNumberId/messages', async (req, res) => {
     usageKeys: { daily: dailyKey(now), weekly: isoWeekKey(now), monthly: monthlyKey(now) },
   });
 
+  if (!metaRes.ok) logEvent('Meta refused a send', { phoneNumberId, status: metaRes.status, metaError: body?.error });
   res.status(metaRes.status).send(body);
 });
 
@@ -342,7 +349,7 @@ relayApp.get('/:phoneNumberId/limits', async (req, res) => {
     };
     res.status(200).send(body);
   } catch (err) {
-    res.status(err instanceof HttpError ? err.status : 502).send({ ok: false, error: (err as Error).message });
+    res.status(failedRequest(req, err)).send({ ok: false, error: (err as Error).message });
   }
 });
 
@@ -379,6 +386,7 @@ export async function migrateTemplatesFor(phoneNumberId: string, apiKey: string,
     if (result.migrated.length + Object.keys(result.failed).length < 500) break;
   }
   await setTemplateSource(phoneNumberId, source);
+  logEvent('templates migrated', { phoneNumberId, source, migrated, failed: failed.length });
   return { ok: true, outcome: 'done', migrated, failed };
 }
 
@@ -406,6 +414,7 @@ export async function importTemplatesFor(phoneNumberId: string, apiKey: string, 
       failed.push({ name: template.name, language: template.language, reason: (err as Error).message.slice(0, 300) });
     }
   }
+  logEvent('templates imported', { phoneNumberId, created, failed: failed.length });
   return { ok: true, created, failed };
 }
 
@@ -441,7 +450,7 @@ async function forward(
     });
     res.status(metaRes.status).send(await metaRes.json().catch(() => ({})));
   } catch (err) {
-    res.status(err instanceof HttpError ? err.status : 502).send({ error: (err as Error).message });
+    res.status(failedRequest(req, err)).send({ error: (err as Error).message });
   }
 }
 
@@ -459,7 +468,7 @@ async function withKeyAnswer(req: express.Request, res: express.Response, run: (
   try {
     res.status(200).send(await run(key));
   } catch (err) {
-    res.status(err instanceof HttpError ? err.status : 502).send({ ok: false, error: (err as Error).message });
+    res.status(failedRequest(req, err)).send({ ok: false, error: (err as Error).message });
   }
 }
 templatesApp.post('/:phoneNumberId/migrate', (req, res) =>

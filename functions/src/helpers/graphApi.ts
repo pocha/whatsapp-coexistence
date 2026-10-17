@@ -1,3 +1,4 @@
+import { logger } from 'firebase-functions/v2';
 import { config } from './config';
 
 // Overridable so tests can point this at a local stub instead of the real
@@ -10,6 +11,7 @@ async function graphFetch(path: string, init: RequestInit, timeoutMs = 10000): P
   const res = await fetch(`${graphApiBase()}${path}`, { ...init, signal: AbortSignal.timeout(timeoutMs) });
   const body = await res.json();
   if (!res.ok) {
+    logger.warn('Graph API call failed', { method: init.method, path: path.split('?')[0], status: res.status, metaError: body?.error });
     throw new Error(`Graph API error (${res.status}): ${JSON.stringify(body)}`);
   }
   return body;

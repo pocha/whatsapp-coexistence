@@ -1,7 +1,7 @@
 import { onRequest, type Request } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import type { Response } from 'express';
-import { HttpError } from './auth';
+import { failedRequest } from './log';
 
 const corsHandler = cors({ origin: true });
 
@@ -18,8 +18,7 @@ export function post(handler: Handler, options: { timeoutSeconds?: number } = {}
       try {
         await handler(req, res);
       } catch (err) {
-        const status = err instanceof HttpError ? err.status : 502;
-        res.status(status).send({ ok: false, error: (err as Error).message });
+        res.status(failedRequest(req, err)).send({ ok: false, error: (err as Error).message });
       }
     });
   });

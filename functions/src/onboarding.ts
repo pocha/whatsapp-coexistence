@@ -4,6 +4,7 @@ import { getPhoneNumberInfo, requestSmbAppData } from './helpers/graphApi';
 import { checkPublicUrl, verifyEndpointChallenge } from './helpers/endpointCheck';
 import { claimSync, moveStep, movedTo, readNumber, readTestRun, recordOverrideResult, reserveTestSend, setSyncState } from './helpers/model';
 import { config } from './helpers/config';
+import { logEvent } from './helpers/log';
 import { post } from './helpers/http';
 import { newCodes, sendTestEvent, TEST_EVENT_TYPES } from './helpers/testEvents';
 import type {
@@ -86,10 +87,12 @@ export const startSync = post(async (req, res) => {
     await requestSmbAppData(String(phoneNumberId), accessToken, META_SYNC_TYPE[type]);
   } catch (err) {
     const message = (err as Error).message;
+    logEvent('sync request failed', { phoneNumberId, syncType: type, error: message.slice(0, 300) });
     await setSyncState(String(phoneNumberId), type, { state: 'failed', at: Date.now(), error: message.slice(0, 500) });
     throw new HttpError(502, message);
   }
   await setSyncState(String(phoneNumberId), type, { state: 'requested', at: Date.now() });
+  logEvent('sync requested', { phoneNumberId, syncType: type });
   res.status(200).send({ ok: true });
 });
 

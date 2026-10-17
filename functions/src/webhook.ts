@@ -1,4 +1,5 @@
 import { onRequest } from 'firebase-functions/v2/https';
+import { logger } from 'firebase-functions/v2';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { config } from './helpers/config';
 
@@ -30,15 +31,18 @@ export const webhook = onRequest((req, res) => {
       res.status(200).send(challenge);
       return;
     }
+    logger.warn('webhook verification refused', { mode });
     res.status(403).send('Forbidden');
     return;
   }
 
   if (req.method === 'POST') {
     if (!signatureMatches(req.rawBody, req.header('x-hub-signature-256'))) {
+      logger.warn('webhook signature rejected', { signed: Boolean(req.header('x-hub-signature-256')) });
       res.status(401).send('Invalid signature');
       return;
     }
+    logger.info('webhook event', { object: req.body?.object, fields: (req.body?.entry ?? []).flatMap((e: any) => (e.changes ?? []).map((c: any) => c.field)) });
     res.status(200).send('EVENT_RECEIVED');
     return;
   }

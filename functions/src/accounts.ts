@@ -4,6 +4,7 @@ import { config } from './helpers/config';
 import { exchangeCodeForToken, getDisplayPhoneNumber } from './helpers/graphApi';
 import type { ExchangeCodeRequest, OnboardingResponse, RotateKeyRequest, SignupEvent } from './helpers/types';
 import { HttpError, requireAuth } from './helpers/auth';
+import { failedRequest, logEvent } from './helpers/log';
 import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKey } from './helpers/apiKey';
 import { getUser, readNumber, replaceApiKey, saveNumberToken, setDisplayPhoneNumber, setFirstApiKeyHash, type UserRecord } from './helpers/model';
 
@@ -102,9 +103,10 @@ export const rotateKey = onRequest((req, res) => {
         }
         return encryptToken(token, newApiKey);
       });
+      logEvent('key rotated', { userId });
       res.status(200).send({ ok: true });
     } catch (err) {
-      const status = err instanceof HttpError ? err.status : 502;
+      const status = failedRequest(req, err);
       res.status(status).send({ ok: false, error: (err as Error).message });
     }
   });
@@ -146,10 +148,11 @@ export const exchangeCode = onRequest((req, res) => {
       } catch {
         // Not fatal.
       }
+      logEvent('number connected', { phoneNumberId, wabaId, metaEvent: event });
       const body: OnboardingResponse = { ok: true, step: 'override' };
       res.status(200).send({ ...body, wabaId, phoneNumberId });
     } catch (err) {
-      const status = err instanceof HttpError ? err.status : 502;
+      const status = failedRequest(req, err);
       res.status(status).send({ ok: false, error: (err as Error).message });
     }
   });

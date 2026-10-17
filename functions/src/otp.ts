@@ -1,5 +1,6 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
+import { logger } from 'firebase-functions/v2';
 import { getAuth } from 'firebase-admin/auth';
 import { config } from './helpers/config';
 import { sendWhatsappMessage } from './helpers/watobotApi';
@@ -90,6 +91,8 @@ export const sendOtp = onRequest({ timeoutSeconds: 90 }, (req, res) => {
       // headers (they're only set on the response we send ourselves), which
       // browsers surface as a misleading "blocked by CORS policy" error
       // instead of the real failure.
+      logger.error('sendOtp failed', { error: (err as Error).message });
+      logger.error('verifyOtp failed', { error: (err as Error).message });
       res.status(502).send({ ok: false, error: (err as Error).message });
     }
   });
