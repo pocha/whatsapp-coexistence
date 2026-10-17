@@ -9,14 +9,18 @@
     <section class="flex-1 min-w-0 px-gutter md:px-10 py-12">
       <div class="max-w-6xl mx-auto flex flex-col gap-6 w-full min-w-0">
         <div>
-          <h1 class="font-headline-lg text-headline-lg text-on-surface">WhatsApp number</h1>
-          <p id="number-id-line" class="text-on-surface-variant font-body-md text-sm mt-1 break-all"></p>
-          <p id="waba-id-line" class="text-on-surface-variant font-body-md text-sm break-all"></p>
+          <div class="flex flex-wrap items-center gap-3">
+            <h1 id="page-title" class="font-headline-lg text-headline-lg text-on-surface break-all">WhatsApp number</h1>
+            <span id="type-chip" class="hidden rounded-full px-3 py-1 label-strong"></span>
+          </div>
+          <div id="ids-line" class="text-on-surface-variant font-body-md text-sm mt-1 break-all flex flex-col gap-0.5"></div>
           <p id="not-found" class="hidden text-on-surface-variant font-body-md text-sm mt-1">
             We couldn't load this number's saved details (usage, saved URL) under your account.
             The sections below still work with the right API key.
           </p>
         </div>
+
+        <div id="onboarding-card" class="hidden card p-6"></div>
 
         <div id="stats" class="hidden flex flex-col gap-4">
           <div class="card p-6">
@@ -63,6 +67,7 @@
             <input id="ov-url" placeholder="https://your-app.example.com/webhook" class="w-full mt-1 mb-3 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"/>
             <button id="ov-btn" class="rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">Verify &amp; save</button>
             <p class="text-on-surface-variant font-body-md text-sm mt-3" id="ov-status"></p>
+            <!--#include partial="test-events"-->
             <details class="mt-4">
               <summary class="label-strong text-on-surface-variant cursor-pointer">Using the test chatbot?</summary>
               <p class="text-on-surface-variant font-body-md text-sm mt-2">
@@ -80,19 +85,21 @@
           <div class="card p-6">
             <p class="label-strong text-on-surface-variant mb-1">MORE</p>
             <details data-accordion class="border-t border-outline-variant">
-              <summary class="cursor-pointer py-3 section-title text-on-surface">Register this number</summary>
+              <summary class="cursor-pointer py-3 section-title text-on-surface">De-register this number</summary>
               <div class="pb-4">
                 <p class="text-on-surface-variant font-body-md text-sm mb-3">
-                  Only for a <strong>new</strong> number (not one connected with coexistence): Meta needs it
-                  registered before it can send or receive. Without that, sending fails with
-                  <code>Account not registered</code> (133010). Pick a 6-digit PIN and keep it, because
-                  Meta asks for it to change or delete the number.
+                  Takes the number off the WhatsApp API, so another provider can onboard it. It stops
+                  sending and receiving here. It does not delete the number or its message history,
+                  and needs no PIN. For a coexistence number this isn't possible: Meta refuses it, and the
+                  way off is in the WhatsApp Business app (Settings &rarr; Account &rarr; Business Platform &rarr; Disconnect).
+                  Meta allows 10 attempts per number in 72 hours.
+                  <a class="text-primary font-bold hover:underline" href="/how-to/deregister-whatsapp-number-from-provider.html">More</a>
                 </p>
                 <div>
-                  <p class="label-strong text-on-surface-variant mb-1">REGISTER</p>
+                  <p class="label-strong text-on-surface-variant mb-1">DE-REGISTER</p>
                   <div class="relative">
-                    <textarea id="register-command" rows="5" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none pr-20"></textarea>
-                    <button id="copy-register-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                    <textarea id="deregister-command" rows="4" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none pr-20"></textarea>
+                    <button id="copy-deregister-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
                   </div>
                 </div>
               </div>
@@ -132,8 +139,8 @@
                   <a class="text-primary font-bold hover:underline" href="https://business.facebook.com/latest/whatsapp_manager/message_templates" target="_blank" rel="noopener">WhatsApp Manager</a>.
                 </p>
                 <div>
-                  <p class="label-strong text-on-surface-variant mb-1">LIST</p>
-                  <p class="text-on-surface-variant font-body-md text-sm mb-2">Every template on this account, each with its id.</p>
+                  <p class="label-strong text-on-surface-variant mb-1">LIST AND EXPORT</p>
+                  <p class="text-on-surface-variant font-body-md text-sm mb-2">Every template on this account, each with its id, name, language, category and components. Save the response to move your templates to another provider or account: it is the list the import below takes.</p>
                   <div class="relative">
                     <textarea id="tpl-list-command" rows="3" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none pr-20"></textarea>
                     <button id="copy-tpl-list-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
@@ -160,6 +167,22 @@
                   <div class="relative">
                     <textarea id="tpl-delete-command" rows="3" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none pr-20"></textarea>
                     <button id="copy-tpl-delete-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  </div>
+                </div>
+                <div>
+                  <p class="label-strong text-on-surface-variant mb-1">IMPORT FROM A LIST</p>
+                  <p class="text-on-surface-variant font-body-md text-sm mb-2">Creates templates from a list exported elsewhere (the response of a list call, or just its <code>data</code>). Up to 100 at a time, because Meta allows 100 creations per hour per account. Meta reviews each one.</p>
+                  <div class="relative">
+                    <textarea id="tpl-import-command" rows="6" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none pr-20"></textarea>
+                    <button id="copy-tpl-import-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+                  </div>
+                </div>
+                <div>
+                  <p class="label-strong text-on-surface-variant mb-1">MIGRATE FROM A PREVIOUS MESSAGING ACCOUNT</p>
+                  <p class="text-on-surface-variant font-body-md text-sm mb-2">Copies the approved templates of your previous Messaging account into this one. First add Watobot as a partner on that account (Business Settings &rarr; Accounts &rarr; Messaging accounts &rarr; Assign partner, with our business portfolio ID <code>1821963108976783</code>). If we can't read it, the answer says so and you ask your provider for the list instead.</p>
+                  <div class="relative">
+                    <textarea id="tpl-migrate-command" rows="4" readonly spellcheck="false" class="w-full px-4 py-2 font-mono text-xs bg-surface-container-low border border-outline-variant rounded-lg outline-none pr-20"></textarea>
+                    <button id="copy-tpl-migrate-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
                   </div>
                 </div>
               </div>

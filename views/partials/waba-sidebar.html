@@ -18,3 +18,32 @@
     <span class="hidden lg:inline truncate">Delete account</span>
   </button>
 </aside>
+
+<div id="delete-dialog" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 flex flex-col gap-3">
+    <p id="delete-title" class="section-title text-on-surface">Delete your account</p>
+    <div id="delete-form" class="flex flex-col gap-3">
+      <p class="text-on-surface-variant font-body-md text-sm">
+        This removes your numbers and the access tokens we hold for them from our records. It cannot be undone.
+        First we disconnect your numbers from Meta, which needs your API key.
+      </p>
+      <p id="delete-summary" class="text-on-surface-variant font-body-md text-sm"></p>
+      <label class="label-strong text-on-surface-variant block" for="delete-key">Your Watobot API key</label>
+      <input id="delete-key" type="password" autocomplete="off" placeholder="64 characters" class="w-full px-4 py-2 bg-white border border-outline-variant rounded-lg outline-none font-mono text-xs"/>
+      <label id="delete-deregister-row" class="flex items-start gap-2 text-on-surface-variant font-body-md text-sm">
+        <input id="delete-deregister" type="checkbox" checked class="mt-1"/>
+        <span>De-register my API-only numbers. They stop working on the WhatsApp API, so another provider can take them. Untick it if you want them to stay registered.</span>
+      </label>
+      <label class="flex items-start gap-2 text-on-surface-variant font-body-md text-sm">
+        <input id="delete-lost" type="checkbox" class="mt-1"/>
+        <span>I've lost my key: delete without disconnecting from Meta.</span>
+      </label>
+    </div>
+    <p id="delete-status" class="text-on-surface-variant font-body-md text-sm"></p>
+    <div class="flex flex-wrap justify-end gap-2">
+      <button id="delete-cancel" type="button" class="rounded-xl border border-outline-variant bg-white px-5 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Cancel</button>
+      <button id="delete-anyway" type="button" class="hidden rounded-xl border border-error bg-white px-5 py-2 font-label-md text-label-md font-bold text-error hover:bg-error/10 transition-all">Delete anyway</button>
+      <button id="delete-confirm" type="button" class="rounded-xl bg-error text-white px-5 py-2 font-label-md text-label-md font-bold hover:opacity-90 transition-all disabled:opacity-50">Delete account</button>
+    </div>
+  </div>
+</div>

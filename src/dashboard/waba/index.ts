@@ -3,9 +3,11 @@ import { WEBHOOK_VERIFY_TOKEN } from '/assets/app-config.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import { isValidApiKey } from '/assets/api-key.js';
 import '/assets/nav-auth.js';
+import { wireTestEvents } from '/assets/test-events.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { PhoneNumberDoc, SetWebhookRequest } from '../../../functions/src/helpers/types';
+import type { PhoneNumberDoc, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
 import { effectiveConfig, view } from '../../../functions/src/helpers/rateLimiter';
+import { effectiveStep } from '../../../functions/src/helpers/onboardingSteps';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 // The page for one number, identified by ?id= in the URL (its phone number ID). Signed-in
@@ -185,6 +187,45 @@ function renderStats(data: PhoneNumberDoc) {
   el('stats').classList.remove('hidden');
 }
 
+/** The IDs under the title. The Messaging account's ID is what used to be called the WABA ID. */
+function renderIds(messagingAccountId: string | undefined) {
+  const lines = [`Phone number ID: ${phoneNumberId}`];
+  if (messagingAccountId) lines.push(`Messaging account ID (previously WABA ID): ${messagingAccountId}`);
+  el('ids-line').replaceChildren(
+    ...lines.map((text) => {
+      const p = document.createElement('p');
+      p.textContent = text;
+      return p;
+    }),
+  );
+}
+
+
+/** "requested 16 Oct 2026, 10:12", or what went wrong. */
+function syncText(s: SyncStatus | undefined): string {
+  if (!s || s.state === 'none') return 'not requested';
+  if (s.state === 'requesting') return 'being requested';
+  if (s.state === 'failed') return `failed (${s.error ?? 'unknown error'})`;
+  return `requested ${new Date(s.at ?? 0).toLocaleString()}`;
+}
+
+/** For a coexistence number: when the contacts and history syncs were requested. */
+function renderSyncCard(data: PhoneNumberDoc) {
+  const card = el('onboarding-card');
+  card.replaceChildren();
+  const line = (text: string, className = 'text-on-surface-variant font-body-md text-sm') => {
+    const p = document.createElement('p');
+    p.className = className;
+    p.textContent = text;
+    card.append(p);
+  };
+
+  if (!data.isOnBizApp) return;
+  line(`Contacts sync: ${syncText(data.sync?.contacts)}`);
+  line(`History sync: ${syncText(data.sync?.history)}`);
+  card.classList.remove('hidden');
+}
+
 // The rules let just the owner read phoneNumbers/{phoneNumberId}. Returns false if the record
 // is missing or isn't this user's; the page still works then, just without the saved details.
 async function loadRecord(): Promise<boolean> {
@@ -196,10 +237,23 @@ async function loadRecord(): Promise<boolean> {
   }
   if (!data) return false;
 
-  if (data.wabaId) el('waba-id-line').textContent = `WABA ID: ${data.wabaId}`;
   if (data.overrideUrl && !overrideUrl.value) overrideUrl.value = data.overrideUrl;
 
-  if (data.displayPhoneNumber) el('number-id-line').textContent = `Phone number: ${data.displayPhoneNumber} · ID ${phoneNumberId}`;
+  // The number is the title; whether it also runs on the Business app is a chip beside it.
+  if (data.displayPhoneNumber) el('page-title').textContent = data.displayPhoneNumber;
+  renderIds(data.wabaId);
+  if (data.isOnBizApp !== undefined) {
+    const chip = el('type-chip');
+    chip.textContent = data.isOnBizApp ? 'Coexistence' : 'API only';
+    chip.className = `rounded-full px-3 py-1 label-strong ${data.isOnBizApp ? 'bg-primary/10 text-primary' : 'bg-surface-container text-on-surface-variant'}`;
+  }
+  // A number that needs a step (no URL saved, no longer connected, syncs not requested, or onboarding
+  // unfinished) goes to the wizard, which opens at that step.
+  if (effectiveStep(data) !== 'done') {
+    location.replace(`/dashboard/waba/create.html?id=${encodeURIComponent(phoneNumberId)}`);
+    return true;
+  }
+  renderSyncCard(data);
   renderStats(data);
   return true;
 }
@@ -211,6 +265,8 @@ el('copy-env-btn').addEventListener('click', async () => {
   await navigator.clipboard.writeText(el('chatbot-env').textContent ?? '');
   el('copy-env-btn').textContent = 'Copied';
 });
+
+wireTestEvents(() => overrideUrl.value);
 
 overrideBtn.addEventListener('click', async () => {
   const apiKey = apiKeyInput.value.trim();
@@ -281,12 +337,23 @@ function renderCommands() {
     `  -d '${text}'`,
   ].join('\n');
 
-  // Only for a brand-new number (not coexistence): Meta needs it registered before it can send.
-  const register = JSON.stringify({ phoneNumberId, apiKey: key, pin: 'YOUR_6_DIGIT_PIN' });
-  el<HTMLTextAreaElement>('register-command').value = [
-    `curl -X POST '${base}/registerNumber' \\`,
+
+  el<HTMLTextAreaElement>('deregister-command').value = [
+    `curl -X POST '${base}/deregisterNumber' \\`,
     `  ${json} \\`,
-    `  -d '${register}'`,
+    `  -d '${JSON.stringify({ phoneNumberId, apiKey: key })}'`,
+  ].join('\n');
+  el<HTMLTextAreaElement>('tpl-migrate-command').value = [
+    `curl -X POST '${base}/templates/${phoneNumberId}/migrate' \\`,
+    `  ${auth} \\`,
+    `  ${json} \\`,
+    `  -d '${JSON.stringify({ sourceWabaId: 'PREVIOUS_MESSAGING_ACCOUNT_ID' })}'`,
+  ].join('\n');
+  el<HTMLTextAreaElement>('tpl-import-command').value = [
+    `curl -X POST '${base}/templates/${phoneNumberId}/import' \\`,
+    `  ${auth} \\`,
+    `  ${json} \\`,
+    `  -d '{"templates":[ ...the exported templates... ]}'`,
   ].join('\n');
 
   const create = JSON.stringify({
@@ -324,7 +391,9 @@ apiKeyInput.addEventListener('input', renderCommands);
 for (const [button, box] of [
   ['copy-send-btn', 'send-command'],
   ['copy-send-text-btn', 'send-text-command'],
-  ['copy-register-btn', 'register-command'],
+  ['copy-deregister-btn', 'deregister-command'],
+  ['copy-tpl-import-btn', 'tpl-import-command'],
+  ['copy-tpl-migrate-btn', 'tpl-migrate-command'],
   ['copy-tpl-list-btn', 'tpl-list-command'],
   ['copy-tpl-create-btn', 'tpl-create-command'],
   ['copy-tpl-edit-btn', 'tpl-edit-command'],
@@ -352,7 +421,7 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
   fillSidebar(user.uid, phoneNumberId);
-  el('number-id-line').textContent = `Phone number ID: ${phoneNumberId}`;
+  renderIds(undefined);
   // What the buttons and commands do is authorised by the API key, not by this sign-in, so
   // the sections show either way.
   renderCommands();

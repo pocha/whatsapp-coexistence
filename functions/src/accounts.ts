@@ -1,64 +1,24 @@
 import { onRequest } from 'firebase-functions/v2/https';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import cors from 'cors';
 import { config } from './helpers/config';
 import { exchangeCodeForToken, getDisplayPhoneNumber } from './helpers/graphApi';
-import type { ExchangeCodeRequest, PhoneNumberDoc, RotateKeyRequest } from './helpers/types';
+import type { ExchangeCodeRequest, OnboardingResponse, RotateKeyRequest, SignupEvent } from './helpers/types';
 import { HttpError, requireAuth } from './helpers/auth';
 import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKey } from './helpers/apiKey';
+import { getUser, readNumber, replaceApiKey, saveNumberToken, setDisplayPhoneNumber, setFirstApiKeyHash, type UserRecord } from './helpers/model';
 
-// Data model:
-//   users/{userId}           phoneNumber, apiKeyHash, createdAt, rotatedAt
-//   phoneIndex/{phone}       userId (makes phone -> user creation race-free)
-//   phoneNumbers/{phoneNumberId}  userId, wabaId, phoneNumberId, encAccessToken, ...
-// Functions create these and run the relay, webhook, onboarding and key rotation (rotateKey,
-// below). The user manages the rest of their account from the browser (see
-// src/assets/account.ts and firestore.rules); resetApiKey and setFirstApiKey stay here for
-// the sign-in reset and for scripts/seed-test-waba.js.
-
-export interface UserRecord {
-  userId: string;
-  phoneNumber: string;
-  apiKeyHash?: string;
-}
-
-/** Finds the user for a phone number, creating one (with a random id) if none exists. */
-export async function getOrCreateUserByPhone(phone: string): Promise<UserRecord> {
-  const db = getFirestore();
-  return db.runTransaction(async (tx) => {
-    const indexRef = db.collection('phoneIndex').doc(phone);
-    const indexSnap = await tx.get(indexRef);
-
-    if (indexSnap.exists) {
-      const userId = indexSnap.data()!.userId as string;
-      const userSnap = await tx.get(db.collection('users').doc(userId));
-      return { userId, phoneNumber: phone, apiKeyHash: userSnap.data()?.apiKeyHash as string | undefined };
-    }
-
-    const userRef = db.collection('users').doc();
-    tx.set(userRef, { phoneNumber: phone, createdAt: Date.now() });
-    tx.set(indexRef, { userId: userRef.id });
-    return { userId: userRef.id, phoneNumber: phone };
-  });
-}
-
-export async function getUser(userId: string): Promise<UserRecord | undefined> {
-  const snap = await getFirestore().collection('users').doc(userId).get();
-  if (!snap.exists) return undefined;
-  const data = snap.data()!;
-  return { userId, phoneNumber: data.phoneNumber as string, apiKeyHash: data.apiKeyHash as string | undefined };
-}
+// Keys and tokens: checking an API key, opening the stored Meta token for a request, sealing a
+// new one, and the key rotation function. The records themselves are read and written through
+// helpers/model.ts, the only file that touches Firestore. The user manages the rest of their
+// account from the browser (see src/assets/account.ts and firestore.rules); setFirstApiKey stays
+// here for scripts/seed-test-waba.js.
 
 /** Stores the hash of a brand-new API key. Only allowed while the user has none. */
 export async function setFirstApiKey(userId: string, apiKey: string): Promise<void> {
   if (!isValidApiKey(apiKey)) throw new HttpError(400, 'That is not a valid API key.');
-  const ref = getFirestore().collection('users').doc(userId);
-  await getFirestore().runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists) throw new HttpError(404, 'No such user.');
-    if (snap.data()!.apiKeyHash) throw new HttpError(409, 'This account already has an API key.');
-    tx.update(ref, { apiKeyHash: hashApiKey(apiKey), rotatedAt: Date.now() });
-  });
+  const result = await setFirstApiKeyHash(userId, hashApiKey(apiKey));
+  if (result === 'no_user') throw new HttpError(404, 'No such user.');
+  if (result === 'has_key') throw new HttpError(409, 'This account already has an API key.');
 }
 
 /** Throws unless `apiKey` is the key for this user. Returns the user. */
@@ -80,9 +40,7 @@ export async function authenticateKey(
   phoneNumberId: string,
   apiKey: unknown,
 ): Promise<{ userId: string; wabaId: string; accessToken: string }> {
-  const db = getFirestore();
-  const wabaSnap = await db.collection('phoneNumbers').doc(phoneNumberId).get();
-  const waba = wabaSnap.data() as PhoneNumberDoc | undefined;
+  const waba = await readNumber(phoneNumberId);
   if (!waba) throw new HttpError(404, 'Unknown phone number ID.');
 
   const user = await requireUserKey(waba.userId, apiKey);
@@ -96,49 +54,25 @@ export async function authenticateKey(
   }
 }
 
-/** Seals a Meta access token under the API key and saves it on the WABA record. */
+/**
+ * Seals a Meta access token under the API key and saves it on the WABA record. The number starts
+ * (or restarts) the onboarding wizard (see saveNumberToken).
+ */
 export async function storeWabaToken(args: {
   userId: string;
   wabaId: string;
   phoneNumberId: string;
   accessToken: string;
   apiKey: string;
+  event: SignupEvent;
 }): Promise<void> {
-  await getFirestore()
-    .collection('phoneNumbers')
-    .doc(args.phoneNumberId)
-    .set(
-      {
-        userId: args.userId,
-        wabaId: args.wabaId,
-        phoneNumberId: args.phoneNumberId,
-        encAccessToken: encryptToken(args.accessToken, args.apiKey),
-      },
-      { merge: true },
-    );
-}
-
-async function numbersOf(userId: string) {
-  return getFirestore().collection('phoneNumbers').where('userId', '==', userId).get();
-}
-
-/**
- * For a lost key: the stored tokens can't be opened without it, so they are
- * deleted along with the key hash. The WABA records stay, but each number has to
- * be onboarded again before it can send.
- */
-export async function resetApiKey(userId: string): Promise<number> {
-  const db = getFirestore();
-  const numbers = await numbersOf(userId);
-  const batch = db.batch();
-  let wiped = 0;
-  numbers.forEach((snap) => {
-    if (snap.data().encAccessToken) wiped += 1;
-    batch.update(snap.ref, { encAccessToken: FieldValue.delete() });
+  await saveNumberToken({
+    userId: args.userId,
+    wabaId: args.wabaId,
+    phoneNumberId: args.phoneNumberId,
+    encAccessToken: encryptToken(args.accessToken, args.apiKey),
+    event: args.event,
   });
-  batch.update(db.collection('users').doc(userId), { apiKeyHash: FieldValue.delete(), rotatedAt: Date.now() });
-  await batch.commit();
-  return wiped;
 }
 
 const corsHandler = cors({ origin: true });
@@ -159,21 +93,15 @@ export const rotateKey = onRequest((req, res) => {
       await requireUserKey(userId, oldApiKey);
       if (!isValidApiKey(newApiKey)) throw new HttpError(400, 'That is not a valid new API key.');
 
-      const db = getFirestore();
-      const batch = db.batch();
-      (await numbersOf(userId)).forEach((snap) => {
-        const enc = (snap.data() as PhoneNumberDoc).encAccessToken;
-        if (!enc) return;
+      await replaceApiKey(userId, hashApiKey(newApiKey), (sealed) => {
         let token: string;
         try {
-          token = decryptToken(enc, oldApiKey as string);
+          token = decryptToken(sealed, oldApiKey as string);
         } catch {
           throw new HttpError(500, 'Could not decrypt a stored access token.');
         }
-        batch.update(snap.ref, { encAccessToken: encryptToken(token, newApiKey) });
+        return encryptToken(token, newApiKey);
       });
-      batch.update(db.collection('users').doc(userId), { apiKeyHash: hashApiKey(newApiKey), rotatedAt: Date.now() });
-      await batch.commit();
       res.status(200).send({ ok: true });
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;
@@ -198,24 +126,28 @@ export const exchangeCode = onRequest((req, res) => {
 
     try {
       const userId = await requireAuth(req);
-      const { code, wabaId, phoneNumberId, apiKey } = (req.body ?? {}) as Partial<ExchangeCodeRequest>;
+      const { code, wabaId, phoneNumberId, apiKey, event } = (req.body ?? {}) as Partial<ExchangeCodeRequest>;
       if (!code || !ID_RE.test(String(wabaId)) || !ID_RE.test(String(phoneNumberId))) {
         throw new HttpError(400, 'code, wabaId and phoneNumberId are required.');
+      }
+      if (event !== 'FINISH' && event !== 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING') {
+        throw new HttpError(400, 'event must be the Embedded Signup event the popup sent.');
       }
       await requireUserKey(userId, apiKey);
 
       const accessToken = await exchangeCodeForToken(code, config.metaAppId, config.metaAppSecret);
-      await storeWabaToken({ userId, wabaId: String(wabaId), phoneNumberId: String(phoneNumberId), accessToken, apiKey: apiKey as string });
+      await storeWabaToken({ userId, wabaId: String(wabaId), phoneNumberId: String(phoneNumberId), accessToken, apiKey: apiKey as string, event });
       // How the number is shown in the dashboard. Best-effort: it falls back to the phone number ID.
       try {
         const displayPhoneNumber = await getDisplayPhoneNumber(String(phoneNumberId), accessToken);
         if (displayPhoneNumber) {
-          await getFirestore().collection('phoneNumbers').doc(String(phoneNumberId)).update({ displayPhoneNumber });
+          await setDisplayPhoneNumber(String(phoneNumberId), displayPhoneNumber);
         }
       } catch {
         // Not fatal.
       }
-      res.status(200).send({ ok: true, wabaId, phoneNumberId });
+      const body: OnboardingResponse = { ok: true, step: 'override' };
+      res.status(200).send({ ...body, wabaId, phoneNumberId });
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;
       res.status(status).send({ ok: false, error: (err as Error).message });

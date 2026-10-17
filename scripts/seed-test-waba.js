@@ -19,6 +19,7 @@ const functionsDir = path.join(__dirname, '..', 'functions');
 // Load firebase-admin the way the Functions code does, so both share one app.
 const { initializeApp } = createRequire(path.join(functionsDir, 'package.json'))('firebase-admin/app');
 const accounts = require(path.join(functionsDir, 'lib', 'accounts'));
+const model = require(path.join(functionsDir, 'lib', 'helpers', 'model'));
 const { isValidApiKey } = require(path.join(functionsDir, 'lib', 'helpers', 'apiKey'));
 
 function arg(name) {
@@ -38,7 +39,7 @@ async function main() {
 
   initializeApp({ projectId: arg('project') ?? 'wa-coexistence' });
 
-  const user = await accounts.getOrCreateUserByPhone(phone);
+  const user = await model.getOrCreateUserByPhone(phone);
   let apiKey = arg('api-key');
   let generated = false;
 
@@ -51,7 +52,8 @@ async function main() {
     generated = true;
   }
 
-  await accounts.storeWabaToken({ userId: user.userId, wabaId, phoneNumberId, accessToken, apiKey });
+  // The number starts the onboarding wizard at the callback URL step, so the dashboard takes you there.
+  await accounts.storeWabaToken({ userId: user.userId, wabaId, phoneNumberId, accessToken, apiKey, event: 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING' });
 
   console.log(`Stored the token for phone number ID ${phoneNumberId} (WABA ${wabaId}) on user ${user.userId}.`);
   if (generated) console.log(`\nYour Watobot API key (shown once, keep it): ${apiKey}\n`);

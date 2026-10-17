@@ -1,0 +1,36 @@
+<div class="rounded-lg border border-outline-variant p-4 mt-4">
+  <p class="section-title text-on-surface">Test your endpoint</p>
+  <p class="text-on-surface-variant font-body-md text-sm mt-1 mb-3">
+    Sends one test webhook of each kind to your URL. Each carries a code in the text a real
+    event would carry. Find the codes in what your endpoint saved, enter them below, and check
+    them. You can send again every 30 seconds.
+  </p>
+  <button id="test-send" class="rounded-xl bg-primary text-on-primary px-5 py-2 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">Send test data</button>
+  <span id="test-send-status" class="text-on-surface-variant font-body-md text-sm ml-2"></span>
+
+  <div id="test-rows" class="mt-3 flex flex-col gap-2">
+    <div class="grid grid-cols-1 sm:grid-cols-[14rem_1fr_9rem] items-center gap-2">
+      <span class="font-label-md text-sm text-on-surface">Message <span class="label-muted">messages</span></span>
+      <span id="test-result-message" class="text-on-surface-variant font-body-md text-sm"></span>
+      <input id="test-code-message" placeholder="WB-XXXXX" autocomplete="off" class="px-3 py-1.5 bg-white border border-outline-variant rounded-lg outline-none font-mono text-xs uppercase"/>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-[14rem_1fr_9rem] items-center gap-2">
+      <span class="font-label-md text-sm text-on-surface">Echo <span class="label-muted">smb_message_echoes</span></span>
+      <span id="test-result-echo" class="text-on-surface-variant font-body-md text-sm"></span>
+      <input id="test-code-echo" placeholder="WB-XXXXX" autocomplete="off" class="px-3 py-1.5 bg-white border border-outline-variant rounded-lg outline-none font-mono text-xs uppercase"/>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-[14rem_1fr_9rem] items-center gap-2">
+      <span class="font-label-md text-sm text-on-surface">Contacts <span class="label-muted">smb_app_state_sync</span></span>
+      <span id="test-result-contacts" class="text-on-surface-variant font-body-md text-sm"></span>
+      <input id="test-code-contacts" placeholder="WB-XXXXX" autocomplete="off" class="px-3 py-1.5 bg-white border border-outline-variant rounded-lg outline-none font-mono text-xs uppercase"/>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-[14rem_1fr_9rem] items-center gap-2">
+      <span class="font-label-md text-sm text-on-surface">History <span class="label-muted">history</span></span>
+      <span id="test-result-history" class="text-on-surface-variant font-body-md text-sm"></span>
+      <input id="test-code-history" placeholder="WB-XXXXX" autocomplete="off" class="px-3 py-1.5 bg-white border border-outline-variant rounded-lg outline-none font-mono text-xs uppercase"/>
+    </div>
+  </div>
+
+  <button id="test-check" class="mt-3 rounded-xl border border-outline-variant bg-white px-5 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all disabled:opacity-50 disabled:cursor-not-allowed">Check codes</button>
+  <span id="test-check-status" class="text-on-surface-variant font-body-md text-sm ml-2"></span>
+</div>
