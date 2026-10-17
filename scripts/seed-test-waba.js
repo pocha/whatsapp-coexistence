@@ -52,7 +52,8 @@ async function main() {
     generated = true;
   }
 
-  await accounts.storeWabaToken({ userId: user.userId, wabaId, phoneNumberId, accessToken, apiKey });
+  // The number starts the onboarding wizard at the callback URL step, so the dashboard takes you there.
+  await accounts.storeWabaToken({ userId: user.userId, wabaId, phoneNumberId, accessToken, apiKey, event: 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING' });
 
   console.log(`Stored the token for phone number ID ${phoneNumberId} (WABA ${wabaId}) on user ${user.userId}.`);
   if (generated) console.log(`\nYour Watobot API key (shown once, keep it): ${apiKey}\n`);

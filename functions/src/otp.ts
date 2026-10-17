@@ -1,12 +1,11 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
-import { FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { config } from './helpers/config';
 import { sendWhatsappMessage } from './helpers/watobotApi';
 import { TEST_LOGIN } from './helpers/testLogin';
 import { apiKeyMatchesHash, isValidApiKey } from './helpers/apiKey';
-import { getOrCreateUserByPhone, otpRef, resetApiKey, type UserRecord } from './helpers/model';
+import { countOtpAttempt, deleteOtp, getOrCreateUserByPhone, readOtp, resetApiKey, saveOtp, type UserRecord } from './helpers/model';
 
 // Login by phone number and a WhatsApp one-time code: sendOtp sends it, verifyOtp checks it
 // (and the account's API key, once it has one) and mints the Firebase sign-in token.
@@ -78,9 +77,9 @@ export const sendOtp = onRequest({ timeoutSeconds: 90 }, (req, res) => {
 
     try {
       const result = await sendOtpCore(req.body?.phone, {
-        getOtpDoc: async (phone) => (await otpRef(phone).get()).data() as { lastSentAt?: number } | undefined,
+        getOtpDoc: async (phone) => readOtp<{ lastSentAt?: number }>(phone),
         setOtpDoc: async (phone, data) => {
-          await otpRef(phone).set(data);
+          await saveOtp(phone, data);
         },
         sendMessage: (phone, message) => sendWhatsappMessage(config.watobotApiKey, phone, message),
       });
@@ -180,12 +179,12 @@ export const verifyOtp = onRequest((req, res) => {
         req.body?.code,
         { apiKey: req.body?.apiKey, resetApiKey: req.body?.resetApiKey === true },
         {
-          getOtpDoc: async (phone) => (await otpRef(phone).get()).data() as OtpDoc | undefined,
+          getOtpDoc: async (phone) => readOtp<OtpDoc>(phone),
           deleteOtpDoc: async (phone) => {
-            await otpRef(phone).delete();
+            await deleteOtp(phone);
           },
           incrementAttempts: async (phone) => {
-            await otpRef(phone).update({ attempts: FieldValue.increment(1) });
+            await countOtpAttempt(phone);
           },
           getOrCreateUser: getOrCreateUserByPhone,
           resetKey: resetApiKey,

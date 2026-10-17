@@ -1,18 +1,26 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import express from 'express';
 import cors from 'cors';
-import { FieldValue } from 'firebase-admin/firestore';
 import { config } from './helpers/config';
 import { getDisplayPhoneNumber, getPhoneNumberInfo, graphApiBase, registerPhoneNumber, subscribeApp } from './helpers/graphApi';
-import { effectiveConfig, limitsView, reserve, UNITS, type RateState, type Verdict } from './helpers/rateLimiter';
+import { effectiveConfig, limitsView, UNITS, type RateState } from './helpers/rateLimiter';
 import type { RateLimitConfig } from './helpers/rateLimitConfig';
 import { verifyEndpointChallenge } from './helpers/endpointCheck';
 import { HttpError } from './helpers/auth';
 import type { OnboardingResponse, RegisterNumberRequest, RelayLimitsResponse, SetWebhookRequest } from './helpers/types';
 import { authenticateKey } from './accounts';
-import { advanceAfterOverride, importTemplatesFor, migrateTemplatesFor, movedTo, noteOnboardingError } from './onboarding';
+import { advanceAfterOverride, importTemplatesFor, migrateTemplatesFor } from './onboarding';
 import { effectiveStep } from './helpers/onboardingSteps';
-import { firestore, numberOf, phoneNumberRef, readNumber } from './helpers/model';
+import {
+  markRegistered,
+  movedTo,
+  noteOnboardingError,
+  readNumber,
+  recordRelayCall,
+  reserveTemplateSend,
+  setCallback,
+  setDisplayPhoneNumber,
+} from './helpers/model';
 
 // What a customer does with a number through its Watobot API key: set where incoming
 // messages go (setWebhook), register a new number (registerNumber), send messages
@@ -27,7 +35,7 @@ async function rememberDisplayNumber(phoneNumberId: string, accessToken: string)
   try {
     const displayPhoneNumber = await getDisplayPhoneNumber(phoneNumberId, accessToken);
     if (displayPhoneNumber) {
-      await phoneNumberRef(phoneNumberId).update({ displayPhoneNumber });
+      await setDisplayPhoneNumber(phoneNumberId, displayPhoneNumber);
     }
   } catch {
     // The sidebar falls back to the phone number ID.
@@ -66,7 +74,7 @@ export const setWebhook = onRequest((req, res) => {
         if (!check.ok) throw new HttpError(400, check.error!);
 
         await subscribeApp(wabaId, accessToken, overrideCallbackUrl, config.webhookVerifyToken);
-        await phoneNumberRef(String(phoneNumberId)).update({ overrideUrl: overrideCallbackUrl, activatedAt: Date.now() });
+        await setCallback(String(phoneNumberId), overrideCallbackUrl);
         await rememberDisplayNumber(String(phoneNumberId), accessToken);
 
         // A number in the onboarding wizard moves on from here; a finished one just gets its new URL.
@@ -124,14 +132,10 @@ export const registerNumber = onRequest({ timeoutSeconds: 90 }, (req, res) => {
       }
       await rememberDisplayNumber(String(phoneNumberId), accessToken);
 
-      const ref = phoneNumberRef(String(phoneNumberId));
-      const doc = numberOf(await ref.get())!;
-      await ref.update({ metaStatus: 'CONNECTED' });
       // The API-only path of the wizard continues with templates once the number is registered.
-      if (doc.onboarding.step === 'register') {
-        await ref.update({ onboarding: movedTo(doc.onboarding, 'templates') });
-      }
-      const body: OnboardingResponse = { ok: true, step: effectiveStep(numberOf(await ref.get())!) };
+      const doc = (await readNumber(String(phoneNumberId)))!;
+      await markRegistered(String(phoneNumberId), doc.onboarding.step === 'register' ? movedTo(doc.onboarding, 'templates') : undefined);
+      const body: OnboardingResponse = { ok: true, step: effectiveStep((await readNumber(String(phoneNumberId)))!) };
       res.status(200).send(body);
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;
@@ -159,23 +163,6 @@ export function isoWeekKey(d: Date): string {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
-/**
- * Counts one more template message against the number's windows, and says whether it may go. The
- * check and the count happen in one transaction, so sends arriving together cannot all slip under
- * the limit. Limits come from helpers/rateLimitConfig.ts, overridden per number by `rateLimits`.
- */
-async function reserveTemplateSend(phoneNumberId: string): Promise<{ verdict: Verdict | { allowed: true }; config: RateLimitConfig; now: number }> {
-  const ref = phoneNumberRef(phoneNumberId);
-  const now = Date.now();
-  return firestore().runTransaction(async (tx) => {
-    const data = numberOf(await tx.get(ref));
-    const config = effectiveConfig(data?.rateLimits);
-    if (!config.enabled) return { verdict: { allowed: true as const }, config, now };
-    const verdict = reserve(data?.rateState, config, now);
-    tx.update(ref, { rateState: verdict.state });
-    return { verdict, config, now };
-  });
-}
 
 /** What is left in each window and when it resets, as headers on a template send, so a sender can pace itself. */
 function setRateHeaders(res: express.Response, state: RateState, config: RateLimitConfig, now: number) {
@@ -243,24 +230,13 @@ relayApp.post('/:phoneNumberId/messages', async (req, res) => {
   });
   const body = await metaRes.json();
 
-  // Metadata only — timestamp + outcome, never the message content or any
-  // token — and only successful sends count toward billable usage. Uses update()
-  // so a failure never creates a record. Any failure is swallowed: bookkeeping
-  // is best-effort and shouldn't affect the response the caller sees.
   const now = new Date();
-  const update: Record<string, unknown> = {
-    lastRelayCall: { at: now.getTime(), ok: metaRes.ok, statusCode: metaRes.status },
-  };
-  if (metaRes.ok) {
-    update[`usage.daily.${dailyKey(now)}`] = FieldValue.increment(1);
-    update[`usage.weekly.${isoWeekKey(now)}`] = FieldValue.increment(1);
-    update[`usage.monthly.${monthlyKey(now)}`] = FieldValue.increment(1);
-  }
-  try {
-    await phoneNumberRef(phoneNumberId).update(update);
-  } catch {
-    // No record to update.
-  }
+  await recordRelayCall(phoneNumberId, {
+    at: now.getTime(),
+    ok: metaRes.ok,
+    statusCode: metaRes.status,
+    usageKeys: { daily: dailyKey(now), weekly: isoWeekKey(now), monthly: monthlyKey(now) },
+  });
 
   res.status(metaRes.status).send(body);
 });

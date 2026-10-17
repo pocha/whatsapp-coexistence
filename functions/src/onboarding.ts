@@ -1,5 +1,4 @@
 import { onRequest, type Request } from 'firebase-functions/v2/https';
-import { FieldValue } from 'firebase-admin/firestore';
 import cors from 'cors';
 import type { Response } from 'express';
 import { HttpError, requireAuth } from './helpers/auth';
@@ -14,7 +13,18 @@ import {
   verifyWabaAccess,
 } from './helpers/graphApi';
 import { checkPublicUrl, verifyEndpointChallenge } from './helpers/endpointCheck';
-import { firestore, numberOf, phoneNumberRef, testRunRef } from './helpers/model';
+import {
+  claimSync,
+  markDeregistered,
+  moveStep,
+  movedTo,
+  readNumber,
+  readTestRun,
+  recordOverrideResult,
+  reserveTestSend,
+  setSyncState,
+  setTemplateSource,
+} from './helpers/model';
 import { config } from './helpers/config';
 import { newCodes, sendTestEvent, TEST_EVENT_TYPES } from './helpers/testEvents';
 import { parseTemplateExport } from './helpers/templateImport';
@@ -24,7 +34,6 @@ import type {
   DisconnectNumberResponse,
   ImportTemplatesResponse,
   MigrateTemplatesResponse,
-  OnboardingState,
   OnboardingStep,
   SendTestEventsRequest,
   SendTestEventsResponse,
@@ -63,37 +72,22 @@ function post(handler: Handler, options: { timeoutSeconds?: number } = {}) {
   });
 }
 
-/** The wizard state moved to a new step, with the previous failure cleared. */
-export function movedTo(current: OnboardingState, step: OnboardingStep): OnboardingState {
-  const { error: _cleared, ...rest } = current;
-  return { ...rest, step, updatedAt: Date.now() };
-}
-
-/** Keeps the last failure on the number's wizard step, so the dashboard can show it with a way to try again. */
-export async function noteOnboardingError(phoneNumberId: string, step: OnboardingStep, message: string): Promise<void> {
-  const ref = phoneNumberRef(phoneNumberId);
-  const snap = await ref.get();
-  const current = numberOf(snap)?.onboarding;
-  if (current?.step === step) await ref.update({ 'onboarding.error': message.slice(0, 500), 'onboarding.updatedAt': Date.now() });
-}
-
 /**
  * Called once the callback URL is subscribed: finds out from Meta whether the number is also on the
  * WhatsApp Business app, and moves the wizard to the next step. The coexistence event is trusted for
  * the path; `is_on_biz_app` decides it for the plain event.
  */
 export async function advanceAfterOverride(phoneNumberId: string, accessToken: string): Promise<{ step: OnboardingStep; isOnBizApp?: boolean }> {
-  const ref = phoneNumberRef(phoneNumberId);
-  const doc = numberOf(await ref.get())!;
+  const doc = (await readNumber(phoneNumberId))!;
   const info = await getPhoneNumberInfo(phoneNumberId, accessToken);
-  const coexistence = doc.onboarding!.event === 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING' || info.isOnBizApp === true;
+  const coexistence = doc.onboarding.event === 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING' || info.isOnBizApp === true;
   const step: OnboardingStep = coexistence ? 'sync' : 'not_on_app';
-  await ref.update({
+  await recordOverrideResult(phoneNumberId, {
+    onboarding: movedTo(doc.onboarding, step),
     isOnBizApp: info.isOnBizApp ?? false,
-    ...(info.status ? { metaStatus: info.status } : {}),
-    platformType: info.platformType ?? FieldValue.delete(),
-    ...(coexistence ? { sync: { contacts: { state: 'none' }, history: { state: 'none' } } } : {}),
-    onboarding: movedTo(doc.onboarding!, step),
+    metaStatus: info.status,
+    platformType: info.platformType,
+    startSync: coexistence,
   });
   return { step, isOnBizApp: info.isOnBizApp };
 }
@@ -130,7 +124,7 @@ export const deregisterNumber = post(async (req, res) => {
   await deregisterPhoneNumber(String(phoneNumberId), accessToken);
   // The record now shows an API-only number that is not connected, so effectiveStep sends the user
   // to the wizard's register step.
-  await phoneNumberRef(String(phoneNumberId)).update({ metaStatus: 'DEREGISTERED', isOnBizApp: false });
+  await markDeregistered(String(phoneNumberId));
   res.status(200).send({ ok: true });
 });
 
@@ -161,9 +155,6 @@ export const disconnectNumber = post(async (req, res) => {
 // ---- the contacts and history syncs ----
 
 const META_SYNC_TYPE = { contacts: 'smb_app_state_sync', history: 'history' } as const;
-// A request that has been "requesting" longer than this died with its function instance.
-const REQUESTING_STALE_MS = 2 * 60 * 1000;
-
 /**
  * Asks Meta to send the coexistence number's contacts, then its history, to the customer's callback
  * URL. Meta allows each only once, so a second request is refused once the first was accepted, and
@@ -175,31 +166,28 @@ export const startSync = post(async (req, res) => {
     throw new HttpError(400, 'phoneNumberId, apiKey and a syncType of contacts or history are required');
   }
   const { accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
-  const ref = phoneNumberRef(String(phoneNumberId));
   const type: SyncType = syncType;
 
-  // Claim the request in a transaction, so two clicks cannot both send it.
-  await firestore().runTransaction(async (tx) => {
-    const doc = numberOf(await tx.get(ref))!;
-    if (doc.onboarding.step !== 'sync') throw new HttpError(409, 'This number is not at the sync step.');
-    const current = doc.sync?.[type];
-    const inFlight = current?.state === 'requesting' && Date.now() - (current.at ?? 0) < REQUESTING_STALE_MS;
-    if (current?.state === 'requested') throw new HttpError(409, `The ${type} sync was already requested. Meta allows it only once.`);
-    if (inFlight) throw new HttpError(409, `The ${type} sync is being requested.`);
-    if (type === 'history' && doc.sync?.contacts?.state !== 'requested') {
-      throw new HttpError(409, 'Request the contacts sync first.');
-    }
-    tx.update(ref, { [`sync.${type}`]: { state: 'requesting', at: Date.now() } });
-  });
+  // Claim the request first, so two clicks cannot both send it.
+  const claimed = await claimSync(String(phoneNumberId), type);
+  if (claimed !== 'ok') {
+    const refusals = {
+      not_at_step: 'This number is not at the sync step.',
+      already_requested: `The ${type} sync was already requested. Meta allows it only once.`,
+      in_flight: `The ${type} sync is being requested.`,
+      contacts_first: 'Request the contacts sync first.',
+    };
+    throw new HttpError(409, refusals[claimed]);
+  }
 
   try {
     await requestSmbAppData(String(phoneNumberId), accessToken, META_SYNC_TYPE[type]);
   } catch (err) {
     const message = (err as Error).message;
-    await ref.update({ [`sync.${type}`]: { state: 'failed', at: Date.now(), error: message.slice(0, 500) } });
+    await setSyncState(String(phoneNumberId), type, { state: 'failed', at: Date.now(), error: message.slice(0, 500) });
     throw new HttpError(502, message);
   }
-  await ref.update({ [`sync.${type}`]: { state: 'requested', at: Date.now() } });
+  await setSyncState(String(phoneNumberId), type, { state: 'requested', at: Date.now() });
   res.status(200).send({ ok: true });
 });
 
@@ -210,19 +198,17 @@ export const setOnboardingStep = post(async (req, res) => {
   const { phoneNumberId, apiKey, step } = (req.body ?? {}) as Partial<SetOnboardingStepRequest>;
   if (!phoneNumberId || !apiKey || !step) throw new HttpError(400, 'phoneNumberId, apiKey and step are required');
   await authenticateKey(String(phoneNumberId), apiKey);
-  const ref = phoneNumberRef(String(phoneNumberId));
 
-  const next = await firestore().runTransaction(async (tx) => {
-    const doc = numberOf(await tx.get(ref))!;
-    const current = doc.onboarding.step;
+  let current: OnboardingStep | undefined;
+  const next = await moveStep(String(phoneNumberId), (doc) => {
+    current = doc.onboarding.step;
     const allowed =
       (step === 'register' && current === 'not_on_app') ||
       (step === 'templates' && current === 'sync' && doc.sync?.contacts?.state === 'requested' && doc.sync?.history?.state === 'requested') ||
       (step === 'done' && current === 'templates');
-    if (!allowed) throw new HttpError(409, `This number can't go from ${current ?? 'no step'} to ${step}.`);
-    tx.update(ref, { onboarding: movedTo(doc.onboarding!, step) });
-    return step;
+    return allowed ? step : null;
   });
+  if (!next) throw new HttpError(409, `This number can't go from ${current ?? 'no step'} to ${step}.`);
   res.status(200).send({ ok: true, step: next });
 });
 
@@ -256,7 +242,7 @@ export async function migrateTemplatesFor(phoneNumberId: string, apiKey: string,
     for (const [id, reason] of Object.entries(result.failed)) failed.push({ id, reason });
     if (result.migrated.length + Object.keys(result.failed).length < 500) break;
   }
-  await phoneNumberRef(phoneNumberId).update({ 'onboarding.templateSourceWabaId': source });
+  await setTemplateSource(phoneNumberId, source);
   return { ok: true, outcome: 'done', migrated, failed };
 }
 
@@ -302,15 +288,8 @@ export const sendTestEvents = post(async (req, res) => {
   const check = await checkPublicUrl(url);
   if (!check.ok) throw new HttpError(400, check.error!);
 
-  const ref = testRunRef(userId);
   const codes = newCodes();
-  const wait = await firestore().runTransaction(async (tx) => {
-    const last = (await tx.get(ref)).data() as { sentAt?: number } | undefined;
-    const elapsed = Date.now() - (last?.sentAt ?? 0);
-    if (elapsed < TEST_GAP_MS) return Math.ceil((TEST_GAP_MS - elapsed) / 1000);
-    tx.set(ref, { codes, sentAt: Date.now() });
-    return 0;
-  });
+  const wait = await reserveTestSend(userId, codes, TEST_GAP_MS);
   if (wait > 0) {
     const body: SendTestEventsResponse = { ok: false, error: `You can send test data once every 30 seconds. Wait ${wait} seconds.`, retryAfter: wait };
     res.status(429).send(body);
@@ -327,9 +306,7 @@ export const sendTestEvents = post(async (req, res) => {
 export const verifyTestCodes = post(async (req, res) => {
   const userId = await requireAuth(req);
   const { codes } = (req.body ?? {}) as Partial<VerifyTestCodesRequest>;
-  const run = (await testRunRef(userId).get()).data() as
-    | { codes: Record<TestEventType, string>; sentAt: number }
-    | undefined;
+  const run = await readTestRun(userId);
   if (!run || Date.now() - run.sentAt > TEST_CODES_VALID_MS) throw new HttpError(409, 'Send the test data first.');
 
   const correct = Object.fromEntries(

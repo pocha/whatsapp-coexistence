@@ -1,29 +1,24 @@
 import { onRequest } from 'firebase-functions/v2/https';
-import { FieldValue } from 'firebase-admin/firestore';
 import cors from 'cors';
 import { config } from './helpers/config';
 import { exchangeCodeForToken, getDisplayPhoneNumber } from './helpers/graphApi';
 import type { ExchangeCodeRequest, OnboardingResponse, RotateKeyRequest, SignupEvent } from './helpers/types';
 import { HttpError, requireAuth } from './helpers/auth';
 import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKey } from './helpers/apiKey';
-import { firestore, getUser, numberOf, numbersOf, phoneNumberRef, readNumber, userRef, type UserRecord } from './helpers/model';
+import { getUser, readNumber, replaceApiKey, saveNumberToken, setDisplayPhoneNumber, setFirstApiKeyHash, type UserRecord } from './helpers/model';
 
 // Keys and tokens: checking an API key, opening the stored Meta token for a request, sealing a
 // new one, and the key rotation function. The records themselves are read and written through
-// helpers/model.ts (which describes the data model). The user manages the rest of their account
-// from the browser (see src/assets/account.ts and firestore.rules); setFirstApiKey stays here for
-// scripts/seed-test-waba.js.
+// helpers/model.ts, the only file that touches Firestore. The user manages the rest of their
+// account from the browser (see src/assets/account.ts and firestore.rules); setFirstApiKey stays
+// here for scripts/seed-test-waba.js.
 
 /** Stores the hash of a brand-new API key. Only allowed while the user has none. */
 export async function setFirstApiKey(userId: string, apiKey: string): Promise<void> {
   if (!isValidApiKey(apiKey)) throw new HttpError(400, 'That is not a valid API key.');
-  const ref = userRef(userId);
-  await firestore().runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists) throw new HttpError(404, 'No such user.');
-    if (snap.data()!.apiKeyHash) throw new HttpError(409, 'This account already has an API key.');
-    tx.update(ref, { apiKeyHash: hashApiKey(apiKey), rotatedAt: Date.now() });
-  });
+  const result = await setFirstApiKeyHash(userId, hashApiKey(apiKey));
+  if (result === 'no_user') throw new HttpError(404, 'No such user.');
+  if (result === 'has_key') throw new HttpError(409, 'This account already has an API key.');
 }
 
 /** Throws unless `apiKey` is the key for this user. Returns the user. */
@@ -61,8 +56,7 @@ export async function authenticateKey(
 
 /**
  * Seals a Meta access token under the API key and saves it on the WABA record. The number starts
- * (or restarts) the onboarding wizard at the override step, and anything left from an earlier
- * attempt (sync state, whether it was on the Business app, its status) is cleared.
+ * (or restarts) the onboarding wizard (see saveNumberToken).
  */
 export async function storeWabaToken(args: {
   userId: string;
@@ -72,20 +66,13 @@ export async function storeWabaToken(args: {
   apiKey: string;
   event: SignupEvent;
 }): Promise<void> {
-  await phoneNumberRef(args.phoneNumberId).set(
-      {
-        userId: args.userId,
-        wabaId: args.wabaId,
-        phoneNumberId: args.phoneNumberId,
-        encAccessToken: encryptToken(args.accessToken, args.apiKey),
-        onboarding: { step: 'override', event: args.event, updatedAt: Date.now() },
-        sync: FieldValue.delete(),
-        isOnBizApp: FieldValue.delete(),
-        platformType: FieldValue.delete(),
-        metaStatus: FieldValue.delete(),
-      },
-      { merge: true },
-    );
+  await saveNumberToken({
+    userId: args.userId,
+    wabaId: args.wabaId,
+    phoneNumberId: args.phoneNumberId,
+    encAccessToken: encryptToken(args.accessToken, args.apiKey),
+    event: args.event,
+  });
 }
 
 const corsHandler = cors({ origin: true });
@@ -106,20 +93,15 @@ export const rotateKey = onRequest((req, res) => {
       await requireUserKey(userId, oldApiKey);
       if (!isValidApiKey(newApiKey)) throw new HttpError(400, 'That is not a valid new API key.');
 
-      const batch = firestore().batch();
-      (await numbersOf(userId)).forEach((snap) => {
-        const enc = numberOf(snap)!.encAccessToken;
-        if (!enc) return;
+      await replaceApiKey(userId, hashApiKey(newApiKey), (sealed) => {
         let token: string;
         try {
-          token = decryptToken(enc, oldApiKey as string);
+          token = decryptToken(sealed, oldApiKey as string);
         } catch {
           throw new HttpError(500, 'Could not decrypt a stored access token.');
         }
-        batch.update(snap.ref, { encAccessToken: encryptToken(token, newApiKey) });
+        return encryptToken(token, newApiKey);
       });
-      batch.update(userRef(userId), { apiKeyHash: hashApiKey(newApiKey), rotatedAt: Date.now() });
-      await batch.commit();
       res.status(200).send({ ok: true });
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;
@@ -159,7 +141,7 @@ export const exchangeCode = onRequest((req, res) => {
       try {
         const displayPhoneNumber = await getDisplayPhoneNumber(String(phoneNumberId), accessToken);
         if (displayPhoneNumber) {
-          await phoneNumberRef(String(phoneNumberId)).update({ displayPhoneNumber });
+          await setDisplayPhoneNumber(String(phoneNumberId), displayPhoneNumber);
         }
       } catch {
         // Not fatal.
