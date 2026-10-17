@@ -41,9 +41,9 @@ Three kinds of credential:
 
 | Method and path | Credential | What it does | Body |
 | --- | --- | --- | --- |
-| `POST /checkCallbackUrl` | Signed in | Does Meta's handshake against a callback URL, before there is a number. | `overrideCallbackUrl` |
-| `POST /sendTestEvents` | Signed in | Posts one test webhook of each kind to a URL, with fresh codes. One send per 30 seconds. | `overrideCallbackUrl` |
-| `POST /verifyTestCodes` | Signed in | Says which of the four typed codes match the last send. | `codes` |
+| `POST /checkCallbackUrl` | Signed in or key | Does Meta's handshake against a callback URL, before there is a number. | `overrideCallbackUrl` |
+| `POST /sendTestEvents` | Signed in or key | Posts one test webhook of each kind to a URL, with fresh codes. One send per 30 seconds. | `overrideCallbackUrl` |
+| `POST /verifyTestCodes` | Signed in or key | Says which of the four typed codes match the last send. | `codes` |
 | `POST /exchangeCode` | Signed in + `apiKey` | Exchanges the Embedded Signup code for the Meta token, stores it encrypted under the key, and starts the wizard for the number. | `code`, `wabaId`, `phoneNumberId`, `apiKey`, `event` |
 | `POST /startSync` | Key | Requests the contacts, then the history sync (each once). | `phoneNumberId`, `apiKey`, `syncType` |
 | `POST /setOnboardingStep` | Key | Moves the wizard between the steps the user chooses or confirms. | `phoneNumberId`, `apiKey`, `step` |
@@ -54,6 +54,8 @@ Three kinds of credential:
 | --- | --- | --- | --- |
 | `POST /sendOtp` | None | Sends a sign-in code on WhatsApp. | `phone` |
 | `POST /verifyOtp` | None | Checks the code and signs in (or resets a lost key). | `phone`, `code`, `apiKey?`, `resetApiKey?` |
+| `POST /listNumbers` | Signed in or key | The account's numbers: where each is in onboarding (`step`), whether it is on the Business app, the syncs, usage. Never the stored token (`hasToken` only). | (`apiKey` for a key) |
+| `POST /getNumber` | Signed in or key | One number, as above, plus its template-send limits. 404 for a number that is not the caller's. | `phoneNumberId` |
 | `POST /rotateKey` | Signed in | Replaces the API key and re-encrypts every stored token. | `oldApiKey`, `newApiKey` |
 | `POST /joinWaitlist` | None | Counts a waitlist click. | |
 
@@ -65,6 +67,18 @@ Three kinds of credential:
 | `POST /webhook` | Receives the webhooks that can't be overridden (template and account-level updates). Checks Meta's `X-Hub-Signature-256` (an HMAC of the body with the app secret), refuses anything else with 401, and acknowledges the rest. Nothing is done with them yet: Meta emails the account's admins about the ones that matter. |
 
 The request bodies are typed in `functions/src/helpers/types.ts`.
+
+## MCP server
+
+`mcp/` is a small MCP server (package `watobot-mcp`) that lets an AI tool use the functions above: check a callback URL, send test events, get the link for Meta's sign-up, read a number's state, sync, register, send messages, manage templates, de-register and disconnect. It runs locally over stdio and holds the API key only in its environment.
+
+```bash
+claude mcp add watobot -e WATOBOT_API_KEY=<your key> -- npx -y watobot-mcp
+```
+
+A new user signs up on the site and creates the key there (it is made in the browser and shown once, so no tool can make it). Meta's sign-up (Facebook login, the code or QR in the WhatsApp Business app) is always done by the person: the `start_onboarding_link` tool gives a link that opens the dashboard wizard at that step, with the checks already done. `deregister_number`, `disconnect_number` and `delete_template` are marked destructive.
+
+Develop it with `cd mcp && npm test`. `WATOBOT_API_URL` points it at the emulators (`http://127.0.0.1:5001/wa-coexistence/us-central1`).
 
 ## Roadmap
 
