@@ -1,39 +1,12 @@
-import { onRequest, type Request } from 'firebase-functions/v2/https';
-import cors from 'cors';
-import type { Response } from 'express';
-import { HttpError, requireAuth } from './helpers/auth';
+import { requireAuth, HttpError } from './helpers/auth';
 import { authenticateKey } from './accounts';
-import {
-  createTemplate,
-  deregisterPhoneNumber,
-  getPhoneNumberInfo,
-  migrateTemplatesPage,
-  requestSmbAppData,
-  unsubscribeApp,
-  verifyWabaAccess,
-} from './helpers/graphApi';
+import { getPhoneNumberInfo, requestSmbAppData } from './helpers/graphApi';
 import { checkPublicUrl, verifyEndpointChallenge } from './helpers/endpointCheck';
-import {
-  claimSync,
-  markDeregistered,
-  moveStep,
-  movedTo,
-  readNumber,
-  readTestRun,
-  recordOverrideResult,
-  reserveTestSend,
-  setSyncState,
-  setTemplateSource,
-} from './helpers/model';
+import { claimSync, moveStep, movedTo, readNumber, readTestRun, recordOverrideResult, reserveTestSend, setSyncState } from './helpers/model';
 import { config } from './helpers/config';
+import { post } from './helpers/http';
 import { newCodes, sendTestEvent, TEST_EVENT_TYPES } from './helpers/testEvents';
-import { parseTemplateExport } from './helpers/templateImport';
 import type {
-  DeregisterNumberRequest,
-  DisconnectNumberRequest,
-  DisconnectNumberResponse,
-  ImportTemplatesResponse,
-  MigrateTemplatesResponse,
   OnboardingStep,
   SendTestEventsRequest,
   SendTestEventsResponse,
@@ -47,30 +20,8 @@ import type {
 
 // The onboarding wizard's server side. A number gets a record, and with it an `onboarding` step,
 // when Meta's popup finishes (exchangeCode). setWebhook then moves it on (see wabaManager.ts), and
-// the functions here carry it through the rest: the contacts and history syncs, the register
-// choice, templates and the test data the user sends to their own endpoint first.
-
-const corsHandler = cors({ origin: true });
-
-type Handler = (req: Request, res: Response) => Promise<void>;
-
-/** Wraps a POST handler: CORS, method check, and Meta or validation errors turned into a JSON answer. */
-function post(handler: Handler, options: { timeoutSeconds?: number } = {}) {
-  return onRequest(options, (req, res) => {
-    corsHandler(req, res, async () => {
-      if (req.method !== 'POST') {
-        res.status(405).send({ ok: false, error: 'Use POST' });
-        return;
-      }
-      try {
-        await handler(req, res);
-      } catch (err) {
-        const status = err instanceof HttpError ? err.status : 502;
-        res.status(status).send({ ok: false, error: (err as Error).message });
-      }
-    });
-  });
-}
+// the functions here carry it through the rest: the contacts and history syncs, the steps the user
+// confirms, and the test data they send to their own endpoint first.
 
 /**
  * Called once the callback URL is subscribed: finds out from Meta whether the number is also on the
@@ -101,55 +52,6 @@ export const checkCallbackUrl = post(async (req, res) => {
   const check = await verifyEndpointChallenge(String(overrideCallbackUrl ?? ''), config.webhookVerifyToken);
   if (!check.ok) throw new HttpError(400, check.error!);
   res.status(200).send({ ok: true });
-});
-
-// ---- leaving the API ----
-
-/**
- * Takes a standard (API-only) number off the Cloud API, so another provider can onboard it. A
- * number that is also on the WhatsApp Business app can't be deregistered: the way off is to
- * disconnect in the app, so that is what the answer says.
- */
-export const deregisterNumber = post(async (req, res) => {
-  const { phoneNumberId, apiKey } = (req.body ?? {}) as Partial<DeregisterNumberRequest>;
-  if (!phoneNumberId || !apiKey) throw new HttpError(400, 'phoneNumberId and apiKey are required');
-  const { accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
-  const info = await getPhoneNumberInfo(String(phoneNumberId), accessToken);
-  if (info.isOnBizApp === true) {
-    throw new HttpError(
-      409,
-      'This number is also on the WhatsApp Business app, which Meta does not allow it to be deregistered from. In the app, go to Settings > Account > Business Platform and disconnect it.',
-    );
-  }
-  await deregisterPhoneNumber(String(phoneNumberId), accessToken);
-  // The record now shows an API-only number that is not connected, so effectiveStep sends the user
-  // to the wizard's register step.
-  await markDeregistered(String(phoneNumberId));
-  res.status(200).send({ ok: true });
-});
-
-/**
- * What leaving Watobot does on Meta's side, for one number: our app stops receiving its webhooks
- * and, if asked and it is API-only, the number comes off the Cloud API (so another provider can
- * take it). A number that is also on the Business app is only unsubscribed: Meta can't de-register
- * it, and the way off is the app's own Disconnect, which the answer tells the caller to point out.
- * The records are deleted by the caller afterwards.
- */
-export const disconnectNumber = post(async (req, res) => {
-  const { phoneNumberId, apiKey, deregister } = (req.body ?? {}) as Partial<DisconnectNumberRequest>;
-  if (!phoneNumberId || !apiKey) throw new HttpError(400, 'phoneNumberId and apiKey are required');
-  const { wabaId, accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
-  const info = await getPhoneNumberInfo(String(phoneNumberId), accessToken);
-  const coexistence = info.isOnBizApp === true;
-
-  await unsubscribeApp(wabaId, accessToken);
-  let deregistered = false;
-  if (deregister && !coexistence) {
-    await deregisterPhoneNumber(String(phoneNumberId), accessToken);
-    deregistered = true;
-  }
-  const body: DisconnectNumberResponse = { ok: true, coexistence, deregistered };
-  res.status(200).send(body);
 });
 
 // ---- the contacts and history syncs ----
@@ -211,67 +113,6 @@ export const setOnboardingStep = post(async (req, res) => {
   if (!next) throw new HttpError(409, `This number can't go from ${current ?? 'no step'} to ${step}.`);
   res.status(200).send({ ok: true, step: next });
 });
-
-// ---- templates ----
-
-const WABA_ID = /^\d{8,20}$/;
-
-/**
- * Copies the approved templates of the user's previous Messaging account into this number's. It
- * first checks our token can read the source: if not (the user didn't share it, or it belongs to
- * their provider), the answer says so and the user is sent back to their provider.
- * Served by the templates function: POST templates/<phoneNumberId>/migrate.
- */
-export async function migrateTemplatesFor(phoneNumberId: string, apiKey: string, sourceWabaId: unknown): Promise<MigrateTemplatesResponse> {
-  if (!WABA_ID.test(String(sourceWabaId ?? ''))) throw new HttpError(400, 'sourceWabaId (the previous Messaging account ID, digits only) is required');
-  const { wabaId, accessToken } = await authenticateKey(phoneNumberId, apiKey);
-  const source = String(sourceWabaId);
-  if (source === wabaId) throw new HttpError(400, 'That is this number\'s own Messaging account.');
-
-  try {
-    await verifyWabaAccess(source, accessToken);
-  } catch {
-    return { ok: true, outcome: 'unreadable' };
-  }
-
-  let migrated = 0;
-  const failed: { id: string; reason: string }[] = [];
-  for (let page = 0; page < 10; page++) {
-    const result = await migrateTemplatesPage(wabaId, source, accessToken, page);
-    migrated += result.migrated.length;
-    for (const [id, reason] of Object.entries(result.failed)) failed.push({ id, reason });
-    if (result.migrated.length + Object.keys(result.failed).length < 500) break;
-  }
-  await setTemplateSource(phoneNumberId, source);
-  return { ok: true, outcome: 'done', migrated, failed };
-}
-
-// Meta allows 100 template creations per hour per account.
-const MAX_IMPORT = 100;
-
-/**
- * Creates the templates in a list the previous provider exported, one at a time, and says which
- * failed. Served by the templates function: POST templates/<phoneNumberId>/import.
- */
-export async function importTemplatesFor(phoneNumberId: string, apiKey: string, templates: unknown): Promise<ImportTemplatesResponse> {
-  const { wabaId, accessToken } = await authenticateKey(phoneNumberId, apiKey);
-  const parsed = parseTemplateExport(templates);
-  if (parsed.templates.length > MAX_IMPORT) {
-    throw new HttpError(400, `Import up to ${MAX_IMPORT} templates at a time: Meta allows ${MAX_IMPORT} creations per hour per account.`);
-  }
-
-  let created = 0;
-  const failed = [...parsed.rejected];
-  for (const template of parsed.templates) {
-    try {
-      await createTemplate(wabaId, accessToken, template);
-      created += 1;
-    } catch (err) {
-      failed.push({ name: template.name, language: template.language, reason: (err as Error).message.slice(0, 300) });
-    }
-  }
-  return { ok: true, created, failed };
-}
 
 // ---- test data for the user's own endpoint ----
 

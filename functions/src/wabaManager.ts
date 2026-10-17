@@ -2,16 +2,40 @@ import { onRequest } from 'firebase-functions/v2/https';
 import express from 'express';
 import cors from 'cors';
 import { config } from './helpers/config';
-import { getDisplayPhoneNumber, getPhoneNumberInfo, graphApiBase, registerPhoneNumber, subscribeApp } from './helpers/graphApi';
+import {
+  createTemplate,
+  deregisterPhoneNumber,
+  getDisplayPhoneNumber,
+  getPhoneNumberInfo,
+  graphApiBase,
+  migrateTemplatesPage,
+  registerPhoneNumber,
+  subscribeApp,
+  unsubscribeApp,
+  verifyWabaAccess,
+} from './helpers/graphApi';
+import { post } from './helpers/http';
+import { parseTemplateExport } from './helpers/templateImport';
 import { effectiveConfig, limitsView, UNITS, type RateState } from './helpers/rateLimiter';
 import type { RateLimitConfig } from './helpers/rateLimitConfig';
 import { verifyEndpointChallenge } from './helpers/endpointCheck';
 import { HttpError } from './helpers/auth';
-import type { OnboardingResponse, RegisterNumberRequest, RelayLimitsResponse, SetWebhookRequest } from './helpers/types';
+import type {
+  DeregisterNumberRequest,
+  DisconnectNumberRequest,
+  DisconnectNumberResponse,
+  ImportTemplatesResponse,
+  MigrateTemplatesResponse,
+  OnboardingResponse,
+  RegisterNumberRequest,
+  RelayLimitsResponse,
+  SetWebhookRequest,
+} from './helpers/types';
 import { authenticateKey } from './accounts';
-import { advanceAfterOverride, importTemplatesFor, migrateTemplatesFor } from './onboarding';
+import { advanceAfterOverride } from './onboarding';
 import { effectiveStep } from './helpers/onboardingSteps';
 import {
+  markDeregistered,
   markRegistered,
   movedTo,
   noteOnboardingError,
@@ -20,13 +44,14 @@ import {
   reserveTemplateSend,
   setCallback,
   setDisplayPhoneNumber,
+  setTemplateSource,
 } from './helpers/model';
 
-// What a customer does with a number through its Watobot API key: set where incoming
-// messages go (setWebhook), register a new number (registerNumber), send messages
-// (relayMessage) and manage message templates
-// (templates). Each one finds the number, checks the key, decrypts the stored Meta token
-// in memory for the request, and calls Meta with it.
+// What a customer does with a number through its Watobot API key: set where incoming messages go
+// (setWebhook), register it, de-register it or disconnect it from Watobot, send messages
+// (relayMessage) and manage message templates (templates). Each one finds the number, checks the
+// key, decrypts the stored Meta token in memory for the request, and calls Meta with it. The
+// wizard that onboards a number is in onboarding.ts.
 
 const corsHandler = cors({ origin: true });
 
@@ -142,6 +167,55 @@ export const registerNumber = onRequest({ timeoutSeconds: 90 }, (req, res) => {
       res.status(status).send({ ok: false, error: (err as Error).message });
     }
   });
+});
+
+// ---- leaving the API ----
+
+/**
+ * Takes a standard (API-only) number off the Cloud API, so another provider can onboard it. A
+ * number that is also on the WhatsApp Business app can't be deregistered: the way off is to
+ * disconnect in the app, so that is what the answer says.
+ */
+export const deregisterNumber = post(async (req, res) => {
+  const { phoneNumberId, apiKey } = (req.body ?? {}) as Partial<DeregisterNumberRequest>;
+  if (!phoneNumberId || !apiKey) throw new HttpError(400, 'phoneNumberId and apiKey are required');
+  const { accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
+  const info = await getPhoneNumberInfo(String(phoneNumberId), accessToken);
+  if (info.isOnBizApp === true) {
+    throw new HttpError(
+      409,
+      'This number is also on the WhatsApp Business app, which Meta does not allow it to be deregistered from. In the app, go to Settings > Account > Business Platform and disconnect it.',
+    );
+  }
+  await deregisterPhoneNumber(String(phoneNumberId), accessToken);
+  // The record now shows an API-only number that is not connected, so effectiveStep sends the user
+  // to the wizard's register step.
+  await markDeregistered(String(phoneNumberId));
+  res.status(200).send({ ok: true });
+});
+
+/**
+ * What leaving Watobot does on Meta's side, for one number: our app stops receiving its webhooks
+ * and, if asked and it is API-only, the number comes off the Cloud API (so another provider can
+ * take it). A number that is also on the Business app is only unsubscribed: Meta can't de-register
+ * it, and the way off is the app's own Disconnect, which the answer tells the caller to point out.
+ * The records are deleted by the caller afterwards.
+ */
+export const disconnectNumber = post(async (req, res) => {
+  const { phoneNumberId, apiKey, deregister } = (req.body ?? {}) as Partial<DisconnectNumberRequest>;
+  if (!phoneNumberId || !apiKey) throw new HttpError(400, 'phoneNumberId and apiKey are required');
+  const { wabaId, accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
+  const info = await getPhoneNumberInfo(String(phoneNumberId), accessToken);
+  const coexistence = info.isOnBizApp === true;
+
+  await unsubscribeApp(wabaId, accessToken);
+  let deregistered = false;
+  if (deregister && !coexistence) {
+    await deregisterPhoneNumber(String(phoneNumberId), accessToken);
+    deregistered = true;
+  }
+  const body: DisconnectNumberResponse = { ok: true, coexistence, deregistered };
+  res.status(200).send(body);
 });
 
 // ---- relayMessage ----
@@ -275,6 +349,65 @@ relayApp.get('/:phoneNumberId/limits', async (req, res) => {
 export const relayMessage = onRequest(relayApp);
 
 // ---- templates ----
+
+const WABA_ID = /^\d{8,20}$/;
+
+/**
+ * Copies the approved templates of the user's previous Messaging account into this number's. It
+ * first checks our token can read the source: if not (the user didn't share it, or it belongs to
+ * their provider), the answer says so and the user is sent back to their provider.
+ * Served by the templates function: POST templates/<phoneNumberId>/migrate.
+ */
+export async function migrateTemplatesFor(phoneNumberId: string, apiKey: string, sourceWabaId: unknown): Promise<MigrateTemplatesResponse> {
+  if (!WABA_ID.test(String(sourceWabaId ?? ''))) throw new HttpError(400, 'sourceWabaId (the previous Messaging account ID, digits only) is required');
+  const { wabaId, accessToken } = await authenticateKey(phoneNumberId, apiKey);
+  const source = String(sourceWabaId);
+  if (source === wabaId) throw new HttpError(400, 'That is this number\'s own Messaging account.');
+
+  try {
+    await verifyWabaAccess(source, accessToken);
+  } catch {
+    return { ok: true, outcome: 'unreadable' };
+  }
+
+  let migrated = 0;
+  const failed: { id: string; reason: string }[] = [];
+  for (let page = 0; page < 10; page++) {
+    const result = await migrateTemplatesPage(wabaId, source, accessToken, page);
+    migrated += result.migrated.length;
+    for (const [id, reason] of Object.entries(result.failed)) failed.push({ id, reason });
+    if (result.migrated.length + Object.keys(result.failed).length < 500) break;
+  }
+  await setTemplateSource(phoneNumberId, source);
+  return { ok: true, outcome: 'done', migrated, failed };
+}
+
+// Meta allows 100 template creations per hour per account.
+const MAX_IMPORT = 100;
+
+/**
+ * Creates the templates in a list the previous provider exported, one at a time, and says which
+ * failed. Served by the templates function: POST templates/<phoneNumberId>/import.
+ */
+export async function importTemplatesFor(phoneNumberId: string, apiKey: string, templates: unknown): Promise<ImportTemplatesResponse> {
+  const { wabaId, accessToken } = await authenticateKey(phoneNumberId, apiKey);
+  const parsed = parseTemplateExport(templates);
+  if (parsed.templates.length > MAX_IMPORT) {
+    throw new HttpError(400, `Import up to ${MAX_IMPORT} templates at a time: Meta allows ${MAX_IMPORT} creations per hour per account.`);
+  }
+
+  let created = 0;
+  const failed = [...parsed.rejected];
+  for (const template of parsed.templates) {
+    try {
+      await createTemplate(wabaId, accessToken, template);
+      created += 1;
+    } catch (err) {
+      failed.push({ name: template.name, language: template.language, reason: (err as Error).message.slice(0, 300) });
+    }
+  }
+  return { ok: true, created, failed };
+}
 
 const templatesApp = express();
 templatesApp.use(cors({ origin: true }));
