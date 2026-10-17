@@ -47,6 +47,11 @@ el('reset-key-btn').addEventListener('click', async () => {
   }
 });
 
+el('claude-copy-btn').addEventListener('click', async () => {
+  await navigator.clipboard.writeText(el('claude-cmd').textContent ?? '');
+  el('claude-copy-btn').textContent = 'Copied';
+});
+
 el('create-key-btn').addEventListener('click', () =>
   showNewKey({ required: true, note: FIRST_KEY_NOTE, save: saveFirstKey, afterSave: signOutAfterNewKey }),
 );
@@ -61,4 +66,5 @@ onAuthStateChanged(auth, async (user) => {
   const hasKey = Boolean(((await getDoc(doc(db, 'users', user.uid))).data() as UserDoc | undefined)?.apiKeyHash);
   el('key-title').textContent = hasKey ? 'Modify API key' : 'Create API key';
   el(hasKey ? 'modify-key-card' : 'create-key-card').classList.remove('hidden');
+  if (hasKey) el('claude-card').classList.remove('hidden');
 });

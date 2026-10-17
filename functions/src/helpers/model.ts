@@ -71,6 +71,11 @@ export async function getOrCreateUserByPhone(phone: string): Promise<UserRecord>
   });
 }
 
+/** The user whose key hashes to this, if any. */
+export async function userIdByKeyHash(apiKeyHash: string): Promise<string | undefined> {
+  return (await users().where('apiKeyHash', '==', apiKeyHash).limit(1).get()).docs[0]?.id;
+}
+
 export async function getUser(userId: string): Promise<UserRecord | undefined> {
   const data = userOf(await userRef(userId).get());
   if (!data) return undefined;
@@ -125,6 +130,10 @@ export async function resetApiKey(userId: string): Promise<number> {
 
 export async function readNumber(phoneNumberId: string): Promise<PhoneNumberDoc | undefined> {
   return numberOf(await phoneNumberRef(phoneNumberId).get());
+}
+
+export async function listNumbersForUser(userId: string): Promise<PhoneNumberDoc[]> {
+  return (await numbersOf(userId)).docs.map((snap) => numberOf(snap)!);
 }
 
 const numbersOf = (userId: string) => phoneNumbers().where('userId', '==', userId).get();

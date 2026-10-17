@@ -361,6 +361,51 @@ test('de-registering a plain number sends it to the register step', async () => 
   assert.equal(registered.step, 'done');
 });
 
+test('the wizard checks take the API key as well as a sign-in, and refuse anything else', async () => {
+  const withKey = await post('/checkCallbackUrl', { apiKey: KEY, overrideCallbackUrl: BUSINESS_ENDPOINT });
+  assert.equal(withKey.status, 200);
+  const withToken = await post('/checkCallbackUrl', { overrideCallbackUrl: BUSINESS_ENDPOINT }, asUser());
+  assert.equal(withToken.status, 200, 'the dashboard still signs in');
+  assert.equal((await post('/checkCallbackUrl', { apiKey: NEW_KEY, overrideCallbackUrl: BUSINESS_ENDPOINT })).status, 401, 'a key nobody has');
+  assert.equal((await post('/checkCallbackUrl', { apiKey: 'nope', overrideCallbackUrl: BUSINESS_ENDPOINT })).status, 401, 'not even a key');
+  assert.equal((await post('/checkCallbackUrl', { overrideCallbackUrl: BUSINESS_ENDPOINT })).status, 401, 'no credential at all');
+
+  const events = await post('/sendTestEvents', { apiKey: KEY, overrideCallbackUrl: BUSINESS_ENDPOINT });
+  assert.equal(events.status, 200, 'sending test events works with the key');
+  const codes = await post('/verifyTestCodes', { apiKey: KEY, codes: {} });
+  assert.equal(codes.status, 200, 'and so does checking the codes');
+});
+
+test('listNumbers and getNumber answer with the key or a sign-in, only for the caller\'s numbers, and never with the token', async () => {
+  await seedNumber('9501', '9511');
+  await db.collection('phoneNumbers').doc('9502').set({
+    userId: 'someone-else',
+    wabaId: '9512',
+    phoneNumberId: '9502',
+    encAccessToken: encryptToken(META_TOKEN, NEW_KEY),
+    onboarding: { step: 'done', event: 'FINISH', updatedAt: 1 },
+  });
+
+  for (const credentials of [{ body: { apiKey: KEY }, headers: {} }, { body: {}, headers: asUser() }]) {
+    const list = await post('/listNumbers', credentials.body, credentials.headers);
+    assert.equal(list.status, 200);
+    const text = JSON.stringify(await list.clone().json());
+    assert.equal(text.includes('encAccessToken') || text.includes('ciphertext'), false, 'the token is never in the answer');
+    const ids = (await list.json()).numbers.map((n) => n.phoneNumberId);
+    assert.ok(ids.includes('9501'), 'their number is listed');
+    assert.equal(ids.includes('9502'), false, 'someone else\'s is not');
+
+    const one = await (await post('/getNumber', { ...credentials.body, phoneNumberId: '9501' }, credentials.headers)).json();
+    assert.equal(one.number.hasToken, true);
+    assert.equal(one.number.step, 'override', 'the step is worked out on the server (no callback URL is saved)');
+    assert.equal(one.limits.windows.minute.limit > 0, true, 'the limits come with it');
+  }
+
+  assert.equal((await post('/getNumber', { apiKey: KEY, phoneNumberId: '9502' })).status, 404, 'someone else\'s number looks like it does not exist');
+  assert.equal((await post('/listNumbers', { apiKey: NEW_KEY })).status, 401);
+  assert.equal((await post('/listNumbers', {})).status, 401);
+});
+
 test('login: a new phone number gets a user, sets a key, and then needs that key to log in', async () => {
   const phone = '919000000099';
   const otp = async () => db.collection('otps').doc(phone).set({ code: '123456', expiresAt: Date.now() + 60_000, attempts: 0, lastSentAt: 0 });

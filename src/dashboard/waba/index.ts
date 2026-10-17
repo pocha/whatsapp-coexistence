@@ -1,14 +1,13 @@
-import { auth, db, functionsBase, onAuthStateChanged } from '/assets/firebase-init.js';
+import { auth, functionsBase, onAuthStateChanged } from '/assets/firebase-init.js';
 import { WEBHOOK_VERIFY_TOKEN } from '/assets/app-config.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import { isValidApiKey } from '/assets/api-key.js';
 import '/assets/nav-auth.js';
 import { wireTestEvents } from '/assets/test-events.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { PhoneNumberDoc, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
+import type { NumberView, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
 import { effectiveConfig, view } from '../../../functions/src/helpers/rateLimiter';
-import { effectiveStep } from '../../../functions/src/helpers/onboardingSteps';
-import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+import { fetchNumber } from '/assets/account.js';
 
 // The page for one number, identified by ?id= in the URL (its phone number ID). Signed-in
 // only: signed-out visitors are sent to the Dashboard's sign-in. What it does to the number
@@ -105,7 +104,7 @@ function infoIcon(text: string, align: 'left' | 'right'): HTMLElement {
   return wrap;
 }
 
-function renderLimitTable(data: PhoneNumberDoc, nowMs: number) {
+function renderLimitTable(data: NumberView, nowMs: number) {
   const config = effectiveConfig(data.rateLimits);
   const windows = view(data.rateState, config, nowMs);
   const units = [
@@ -171,7 +170,7 @@ function renderLimitTable(data: PhoneNumberDoc, nowMs: number) {
 
 // Messages sent come from the date-keyed usage counters (previous period = the earlier key);
 // rate limiting from the relay's window counts, advanced to now the same way the relay does.
-function renderStats(data: PhoneNumberDoc) {
+function renderStats(data: NumberView) {
   const now = new Date();
   const usage = data.usage ?? {};
   const dayAgo = new Date(now.getTime() - 86_400_000);
@@ -210,7 +209,7 @@ function syncText(s: SyncStatus | undefined): string {
 }
 
 /** For a coexistence number: when the contacts and history syncs were requested. */
-function renderSyncCard(data: PhoneNumberDoc) {
+function renderSyncCard(data: NumberView) {
   const card = el('onboarding-card');
   card.replaceChildren();
   const line = (text: string, className = 'text-on-surface-variant font-body-md text-sm') => {
@@ -226,12 +225,12 @@ function renderSyncCard(data: PhoneNumberDoc) {
   card.classList.remove('hidden');
 }
 
-// The rules let just the owner read phoneNumbers/{phoneNumberId}. Returns false if the record
+// Only the owner gets a number's record (getNumber). Returns false if the record
 // is missing or isn't this user's; the page still works then, just without the saved details.
 async function loadRecord(): Promise<boolean> {
-  let data: PhoneNumberDoc | undefined;
+  let data: NumberView | undefined;
   try {
-    data = (await getDoc(doc(db, 'phoneNumbers', phoneNumberId))).data() as PhoneNumberDoc | undefined;
+    data = await fetchNumber(phoneNumberId);
   } catch {
     return false;
   }
@@ -249,7 +248,7 @@ async function loadRecord(): Promise<boolean> {
   }
   // A number that needs a step (no URL saved, no longer connected, syncs not requested, or onboarding
   // unfinished) goes to the wizard, which opens at that step.
-  if (effectiveStep(data) !== 'done') {
+  if (data.step !== 'done') {
     location.replace(`/dashboard/waba/create.html?id=${encodeURIComponent(phoneNumberId)}`);
     return true;
   }

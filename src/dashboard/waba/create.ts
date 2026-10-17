@@ -3,8 +3,9 @@ import { META_APP_ID, META_CONFIG_ID, WEBHOOK_VERIFY_TOKEN } from '/assets/app-c
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
 import { isValidApiKey } from '/assets/api-key.js';
-import { callAsUser, keyMatchesAccount } from '/assets/account.js';
+import { callAsUser, fetchNumber, keyMatchesAccount } from '/assets/account.js';
 import { el, errorMessage } from '/assets/dom.js';
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 import { wireTestEvents } from '/assets/test-events.js';
 import type {
   ExchangeCodeRequest,
@@ -12,7 +13,7 @@ import type {
   MigrateTemplatesResponse,
   OnboardingResponse,
   OnboardingStep,
-  PhoneNumberDoc,
+  NumberView,
   RegisterNumberRequest,
   SetOnboardingStepRequest,
   SetWebhookRequest,
@@ -22,8 +23,6 @@ import type {
   SyncType,
   UserDoc,
 } from '../../../functions/src/helpers/types';
-import { effectiveStep } from '../../../functions/src/helpers/onboardingSteps';
-import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 // The onboarding wizard. Before Meta's popup opens it checks what the user will need afterwards
 // (a callback URL that handles the data Meta sends, the Business app, where their templates are).
@@ -33,6 +32,10 @@ import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase
 
 const params = new URLSearchParams(location.search);
 const resumeId = params.get('id');
+// A link from the MCP (or any tool) that has already done steps 2 to 4: it carries the callback URL
+// it checked. Nothing on the server depends on those steps, so the page takes the link's word for
+// it and, once the key is entered, goes straight to Meta's sign-up.
+const linkedCallback = params.get('checks') === 'done' ? (params.get('callback') ?? '') : '';
 
 const keyInput = el<HTMLInputElement>('key-input');
 const status = el('onboarding-status');
@@ -159,8 +162,8 @@ async function withKey<T extends { ok: boolean; error?: string }>(fn: string, bo
   return data;
 }
 
-async function loadNumber(): Promise<PhoneNumberDoc | undefined> {
-  return (await getDoc(doc(db, 'phoneNumbers', phoneNumberId!))).data() as PhoneNumberDoc | undefined;
+async function loadNumber(): Promise<NumberView> {
+  return fetchNumber(phoneNumberId!);
 }
 
 // --- The key ---------------------------------------------------------------------------------
@@ -236,6 +239,20 @@ function countTemplates(parsed: unknown): number {
   return Array.isArray(list) ? list.length : 0;
 }
 
+/** Marks steps 2 to 4 as done, as the link says they are. */
+function takeLinkedChecks() {
+  cbUrl.value = linkedCallback;
+  callbackUrl = linkedCallback;
+  urlVerified = true;
+  testCodesOk = true;
+  for (const id of ['cb-confirm', 'app-confirm']) el<HTMLInputElement>(id).checked = true;
+  const none = tplRadios.find((r) => r.value === 'none');
+  if (none) none.checked = true;
+  readTemplateChoice();
+  status.textContent = 'Your callback URL was checked in your AI tool. Enter your API key, then continue to Meta.';
+  refreshNav();
+}
+
 function readTemplateChoice() {
   templateChoice = (tplRadios.find((r) => r.checked)?.value as typeof templateChoice) ?? null;
   el('tpl-own').classList.toggle('hidden', templateChoice !== 'own');
@@ -299,6 +316,10 @@ function refreshNav() {
 for (const id of ['cb-confirm', 'app-confirm']) el(id).addEventListener('change', refreshNav);
 
 nextBtn.addEventListener('click', async () => {
+  if (currentStep === 1 && linkedCallback) {
+    goStep(5);
+    return;
+  }
   // Picking up a number part-way through: the key is the only thing to ask again.
   if (currentStep === 1 && resumeStep) {
     await showStep(resumeStep);
@@ -659,6 +680,7 @@ onAuthStateChanged(auth, async (user) => {
 
   if (!resumeId) {
     status.textContent = '';
+    if (linkedCallback) takeLinkedChecks();
     initEmbeddedSignup();
     return;
   }
@@ -669,7 +691,7 @@ onAuthStateChanged(auth, async (user) => {
     status.textContent = 'We could not find that number under your account.';
     return;
   }
-  const step = effectiveStep(data);
+  const step = data.step;
   if (step === 'done') {
     location.href = `/dashboard/waba/?id=${encodeURIComponent(resumeId)}`;
     return;

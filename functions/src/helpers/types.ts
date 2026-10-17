@@ -88,6 +88,42 @@ export interface PhoneNumberDoc {
   sync?: Partial<Record<SyncType, SyncStatus>>;
 }
 
+/**
+ * A number as the dashboard and the MCP see it (listNumbers, getNumber). Built from an explicit
+ * list of fields (see helpers/numberView.ts), so the stored token can never be in it.
+ */
+export interface NumberView {
+  phoneNumberId: string;
+  wabaId: string;
+  displayPhoneNumber?: string;
+  overrideUrl?: string;
+  activatedAt?: number;
+  lastRelayCall?: number;
+  usage?: Usage;
+  rateState?: RateState;
+  rateLimits?: RateLimitOverride;
+  onboarding: OnboardingState;
+  /** Where the wizard is, worked out from the record (see effectiveStep). */
+  step: OnboardingStep;
+  /** Whether a Meta token is stored, so the number can send. False after a lost-key reset. */
+  hasToken: boolean;
+  isOnBizApp?: boolean;
+  platformType?: string;
+  metaStatus?: string;
+  sync?: Partial<Record<SyncType, SyncStatus>>;
+}
+
+/** POST /listNumbers (a Firebase token or `apiKey` in the body). */
+export interface ListNumbersResponse extends ApiResponse {
+  numbers: NumberView[];
+}
+
+/** POST /getNumber (a Firebase token or `apiKey` in the body). */
+export interface GetNumberResponse extends ApiResponse {
+  number: NumberView;
+  limits: RelayLimitsResponse;
+}
+
 export interface ExchangeCodeRequest {
   code: string;
   wabaId: string;

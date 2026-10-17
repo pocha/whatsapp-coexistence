@@ -1,5 +1,5 @@
-import { requireAuth, HttpError } from './helpers/auth';
-import { authenticateKey } from './accounts';
+import { HttpError } from './helpers/auth';
+import { authenticateKey, requireCaller } from './accounts';
 import { getPhoneNumberInfo, requestSmbAppData } from './helpers/graphApi';
 import { checkPublicUrl, verifyEndpointChallenge } from './helpers/endpointCheck';
 import { claimSync, moveStep, movedTo, readNumber, readTestRun, recordOverrideResult, reserveTestSend, setSyncState } from './helpers/model';
@@ -48,7 +48,7 @@ export async function advanceAfterOverride(phoneNumberId: string, accessToken: s
 
 /** The same handshake Meta does, so the wizard can check the URL before the Meta popup opens. */
 export const checkCallbackUrl = post(async (req, res) => {
-  await requireAuth(req);
+  await requireCaller(req);
   const { overrideCallbackUrl } = (req.body ?? {}) as Partial<SendTestEventsRequest>;
   const check = await verifyEndpointChallenge(String(overrideCallbackUrl ?? ''), config.webhookVerifyToken);
   if (!check.ok) throw new HttpError(400, check.error!);
@@ -126,7 +126,7 @@ const TEST_CODES_VALID_MS = 30 * 60 * 1000;
 
 /** Posts one test webhook of each kind to the user's callback URL, each carrying its own new code. */
 export const sendTestEvents = post(async (req, res) => {
-  const userId = await requireAuth(req);
+  const userId = await requireCaller(req);
   const { overrideCallbackUrl } = (req.body ?? {}) as Partial<SendTestEventsRequest>;
   const url = String(overrideCallbackUrl ?? '');
   const check = await checkPublicUrl(url);
@@ -148,7 +148,7 @@ export const sendTestEvents = post(async (req, res) => {
 
 /** Says which of the codes the user typed match the last test send. The right codes are never returned. */
 export const verifyTestCodes = post(async (req, res) => {
-  const userId = await requireAuth(req);
+  const userId = await requireCaller(req);
   const { codes } = (req.body ?? {}) as Partial<VerifyTestCodesRequest>;
   const run = await readTestRun(userId);
   if (!run || Date.now() - run.sentAt > TEST_CODES_VALID_MS) throw new HttpError(409, 'Send the test data first.');

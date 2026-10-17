@@ -1,4 +1,4 @@
-import { onRequest } from 'firebase-functions/v2/https';
+import { onRequest, type Request } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { config } from './helpers/config';
 import { exchangeCodeForToken, getDisplayPhoneNumber } from './helpers/graphApi';
@@ -6,7 +6,7 @@ import type { ExchangeCodeRequest, OnboardingResponse, RotateKeyRequest, SignupE
 import { HttpError, requireAuth } from './helpers/auth';
 import { failedRequest, logEvent } from './helpers/log';
 import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKey } from './helpers/apiKey';
-import { getUser, readNumber, replaceApiKey, saveNumberToken, setDisplayPhoneNumber, setFirstApiKeyHash, type UserRecord } from './helpers/model';
+import { getUser, readNumber, replaceApiKey, saveNumberToken, setDisplayPhoneNumber, setFirstApiKeyHash, userIdByKeyHash, type UserRecord } from './helpers/model';
 
 // Keys and tokens: checking an API key, opening the stored Meta token for a request, sealing a
 // new one, and the key rotation function. The records themselves are read and written through
@@ -20,6 +20,19 @@ export async function setFirstApiKey(userId: string, apiKey: string): Promise<vo
   const result = await setFirstApiKeyHash(userId, hashApiKey(apiKey));
   if (result === 'no_user') throw new HttpError(404, 'No such user.');
   if (result === 'has_key') throw new HttpError(409, 'This account already has an API key.');
+}
+
+/**
+ * Who is calling: the user behind the `apiKey` in the body (the MCP, scripts), or, without one,
+ * the signed-in user (the dashboard). Returns the user ID. Only for calls that are about the
+ * caller's own account; anything that opens a stored token still goes through authenticateKey.
+ */
+export async function requireCaller(req: Request): Promise<string> {
+  const apiKey = req.body?.apiKey;
+  if (apiKey === undefined) return requireAuth(req);
+  const userId = isValidApiKey(apiKey) ? await userIdByKeyHash(hashApiKey(apiKey)) : undefined;
+  if (!userId) throw new HttpError(401, 'Incorrect API key.');
+  return userId;
 }
 
 /** Throws unless `apiKey` is the key for this user. Returns the user. */
