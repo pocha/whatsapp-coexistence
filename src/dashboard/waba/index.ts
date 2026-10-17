@@ -226,30 +226,6 @@ function renderSyncCard(data: PhoneNumberDoc) {
   card.classList.remove('hidden');
 }
 
-/** The reputation section: what Meta last told us about the number and the templates that are not in good standing. */
-function renderReputation(data: PhoneNumberDoc) {
-  const rep = data.reputation;
-  const when = (at?: number) => (at ? new Date(at).toLocaleString() : 'never');
-  const n = rep?.number;
-  el('reputation-number').textContent = n
-    ? `Last update from Meta: ${n.event ?? 'quality'}${n.currentLimit ? ` (${n.currentLimit})` : ''}, ${when(n.at)}`
-    : 'Nothing from Meta about this number yet.';
-
-  const list = Object.values(rep?.templates ?? {});
-  const box = el('reputation-templates');
-  box.replaceChildren();
-  if (!list.length) {
-    box.textContent = 'None reported.';
-  } else {
-    for (const t of list.sort((a, b) => a.name.localeCompare(b.name))) {
-      const row = document.createElement('p');
-      row.textContent = `${t.name} (${t.language}): ${[t.score, t.status].filter(Boolean).join(', ')} · ${when(t.at)}`;
-      box.append(row);
-    }
-  }
-  el('reputation-card').classList.remove('hidden');
-}
-
 // The rules let just the owner read phoneNumbers/{phoneNumberId}. Returns false if the record
 // is missing or isn't this user's; the page still works then, just without the saved details.
 async function loadRecord(): Promise<boolean> {
@@ -278,7 +254,6 @@ async function loadRecord(): Promise<boolean> {
     return true;
   }
   renderSyncCard(data);
-  renderReputation(data);
   renderStats(data);
   return true;
 }

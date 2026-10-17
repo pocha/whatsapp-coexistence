@@ -62,7 +62,7 @@ Three kinds of credential:
 | Method and path | What it does |
 | --- | --- |
 | `GET /webhook` | Answers Meta's verification handshake. |
-| `POST /webhook` | Receives the webhooks that can't be overridden. Checks Meta's `X-Hub-Signature-256` (an HMAC of the body with the app secret) and refuses anything else with 401. Watobot keeps the number and template quality and status updates on the number's record, for the dashboard (`account_update` is not handled yet). |
+| `POST /webhook` | Receives the webhooks that can't be overridden (template and account-level updates). Checks Meta's `X-Hub-Signature-256` (an HMAC of the body with the app secret), refuses anything else with 401, and acknowledges the rest. Nothing is done with them yet: Meta emails the account's admins about the ones that matter. |
 
 The request bodies are typed in `functions/src/helpers/types.ts`.
 

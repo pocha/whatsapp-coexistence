@@ -61,28 +61,6 @@ export interface OnboardingState {
   templateSourceWabaId?: string;
 }
 
-/** The number's quality. `event` and `currentLimit` come from Meta's phone_number_quality_update webhook. */
-export interface NumberReputation {
-  event?: string;
-  currentLimit?: string;
-  at?: number;
-}
-
-/** A template that is not in good standing: not green, or paused, rejected and the like. Green ones are not kept. */
-export interface TemplateReputation {
-  name: string;
-  language: string;
-  score?: string;
-  status?: string;
-  at: number;
-}
-
-export interface Reputation {
-  number?: NumberReputation;
-  /** Keyed by name and language (see helpers/reputation.ts). */
-  templates?: Record<string, TemplateReputation>;
-}
-
 /** phoneNumbers/{phoneNumberId} */
 export interface PhoneNumberDoc {
   userId: string;
@@ -106,8 +84,6 @@ export interface PhoneNumberDoc {
   platformType?: string;
   /** Meta's status for the number as last seen (CONNECTED, ...), or DEREGISTERED after deregisterNumber. */
   metaStatus?: string;
-  /** What Meta has told us about the number's and templates' quality, from its webhooks and from the reputation calls. */
-  reputation?: Reputation;
   /** When each Meta data sync was requested. The data itself goes to the customer's URL and is never kept here. */
   sync?: Partial<Record<SyncType, SyncStatus>>;
 }
