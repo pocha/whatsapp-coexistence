@@ -1,4 +1,5 @@
 import { onRequest } from 'firebase-functions/v2/https';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { config } from './helpers/config';
 import { digitsOf, reputationUpdates, type ReputationUpdate } from './helpers/reputation';
@@ -11,6 +12,17 @@ import type { PhoneNumberDoc } from './helpers/types';
 // business's own server. But template and account-level webhooks can't be
 // overridden, so those always arrive here: the quality and status ones are kept
 // on the numbers they concern (helpers/reputation.ts) for the dashboard.
+
+/**
+ * Meta signs every webhook with the app secret: `X-Hub-Signature-256: sha256=<hex>`, an HMAC of the
+ * raw request body. Anything without a matching signature did not come from Meta for this app.
+ */
+export function signatureMatches(rawBody: Buffer | undefined, header: string | undefined): boolean {
+  if (!rawBody || !header?.startsWith('sha256=')) return false;
+  const expected = createHmac('sha256', config.metaAppSecret).update(rawBody).digest('hex');
+  const got = header.slice('sha256='.length);
+  return got.length === expected.length && timingSafeEqual(Buffer.from(got), Buffer.from(expected));
+}
 
 /** Writes one update to every number on the Messaging account it came in on. */
 async function apply(update: ReputationUpdate): Promise<void> {
@@ -42,6 +54,10 @@ export const webhook = onRequest(async (req, res) => {
   }
 
   if (req.method === 'POST') {
+    if (!signatureMatches(req.rawBody, req.header('x-hub-signature-256'))) {
+      res.status(401).send('Invalid signature');
+      return;
+    }
     try {
       for (const update of reputationUpdates(req.body)) await apply(update);
     } catch (err) {

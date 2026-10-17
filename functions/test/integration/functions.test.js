@@ -295,7 +295,7 @@ test('the webhook keeps Meta\'s number and template quality updates on the numbe
 
   // The number's quality, one template turning green, another going red and a third being paused.
   const event = (field, value) => ({ field, value });
-  const webhook = await post('/webhook', {
+  const payload = {
     object: 'whatsapp_business_account',
     entry: [
       {
@@ -308,7 +308,25 @@ test('the webhook keeps Meta\'s number and template quality updates on the numbe
         ],
       },
     ],
-  });
+  };
+
+  // Meta signs the body with the app secret. Without the right signature nothing is accepted.
+  const crypto = require('node:crypto');
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const secret = fs.readFileSync(path.join(__dirname, '..', '..', '.env'), 'utf8').match(/^META_APP_SECRET=(.*)$/m)[1].trim();
+  const body = JSON.stringify(payload);
+  const send = (signature) =>
+    fetch(`${FUNCTIONS_BASE}/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(signature ? { 'X-Hub-Signature-256': signature } : {}) },
+      body,
+    });
+  assert.equal((await send(undefined)).status, 401);
+  assert.equal((await send('sha256=' + crypto.createHmac('sha256', 'not-the-secret').update(body).digest('hex'))).status, 401);
+  assert.equal((await numberDoc('240')).reputation.number, undefined, 'nothing was kept from the unsigned requests');
+
+  const webhook = await send('sha256=' + crypto.createHmac('sha256', secret).update(body).digest('hex'));
   assert.equal(webhook.status, 200);
   const kept = (await numberDoc('240')).reputation;
   assert.equal(kept.number.event, 'DOWNGRADE');
