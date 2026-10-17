@@ -7,9 +7,7 @@ import { authenticateKey } from './accounts';
 import {
   createTemplate,
   deregisterPhoneNumber,
-  getNumberReputation,
   getPhoneNumberInfo,
-  listTemplateScores,
   migrateTemplatesPage,
   requestSmbAppData,
   unsubscribeApp,
@@ -19,7 +17,6 @@ import { checkPublicUrl, verifyEndpointChallenge } from './helpers/endpointCheck
 import { config } from './helpers/config';
 import { newCodes, sendTestEvent, TEST_EVENT_TYPES } from './helpers/testEvents';
 import { parseTemplateExport } from './helpers/templateImport';
-import { templateKey } from './helpers/reputation';
 import type {
   DeregisterNumberRequest,
   DisconnectNumberRequest,
@@ -28,18 +25,14 @@ import type {
   ImportTemplatesResponse,
   MigrateTemplatesRequest,
   MigrateTemplatesResponse,
-  NumberReputationResponse,
   OnboardingState,
   OnboardingStep,
   PhoneNumberDoc,
-  ReputationRequest,
   SendTestEventsRequest,
   SendTestEventsResponse,
   SetOnboardingStepRequest,
   StartSyncRequest,
   SyncType,
-  TemplateReputation,
-  TemplateReputationResponse,
   TestEventType,
   VerifyTestCodesRequest,
   VerifyTestCodesResponse,
@@ -118,41 +111,6 @@ export const checkCallbackUrl = post(async (req, res) => {
   const check = await verifyEndpointChallenge(String(overrideCallbackUrl ?? ''), config.webhookVerifyToken);
   if (!check.ok) throw new HttpError(400, check.error!);
   res.status(200).send({ ok: true });
-});
-
-// ---- reputation ----
-
-/** Asks Meta for the number's status and quality rating, and keeps them. A number that is not connected is then sent to the register step by effectiveStep. */
-export const numberReputation = post(async (req, res) => {
-  const { phoneNumberId, apiKey } = (req.body ?? {}) as Partial<ReputationRequest>;
-  if (!phoneNumberId || !apiKey) throw new HttpError(400, 'phoneNumberId and apiKey are required');
-  const { accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
-  const info = await getNumberReputation(String(phoneNumberId), accessToken);
-  await numbers().doc(String(phoneNumberId)).update({
-    ...(info.status ? { metaStatus: info.status } : {}),
-    'reputation.number.qualityRating': info.qualityRating ?? null,
-    'reputation.number.at': Date.now(),
-  });
-  const body: NumberReputationResponse = { ok: true, status: info.status, qualityRating: info.qualityRating };
-  res.status(200).send(body);
-});
-
-/** Reads every template's quality score from Meta, and keeps the ones that are not green. */
-export const templateReputation = post(async (req, res) => {
-  const { phoneNumberId, apiKey } = (req.body ?? {}) as Partial<ReputationRequest>;
-  if (!phoneNumberId || !apiKey) throw new HttpError(400, 'phoneNumberId and apiKey are required');
-  const { wabaId, accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
-  const all = await listTemplateScores(wabaId, accessToken);
-  const now = Date.now();
-  const flagged: TemplateReputation[] = all
-    .filter((t) => t.score !== 'GREEN')
-    .map((t) => ({ name: t.name, language: t.language, score: t.score, ...(t.status ? { status: t.status } : {}), at: now }));
-  await numbers().doc(String(phoneNumberId)).update({
-    'reputation.templates': Object.fromEntries(flagged.map((t) => [templateKey(t.name, t.language), t])),
-    'reputation.templatesCheckedAt': now,
-  });
-  const body: TemplateReputationResponse = { ok: true, templates: flagged, total: all.length };
-  res.status(200).send(body);
 });
 
 // ---- leaving the API ----

@@ -63,7 +63,6 @@ export interface OnboardingState {
 
 /** The number's quality. `event` and `currentLimit` come from Meta's phone_number_quality_update webhook. */
 export interface NumberReputation {
-  qualityRating?: string;
   event?: string;
   currentLimit?: string;
   at?: number;
@@ -82,8 +81,6 @@ export interface Reputation {
   number?: NumberReputation;
   /** Keyed by name and language (see helpers/reputation.ts). */
   templates?: Record<string, TemplateReputation>;
-  /** When the whole template list was last read from Meta. */
-  templatesCheckedAt?: number;
 }
 
 /** phoneNumbers/{phoneNumberId} */
@@ -158,23 +155,6 @@ export interface DisconnectNumberResponse extends ApiResponse {
   /** The number is also on the WhatsApp Business app, so the user still has to disconnect it there. */
   coexistence?: boolean;
   deregistered?: boolean;
-}
-
-export interface ReputationRequest {
-  phoneNumberId: string;
-  apiKey: string;
-}
-
-export interface NumberReputationResponse extends ApiResponse {
-  status?: string;
-  qualityRating?: string;
-}
-
-export interface TemplateReputationResponse extends ApiResponse {
-  /** Every template whose quality score is not GREEN. */
-  templates?: TemplateReputation[];
-  /** How many templates were read in all. */
-  total?: number;
 }
 
 export interface MigrateTemplatesRequest {

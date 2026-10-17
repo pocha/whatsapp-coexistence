@@ -5,7 +5,7 @@ import { isValidApiKey } from '/assets/api-key.js';
 import '/assets/nav-auth.js';
 import { wireTestEvents } from '/assets/test-events.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { NumberReputationResponse, PhoneNumberDoc, SetWebhookRequest, SyncStatus, TemplateReputationResponse } from '../../../functions/src/helpers/types';
+import type { PhoneNumberDoc, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
 import { effectiveConfig, view } from '../../../functions/src/helpers/rateLimiter';
 import { effectiveStep } from '../../../functions/src/helpers/onboardingSteps';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
@@ -232,14 +232,14 @@ function renderReputation(data: PhoneNumberDoc) {
   const when = (at?: number) => (at ? new Date(at).toLocaleString() : 'never');
   const n = rep?.number;
   el('reputation-number').textContent = n
-    ? `Number quality: ${n.qualityRating ?? 'not read yet'}${n.event ? ` · last update: ${n.event}${n.currentLimit ? ` (${n.currentLimit})` : ''}, ${when(n.at)}` : ` (${when(n.at)})`}`
-    : 'Nothing from Meta about this number yet. Refresh to read it now.';
+    ? `Last update from Meta: ${n.event ?? 'quality'}${n.currentLimit ? ` (${n.currentLimit})` : ''}, ${when(n.at)}`
+    : 'Nothing from Meta about this number yet.';
 
   const list = Object.values(rep?.templates ?? {});
   const box = el('reputation-templates');
   box.replaceChildren();
   if (!list.length) {
-    box.textContent = rep?.templatesCheckedAt ? `None, as of ${when(rep.templatesCheckedAt)}.` : 'Not read yet. Refresh to check.';
+    box.textContent = 'None reported.';
   } else {
     for (const t of list.sort((a, b) => a.name.localeCompare(b.name))) {
       const row = document.createElement('p');
@@ -249,37 +249,6 @@ function renderReputation(data: PhoneNumberDoc) {
   }
   el('reputation-card').classList.remove('hidden');
 }
-
-el('reputation-refresh').addEventListener('click', async () => {
-  const apiKey = apiKeyInput.value.trim();
-  const out = el('reputation-status');
-  if (!isValidApiKey(apiKey)) {
-    out.textContent = 'Enter your API key at the top first.';
-    return;
-  }
-  el<HTMLButtonElement>('reputation-refresh').disabled = true;
-  out.textContent = 'Asking Meta…';
-  try {
-    const post = async <T extends { ok: boolean; error?: string }>(fn: string): Promise<T> => {
-      const res = await fetch(`${functionsBase()}/${fn}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumberId, apiKey }),
-      });
-      const body = (await res.json().catch(() => ({}))) as T;
-      if (!res.ok || !body.ok) throw new Error(body.error || `HTTP ${res.status}`);
-      return body;
-    };
-    await post<NumberReputationResponse>('numberReputation');
-    await post<TemplateReputationResponse>('templateReputation');
-    out.textContent = '';
-    await loadRecord();
-  } catch (err) {
-    out.textContent = errorMessage(err);
-  } finally {
-    el<HTMLButtonElement>('reputation-refresh').disabled = false;
-  }
-});
 
 // The rules let just the owner read phoneNumbers/{phoneNumberId}. Returns false if the record
 // is missing or isn't this user's; the page still works then, just without the saved details.
@@ -394,16 +363,6 @@ function renderCommands() {
   ].join('\n');
 
 
-  el<HTMLTextAreaElement>('number-reputation-command').value = [
-    `curl -X POST '${base}/numberReputation' \\`,
-    `  ${json} \\`,
-    `  -d '${JSON.stringify({ phoneNumberId, apiKey: key })}'`,
-  ].join('\n');
-  el<HTMLTextAreaElement>('template-reputation-command').value = [
-    `curl -X POST '${base}/templateReputation' \\`,
-    `  ${json} \\`,
-    `  -d '${JSON.stringify({ phoneNumberId, apiKey: key })}'`,
-  ].join('\n');
   el<HTMLTextAreaElement>('deregister-command').value = [
     `curl -X POST '${base}/deregisterNumber' \\`,
     `  ${json} \\`,
@@ -455,8 +414,6 @@ apiKeyInput.addEventListener('input', renderCommands);
 for (const [button, box] of [
   ['copy-send-btn', 'send-command'],
   ['copy-send-text-btn', 'send-text-command'],
-  ['copy-number-reputation-btn', 'number-reputation-command'],
-  ['copy-template-reputation-btn', 'template-reputation-command'],
   ['copy-deregister-btn', 'deregister-command'],
   ['copy-tpl-import-btn', 'tpl-import-command'],
   ['copy-tpl-migrate-btn', 'tpl-migrate-command'],

@@ -13,11 +13,9 @@ export {
   disconnectNumber,
   importTemplates,
   migrateTemplates,
-  numberReputation,
   sendTestEvents,
   setOnboardingStep,
   startSync,
-  templateReputation,
   verifyTestCodes,
 } from './onboarding';
 export { joinWaitlist } from './joinWaitlist';

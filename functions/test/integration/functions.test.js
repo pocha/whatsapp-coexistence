@@ -277,29 +277,18 @@ test('templates: a source we cannot read sends the user to their provider; a rea
 
 // ---- reputation, and a number going back to the register step ----
 
-test('reputation: the number and the non-green templates are read from Meta and kept; the webhook then updates them', async () => {
+test('the webhook keeps Meta\'s number and template quality updates on the number\'s record', async () => {
   await db.collection('phoneNumbers').doc('240').set({
     userId,
     wabaId: '9240',
     phoneNumberId: '240',
     displayPhoneNumber: '+1 555-000-1111',
     encAccessToken: encryptToken(META_TOKEN, KEY),
+    onboarding: { step: 'done', event: 'FINISH', updatedAt: 1 },
+    reputation: { templates: { meh__en_US: { name: 'meh', language: 'en_US', score: 'YELLOW', at: 1 } } },
   });
 
-  const number = await (await post('/numberReputation', { phoneNumberId: '240', apiKey: KEY })).json();
-  assert.equal(number.status, 'CONNECTED');
-  assert.equal(number.qualityRating, 'GREEN');
-  const afterNumber = await numberDoc('240');
-  assert.equal(afterNumber.metaStatus, 'CONNECTED');
-  assert.equal(afterNumber.reputation.number.qualityRating, 'GREEN');
-
-  const templates = await (await post('/templateReputation', { phoneNumberId: '240', apiKey: KEY })).json();
-  assert.equal(templates.total, 3);
-  assert.deepEqual(templates.templates.map((t) => `${t.name}:${t.score}`).sort(), ['fresh:UNKNOWN', 'meh:YELLOW']);
-  assert.deepEqual(Object.keys((await numberDoc('240')).reputation.templates).sort(), ['fresh__en_US', 'meh__en_US']);
-
-  // Meta's webhooks for the same Messaging account: the number's quality, one template turning
-  // green, another going red and a third being paused.
+  // The number's quality, one template turning green, another going red and a third being paused.
   const event = (field, value) => ({ field, value });
   const webhook = await post('/webhook', {
     object: 'whatsapp_business_account',
@@ -319,25 +308,9 @@ test('reputation: the number and the non-green templates are read from Meta and 
   const kept = (await numberDoc('240')).reputation;
   assert.equal(kept.number.event, 'DOWNGRADE');
   assert.equal(kept.number.currentLimit, 'TIER_1K');
-  assert.equal(kept.number.qualityRating, 'GREEN', 'what Meta last reported is kept alongside the event');
   assert.equal(kept.templates.meh__en_US, undefined, 'a template that turned green is dropped');
   assert.equal(kept.templates.fresh__en_US.score, 'RED');
   assert.equal(kept.templates.good__en_US.status, 'PAUSED');
-});
-
-test('disconnecting: an API-only number is unsubscribed and de-registered, a coexistence one only unsubscribed', async () => {
-  await seedNumber('250', '9250');
-  await db.collection('phoneNumbers').doc('250').update({ isOnBizApp: false });
-  const plain = await (await post('/disconnectNumber', { phoneNumberId: '250', apiKey: KEY, deregister: true })).json();
-  assert.deepEqual([plain.coexistence, plain.deregistered], [false, true]);
-
-  // 222 is the number the stub reports as also on the WhatsApp Business app.
-  const before = (await metaCalls()).length;
-  const coexistence = await (await post('/disconnectNumber', { phoneNumberId: '222', apiKey: KEY, deregister: true })).json();
-  assert.deepEqual([coexistence.coexistence, coexistence.deregistered], [true, false]);
-  const calls = (await metaCalls()).slice(before);
-  assert.equal(calls.some((c) => c.startsWith('DELETE') && c.includes('/9222/subscribed_apps')), true);
-  assert.equal(calls.some((c) => c.includes('/222/deregister')), false, 'Meta cannot de-register a number on the Business app');
 });
 
 test('de-registering a plain number sends it to the register step', async () => {

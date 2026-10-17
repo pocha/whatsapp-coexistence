@@ -172,42 +172,6 @@ export async function deregisterPhoneNumber(phoneNumberId: string, accessToken: 
   });
 }
 
-/** The number's status and quality rating (GREEN, YELLOW, RED, NA). */
-export async function getNumberReputation(phoneNumberId: string, accessToken: string): Promise<{ status?: string; qualityRating?: string }> {
-  const body = await graphFetch(`/${encodeURIComponent(phoneNumberId)}?fields=status,quality_rating`, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  return { status: body.status, qualityRating: body.quality_rating };
-}
-
-export interface TemplateScore {
-  name: string;
-  language: string;
-  status?: string;
-  /** GREEN, YELLOW, RED or UNKNOWN. */
-  score: string;
-}
-
-/** Every template of a Messaging account with its quality score, read page by page. */
-export async function listTemplateScores(wabaId: string, accessToken: string): Promise<TemplateScore[]> {
-  const found: TemplateScore[] = [];
-  let after: string | undefined;
-  for (let page = 0; page < 20; page++) {
-    const body = await graphFetch(
-      `/${encodeURIComponent(wabaId)}/message_templates?fields=name,language,status,quality_score&limit=100${after ? `&after=${encodeURIComponent(after)}` : ''}`,
-      { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } },
-      20000,
-    );
-    for (const t of body.data ?? []) {
-      found.push({ name: t.name, language: t.language, status: t.status, score: t.quality_score?.score ?? 'UNKNOWN' });
-    }
-    after = body.paging?.cursors?.after;
-    if (!body.paging?.next || !after) break;
-  }
-  return found;
-}
-
 /** Stops this app receiving the Messaging account's webhooks (and removes the callback URL override). */
 export async function unsubscribeApp(wabaId: string, accessToken: string): Promise<void> {
   await graphFetch(`/${encodeURIComponent(wabaId)}/subscribed_apps`, {

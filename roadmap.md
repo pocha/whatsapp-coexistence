@@ -31,7 +31,7 @@ A step-by-step wizard: `checks → Meta onboarding → callback override → (co
 9. [x] **Number page:** the number is the title, with an API only / Coexistence chip; the IDs sit under it (phone number ID, Messaging account ID, previously the WABA ID); for a coexistence number, when the contacts and history syncs were requested.
 10. [x] **Help for Meta's signup errors** next to the button (they appear inside Meta's popup): 2655093, 3441049, 2655094, 3441030, 3441045, 2655095 / 2655048, and "registered to an existing WhatsApp account". Map the signup's cancel or error event to the same text if it carries an error (not verified; needs Meta's Implementation page).
 11. [ ] **`account_update` handling** in the `webhook` function (it returns 200 and drops everything): `PARTNER_REMOVED` (clean up, notify), `ACCOUNT_OFFBOARDED` (pause sends), `ACCOUNT_RECONNECTED` (resume). Account-level and template webhooks are never overridden, so they always reach Watobot.
-12. [x] **Reputation and status, kept in the number's record.** `numberReputation` (status and quality rating) and `templateReputation` (the templates whose quality score is not green) read from Meta and store the result; Meta's `phone_number_quality_update`, `message_template_quality_update` and `message_template_status_update` webhooks, which always reach Watobot, keep it current. The number page has a Reputation section with a Refresh button and the two commands. A number that Meta reports as not connected (or that was de-registered) goes back to the register step, and the dashboard sends the user to the wizard. No signature check on the webhook yet.
+12. [x] **Reputation kept from Meta's webhooks.** Meta's `phone_number_quality_update`, `message_template_quality_update` and `message_template_status_update` webhooks, which always reach Watobot, are kept on the number's record, and the number page shows them under Reputation. There are no calls to read it on demand: Meta also emails the Business Suite admins about template approvals, rejections and enforcement, and about being removed as a partner. Not confirmed: whether it emails about a template's quality score or the number's quality rating. No signature check on the webhook yet.
 
 **Templates (P0)**
 - [x] Settled at the gate (see item 1): no previous provider, a Messaging account the user owns (its ID), or a template list from the provider (pasted JSON).
@@ -47,7 +47,7 @@ A step-by-step wizard: `checks → Meta onboarding → callback override → (co
 - [x] Deregister endpoint, standard numbers only (`deregisterNumber`; Meta's deregister can't be used on a number that is on both the app and the API)
 - [ ] Ownership check on the number page: is the Messaging account in the user's portfolio
 - [x] Template status and quality: the Reputation section. Alerts on `message_template_status_update` / `message_template_quality_update` are still to build.
-- [ ] Alerts when a template or the number's quality drops (the data is already kept from Meta's webhooks), and optional throttling on quality drops
+- [ ] Alerts when a template or the number's quality drops (the data is already kept from Meta's webhooks; Meta's own emails may cover it), and optional throttling on quality drops
 - [ ] **Rate-limit read API and headers:** a call returning each window's accepted count, allowance, remaining and reset time, and rate-limit headers on every relay response, so a client (or an AI tool) can pace itself
 
 ### P2: reliability and trust

@@ -33,8 +33,6 @@ Three kinds of credential:
 | `registerNumber` | `pin` (6 digits) | Registers an API-only number. Refused for a number on the WhatsApp Business app. |
 | `deregisterNumber` | | Takes an API-only number off the Cloud API. Refused for a number on the Business app (disconnect there). |
 | `disconnectNumber` | `deregister` (boolean) | What leaving Watobot does on Meta's side: unsubscribes our app, and de-registers an API-only number if asked. |
-| `numberReputation` | | Reads Meta's status and quality rating and keeps them. |
-| `templateReputation` | | Reads every template's quality score and keeps the ones that are not green. |
 | `migrateTemplates` | `sourceWabaId` | Copies approved templates from a previous Messaging account (needs Watobot added as a partner on it). Answers `outcome: "unreadable"` if we can't read it. |
 | `importTemplates` | `templates` | Creates templates from an exported list, up to 100 at a time. |
 
@@ -57,7 +55,7 @@ Three kinds of credential:
 | `rotateKey` | Signed in | Replaces the API key and re-encrypts every stored token. |
 | `joinWaitlist` | None | Counts a waitlist click. |
 
-**Meta calls this one:** `webhook` answers Meta's verification handshake and receives the webhooks that can't be overridden: Watobot keeps the number and template quality and status updates on the number's record (`account_update` is not handled yet).
+**Meta calls this one:** `webhook` answers Meta's verification handshake and receives the webhooks that can't be overridden: Watobot keeps the number and template quality and status updates on the number's record, for the dashboard (`account_update` is not handled yet).
 
 The request bodies are typed in `functions/src/helpers/types.ts`.
 
