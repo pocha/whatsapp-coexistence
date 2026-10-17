@@ -1,6 +1,6 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
-import { getFirestore } from 'firebase-admin/firestore';
+import { firestore, waitlistRef } from './helpers/model';
 
 const corsHandler = cors({ origin: true });
 
@@ -16,10 +16,9 @@ export const joinWaitlist = onRequest((req, res) => {
       return;
     }
 
-    const db = getFirestore();
     try {
-      const count = await db.runTransaction(async (tx) => {
-        const counter = db.collection('meta').doc('waitlist');
+      const count = await firestore().runTransaction(async (tx) => {
+        const counter = waitlistRef();
         const current = ((await tx.get(counter)).data()?.count as number | undefined) ?? 0;
         tx.set(counter, { count: current + 1 });
         return current + 1;

@@ -1,17 +1,18 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import express from 'express';
 import cors from 'cors';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 import { config } from './helpers/config';
 import { getDisplayPhoneNumber, getPhoneNumberInfo, graphApiBase, registerPhoneNumber, subscribeApp } from './helpers/graphApi';
 import { effectiveConfig, limitsView, reserve, UNITS, type RateState, type Verdict } from './helpers/rateLimiter';
 import type { RateLimitConfig } from './helpers/rateLimitConfig';
 import { verifyEndpointChallenge } from './helpers/endpointCheck';
 import { HttpError } from './helpers/auth';
-import type { OnboardingResponse, PhoneNumberDoc, RegisterNumberRequest, RelayLimitsResponse, SetWebhookRequest } from './helpers/types';
+import type { OnboardingResponse, RegisterNumberRequest, RelayLimitsResponse, SetWebhookRequest } from './helpers/types';
 import { authenticateKey } from './accounts';
 import { advanceAfterOverride, importTemplatesFor, migrateTemplatesFor, movedTo, noteOnboardingError } from './onboarding';
 import { effectiveStep } from './helpers/onboardingSteps';
+import { firestore, numberOf, phoneNumberRef, readNumber } from './helpers/model';
 
 // What a customer does with a number through its Watobot API key: set where incoming
 // messages go (setWebhook), register a new number (registerNumber), send messages
@@ -26,7 +27,7 @@ async function rememberDisplayNumber(phoneNumberId: string, accessToken: string)
   try {
     const displayPhoneNumber = await getDisplayPhoneNumber(phoneNumberId, accessToken);
     if (displayPhoneNumber) {
-      await getFirestore().collection('phoneNumbers').doc(phoneNumberId).update({ displayPhoneNumber });
+      await phoneNumberRef(phoneNumberId).update({ displayPhoneNumber });
     }
   } catch {
     // The sidebar falls back to the phone number ID.
@@ -65,14 +66,11 @@ export const setWebhook = onRequest((req, res) => {
         if (!check.ok) throw new HttpError(400, check.error!);
 
         await subscribeApp(wabaId, accessToken, overrideCallbackUrl, config.webhookVerifyToken);
-        await getFirestore()
-          .collection('phoneNumbers')
-          .doc(String(phoneNumberId))
-          .update({ overrideUrl: overrideCallbackUrl, activatedAt: Date.now() });
+        await phoneNumberRef(String(phoneNumberId)).update({ overrideUrl: overrideCallbackUrl, activatedAt: Date.now() });
         await rememberDisplayNumber(String(phoneNumberId), accessToken);
 
         // A number in the onboarding wizard moves on from here; a finished one just gets its new URL.
-        const doc = (await getFirestore().collection('phoneNumbers').doc(String(phoneNumberId)).get()).data() as PhoneNumberDoc;
+        const doc = (await readNumber(String(phoneNumberId)))!;
         if (doc.onboarding.step === 'override') {
           const next = await advanceAfterOverride(String(phoneNumberId), accessToken);
           const body: OnboardingResponse = { ok: true, ...next };
@@ -126,14 +124,14 @@ export const registerNumber = onRequest({ timeoutSeconds: 90 }, (req, res) => {
       }
       await rememberDisplayNumber(String(phoneNumberId), accessToken);
 
-      const ref = getFirestore().collection('phoneNumbers').doc(String(phoneNumberId));
-      const doc = (await ref.get()).data() as PhoneNumberDoc;
+      const ref = phoneNumberRef(String(phoneNumberId));
+      const doc = numberOf(await ref.get())!;
       await ref.update({ metaStatus: 'CONNECTED' });
       // The API-only path of the wizard continues with templates once the number is registered.
       if (doc.onboarding.step === 'register') {
         await ref.update({ onboarding: movedTo(doc.onboarding, 'templates') });
       }
-      const body: OnboardingResponse = { ok: true, step: effectiveStep((await ref.get()).data() as PhoneNumberDoc) };
+      const body: OnboardingResponse = { ok: true, step: effectiveStep(numberOf(await ref.get())!) };
       res.status(200).send(body);
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 502;
@@ -167,11 +165,10 @@ export function isoWeekKey(d: Date): string {
  * the limit. Limits come from helpers/rateLimitConfig.ts, overridden per number by `rateLimits`.
  */
 async function reserveTemplateSend(phoneNumberId: string): Promise<{ verdict: Verdict | { allowed: true }; config: RateLimitConfig; now: number }> {
-  const db = getFirestore();
-  const ref = db.collection('phoneNumbers').doc(phoneNumberId);
+  const ref = phoneNumberRef(phoneNumberId);
   const now = Date.now();
-  return db.runTransaction(async (tx) => {
-    const data = (await tx.get(ref)).data() as PhoneNumberDoc | undefined;
+  return firestore().runTransaction(async (tx) => {
+    const data = numberOf(await tx.get(ref));
     const config = effectiveConfig(data?.rateLimits);
     if (!config.enabled) return { verdict: { allowed: true as const }, config, now };
     const verdict = reserve(data?.rateState, config, now);
@@ -260,7 +257,7 @@ relayApp.post('/:phoneNumberId/messages', async (req, res) => {
     update[`usage.monthly.${monthlyKey(now)}`] = FieldValue.increment(1);
   }
   try {
-    await getFirestore().collection('phoneNumbers').doc(phoneNumberId).update(update);
+    await phoneNumberRef(phoneNumberId).update(update);
   } catch {
     // No record to update.
   }
@@ -278,7 +275,7 @@ relayApp.get('/:phoneNumberId/limits', async (req, res) => {
   }
   try {
     await authenticateKey(req.params.phoneNumberId, key);
-    const data = (await getFirestore().collection('phoneNumbers').doc(req.params.phoneNumberId).get()).data() as PhoneNumberDoc;
+    const data = (await readNumber(req.params.phoneNumberId))!;
     const config = effectiveConfig(data.rateLimits);
     const now = Date.now();
     const windows = limitsView(data.rateState, config, now);

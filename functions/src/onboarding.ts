@@ -1,5 +1,5 @@
 import { onRequest, type Request } from 'firebase-functions/v2/https';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 import cors from 'cors';
 import type { Response } from 'express';
 import { HttpError, requireAuth } from './helpers/auth';
@@ -14,6 +14,7 @@ import {
   verifyWabaAccess,
 } from './helpers/graphApi';
 import { checkPublicUrl, verifyEndpointChallenge } from './helpers/endpointCheck';
+import { firestore, numberOf, phoneNumberRef, testRunRef } from './helpers/model';
 import { config } from './helpers/config';
 import { newCodes, sendTestEvent, TEST_EVENT_TYPES } from './helpers/testEvents';
 import { parseTemplateExport } from './helpers/templateImport';
@@ -25,7 +26,6 @@ import type {
   MigrateTemplatesResponse,
   OnboardingState,
   OnboardingStep,
-  PhoneNumberDoc,
   SendTestEventsRequest,
   SendTestEventsResponse,
   SetOnboardingStepRequest,
@@ -63,8 +63,6 @@ function post(handler: Handler, options: { timeoutSeconds?: number } = {}) {
   });
 }
 
-const numbers = () => getFirestore().collection('phoneNumbers');
-
 /** The wizard state moved to a new step, with the previous failure cleared. */
 export function movedTo(current: OnboardingState, step: OnboardingStep): OnboardingState {
   const { error: _cleared, ...rest } = current;
@@ -73,9 +71,9 @@ export function movedTo(current: OnboardingState, step: OnboardingStep): Onboard
 
 /** Keeps the last failure on the number's wizard step, so the dashboard can show it with a way to try again. */
 export async function noteOnboardingError(phoneNumberId: string, step: OnboardingStep, message: string): Promise<void> {
-  const ref = numbers().doc(phoneNumberId);
+  const ref = phoneNumberRef(phoneNumberId);
   const snap = await ref.get();
-  const current = (snap.data() as PhoneNumberDoc | undefined)?.onboarding;
+  const current = numberOf(snap)?.onboarding;
   if (current?.step === step) await ref.update({ 'onboarding.error': message.slice(0, 500), 'onboarding.updatedAt': Date.now() });
 }
 
@@ -85,8 +83,8 @@ export async function noteOnboardingError(phoneNumberId: string, step: Onboardin
  * the path; `is_on_biz_app` decides it for the plain event.
  */
 export async function advanceAfterOverride(phoneNumberId: string, accessToken: string): Promise<{ step: OnboardingStep; isOnBizApp?: boolean }> {
-  const ref = numbers().doc(phoneNumberId);
-  const doc = (await ref.get()).data() as PhoneNumberDoc;
+  const ref = phoneNumberRef(phoneNumberId);
+  const doc = numberOf(await ref.get())!;
   const info = await getPhoneNumberInfo(phoneNumberId, accessToken);
   const coexistence = doc.onboarding!.event === 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING' || info.isOnBizApp === true;
   const step: OnboardingStep = coexistence ? 'sync' : 'not_on_app';
@@ -132,7 +130,7 @@ export const deregisterNumber = post(async (req, res) => {
   await deregisterPhoneNumber(String(phoneNumberId), accessToken);
   // The record now shows an API-only number that is not connected, so effectiveStep sends the user
   // to the wizard's register step.
-  await numbers().doc(String(phoneNumberId)).update({ metaStatus: 'DEREGISTERED', isOnBizApp: false });
+  await phoneNumberRef(String(phoneNumberId)).update({ metaStatus: 'DEREGISTERED', isOnBizApp: false });
   res.status(200).send({ ok: true });
 });
 
@@ -177,12 +175,12 @@ export const startSync = post(async (req, res) => {
     throw new HttpError(400, 'phoneNumberId, apiKey and a syncType of contacts or history are required');
   }
   const { accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
-  const ref = numbers().doc(String(phoneNumberId));
+  const ref = phoneNumberRef(String(phoneNumberId));
   const type: SyncType = syncType;
 
   // Claim the request in a transaction, so two clicks cannot both send it.
-  await getFirestore().runTransaction(async (tx) => {
-    const doc = (await tx.get(ref)).data() as PhoneNumberDoc;
+  await firestore().runTransaction(async (tx) => {
+    const doc = numberOf(await tx.get(ref))!;
     if (doc.onboarding.step !== 'sync') throw new HttpError(409, 'This number is not at the sync step.');
     const current = doc.sync?.[type];
     const inFlight = current?.state === 'requesting' && Date.now() - (current.at ?? 0) < REQUESTING_STALE_MS;
@@ -212,10 +210,10 @@ export const setOnboardingStep = post(async (req, res) => {
   const { phoneNumberId, apiKey, step } = (req.body ?? {}) as Partial<SetOnboardingStepRequest>;
   if (!phoneNumberId || !apiKey || !step) throw new HttpError(400, 'phoneNumberId, apiKey and step are required');
   await authenticateKey(String(phoneNumberId), apiKey);
-  const ref = numbers().doc(String(phoneNumberId));
+  const ref = phoneNumberRef(String(phoneNumberId));
 
-  const next = await getFirestore().runTransaction(async (tx) => {
-    const doc = (await tx.get(ref)).data() as PhoneNumberDoc;
+  const next = await firestore().runTransaction(async (tx) => {
+    const doc = numberOf(await tx.get(ref))!;
     const current = doc.onboarding.step;
     const allowed =
       (step === 'register' && current === 'not_on_app') ||
@@ -258,7 +256,7 @@ export async function migrateTemplatesFor(phoneNumberId: string, apiKey: string,
     for (const [id, reason] of Object.entries(result.failed)) failed.push({ id, reason });
     if (result.migrated.length + Object.keys(result.failed).length < 500) break;
   }
-  await numbers().doc(phoneNumberId).update({ 'onboarding.templateSourceWabaId': source });
+  await phoneNumberRef(phoneNumberId).update({ 'onboarding.templateSourceWabaId': source });
   return { ok: true, outcome: 'done', migrated, failed };
 }
 
@@ -304,9 +302,9 @@ export const sendTestEvents = post(async (req, res) => {
   const check = await checkPublicUrl(url);
   if (!check.ok) throw new HttpError(400, check.error!);
 
-  const ref = getFirestore().collection('testRuns').doc(userId);
+  const ref = testRunRef(userId);
   const codes = newCodes();
-  const wait = await getFirestore().runTransaction(async (tx) => {
+  const wait = await firestore().runTransaction(async (tx) => {
     const last = (await tx.get(ref)).data() as { sentAt?: number } | undefined;
     const elapsed = Date.now() - (last?.sentAt ?? 0);
     if (elapsed < TEST_GAP_MS) return Math.ceil((TEST_GAP_MS - elapsed) / 1000);
@@ -329,7 +327,7 @@ export const sendTestEvents = post(async (req, res) => {
 export const verifyTestCodes = post(async (req, res) => {
   const userId = await requireAuth(req);
   const { codes } = (req.body ?? {}) as Partial<VerifyTestCodesRequest>;
-  const run = (await getFirestore().collection('testRuns').doc(userId).get()).data() as
+  const run = (await testRunRef(userId).get()).data() as
     | { codes: Record<TestEventType, string>; sentAt: number }
     | undefined;
   if (!run || Date.now() - run.sentAt > TEST_CODES_VALID_MS) throw new HttpError(409, 'Send the test data first.');
