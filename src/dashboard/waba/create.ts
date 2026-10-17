@@ -32,6 +32,10 @@ import type {
 
 const params = new URLSearchParams(location.search);
 const resumeId = params.get('id');
+// A link from the MCP (or any tool) that has already done steps 2 to 4: it carries the callback URL
+// it checked. Nothing on the server depends on those steps, so the page takes the link's word for
+// it and, once the key is entered, goes straight to Meta's sign-up.
+const linkedCallback = params.get('checks') === 'done' ? (params.get('callback') ?? '') : '';
 
 const keyInput = el<HTMLInputElement>('key-input');
 const status = el('onboarding-status');
@@ -235,6 +239,20 @@ function countTemplates(parsed: unknown): number {
   return Array.isArray(list) ? list.length : 0;
 }
 
+/** Marks steps 2 to 4 as done, as the link says they are. */
+function takeLinkedChecks() {
+  cbUrl.value = linkedCallback;
+  callbackUrl = linkedCallback;
+  urlVerified = true;
+  testCodesOk = true;
+  for (const id of ['cb-confirm', 'app-confirm']) el<HTMLInputElement>(id).checked = true;
+  const none = tplRadios.find((r) => r.value === 'none');
+  if (none) none.checked = true;
+  readTemplateChoice();
+  status.textContent = 'Your callback URL was checked in your AI tool. Enter your API key, then continue to Meta.';
+  refreshNav();
+}
+
 function readTemplateChoice() {
   templateChoice = (tplRadios.find((r) => r.checked)?.value as typeof templateChoice) ?? null;
   el('tpl-own').classList.toggle('hidden', templateChoice !== 'own');
@@ -298,6 +316,10 @@ function refreshNav() {
 for (const id of ['cb-confirm', 'app-confirm']) el(id).addEventListener('change', refreshNav);
 
 nextBtn.addEventListener('click', async () => {
+  if (currentStep === 1 && linkedCallback) {
+    goStep(5);
+    return;
+  }
   // Picking up a number part-way through: the key is the only thing to ask again.
   if (currentStep === 1 && resumeStep) {
     await showStep(resumeStep);
@@ -658,6 +680,7 @@ onAuthStateChanged(auth, async (user) => {
 
   if (!resumeId) {
     status.textContent = '';
+    if (linkedCallback) takeLinkedChecks();
     initEmbeddedSignup();
     return;
   }
