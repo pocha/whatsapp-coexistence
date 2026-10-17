@@ -157,9 +157,8 @@ export interface DisconnectNumberResponse extends ApiResponse {
   deregistered?: boolean;
 }
 
+/** POST templates/<phoneNumberId>/migrate (the key is the bearer token). */
 export interface MigrateTemplatesRequest {
-  phoneNumberId: string;
-  apiKey: string;
   sourceWabaId: string;
 }
 
@@ -170,9 +169,8 @@ export interface MigrateTemplatesResponse extends ApiResponse {
   failed?: { id: string; reason: string }[];
 }
 
+/** POST templates/<phoneNumberId>/import (the key is the bearer token). */
 export interface ImportTemplatesRequest {
-  phoneNumberId: string;
-  apiKey: string;
   /** Meta's template list as the previous provider exported it (the GET message_templates response, or its `data`). */
   templates: unknown;
 }

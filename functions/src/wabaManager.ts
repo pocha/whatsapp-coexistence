@@ -9,7 +9,7 @@ import { verifyEndpointChallenge } from './helpers/endpointCheck';
 import { HttpError } from './helpers/auth';
 import type { OnboardingResponse, PhoneNumberDoc, RegisterNumberRequest, SetWebhookRequest } from './helpers/types';
 import { authenticateKey } from './accounts';
-import { advanceAfterOverride, movedTo, noteOnboardingError } from './onboarding';
+import { advanceAfterOverride, importTemplatesFor, migrateTemplatesFor, movedTo, noteOnboardingError } from './onboarding';
 import { effectiveStep } from './helpers/onboardingSteps';
 
 // What a customer does with a number through its Watobot API key: set where incoming
@@ -299,6 +299,25 @@ templatesApp.get('/:phoneNumberId', (req, res) =>
   forward(req, res, 'GET', '?fields=id,name,status,category,language,components&limit=100'),
 );
 templatesApp.post('/:phoneNumberId', (req, res) => forward(req, res, 'POST', '', req.body));
+// Bring templates across from another Messaging account, or from a list exported elsewhere.
+async function withKeyAnswer(req: express.Request, res: express.Response, run: (key: string) => Promise<object>) {
+  const key = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : undefined;
+  if (!key) {
+    res.status(401).send({ ok: false, error: 'Missing Authorization: Bearer <your Watobot API key>' });
+    return;
+  }
+  try {
+    res.status(200).send(await run(key));
+  } catch (err) {
+    res.status(err instanceof HttpError ? err.status : 502).send({ ok: false, error: (err as Error).message });
+  }
+}
+templatesApp.post('/:phoneNumberId/migrate', (req, res) =>
+  withKeyAnswer(req, res, (key) => migrateTemplatesFor(req.params.phoneNumberId, key, req.body?.sourceWabaId)),
+);
+templatesApp.post('/:phoneNumberId/import', (req, res) =>
+  withKeyAnswer(req, res, (key) => importTemplatesFor(req.params.phoneNumberId, key, req.body?.templates)),
+);
 templatesApp.post('/:phoneNumberId/:templateId', (req, res) => {
   if (!/^\d+$/.test(req.params.templateId)) {
     res.status(400).send({ error: 'The template id is the number from the list response.' });
@@ -310,4 +329,5 @@ templatesApp.delete('/:phoneNumberId', (req, res) =>
   forward(req, res, 'DELETE', `?name=${encodeURIComponent(String(req.query.name ?? ''))}`),
 );
 
-export const templates = onRequest(templatesApp);
+// Importing creates templates one at a time, which can take a while.
+export const templates = onRequest({ timeoutSeconds: 300 }, templatesApp);

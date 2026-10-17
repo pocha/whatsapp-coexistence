@@ -11,8 +11,6 @@ export {
   checkCallbackUrl,
   deregisterNumber,
   disconnectNumber,
-  importTemplates,
-  migrateTemplates,
   sendTestEvents,
   setOnboardingStep,
   startSync,

@@ -8,54 +8,60 @@ Firebase Functions, Firestore and Firebase Auth.
 
 ## API
 
-Everything is a Firebase HTTPS function at `https://us-central1-wa-coexistence.cloudfunctions.net/<name>`. Answers are JSON with `ok` (and `error` when `ok` is false), except the relay and templates, which return Meta's response unchanged.
+Everything is a Firebase HTTPS function. The base URL is `https://us-central1-wa-coexistence.cloudfunctions.net`, and a function's path is its name (`/setWebhook`), except the two that serve several routes: `relayMessage` and `templates`. Answers are JSON with `ok` (and `error` when `ok` is false), except the relay and the template list/create/edit/delete, which return Meta's response unchanged.
 
 Three kinds of credential:
-- **Key**: the Watobot API key, in the body as `apiKey`, or `Authorization: Bearer <key>` for the relay and templates. It is checked against the account, then used to open the stored Meta token for that one request.
+- **Key**: the Watobot API key, as `Authorization: Bearer <key>` (relay and templates) or as `apiKey` in the body (the rest). It is checked against the account, then used to open the stored Meta token for that one request.
 - **Signed in**: a Firebase ID token, `Authorization: Bearer <id token>`. Used by the dashboard.
 - **None**: anyone, or Meta.
 
-**Messaging** (for customers' apps)
+**Messaging and templates** (for customers' apps; the key is the bearer token; `<id>` is the phone number ID)
 
-| Function | Credential | What it does |
+| Method and path | What it does | Body |
 | --- | --- | --- |
-| `POST relayMessage/<phoneNumberId>/messages` | Key (bearer) | Sends a message through Meta with the stored token. Same body as Meta's messages API. Template sends are rate limited: a refused one gets 429 with `Retry-After`. |
-| `GET templates/<phoneNumberId>` | Key (bearer) | Lists the account's templates (id, name, status, category, language, components). The response is the list `importTemplates` takes. |
-| `POST templates/<phoneNumberId>` | Key (bearer) | Creates a template. |
-| `POST templates/<phoneNumberId>/<templateId>` | Key (bearer) | Edits a template. |
-| `DELETE templates/<phoneNumberId>?name=<name>` | Key (bearer) | Deletes every template with that name. |
+| `POST /relayMessage/<id>/messages` | Sends a message through Meta with the stored token. Template sends are rate limited: a refused one gets 429 with `Retry-After`. | Meta's messages body |
+| `GET /templates/<id>` | Lists the account's templates (id, name, status, category, language, components). The response is what `/import` takes. | |
+| `POST /templates/<id>` | Creates a template. | Meta's template body |
+| `POST /templates/<id>/<templateId>` | Edits a template. | Meta's template body |
+| `DELETE /templates/<id>?name=<name>` | Deletes every template with that name. | |
+| `POST /templates/<id>/migrate` | Copies approved templates from a previous Messaging account (Watobot must be a partner on it). Answers `outcome: "unreadable"` if we can't read it. | `{ sourceWabaId }` |
+| `POST /templates/<id>/import` | Creates templates from an exported list, up to 100 at a time. | `{ templates }` |
 
-**A number** (all take `phoneNumberId` and `apiKey` in the body)
+**A number** (key in the body: `phoneNumberId` and `apiKey` in every one)
 
-| Function | Extra body | What it does |
+| Method and path | What it does | Other body fields |
 | --- | --- | --- |
-| `setWebhook` | `overrideCallbackUrl` | Checks the URL answers Meta's handshake, subscribes to it, and records it. During onboarding it also moves the wizard on. |
-| `registerNumber` | `pin` (6 digits) | Registers an API-only number. Refused for a number on the WhatsApp Business app. |
-| `deregisterNumber` | | Takes an API-only number off the Cloud API. Refused for a number on the Business app (disconnect there). |
-| `disconnectNumber` | `deregister` (boolean) | What leaving Watobot does on Meta's side: unsubscribes our app, and de-registers an API-only number if asked. |
-| `migrateTemplates` | `sourceWabaId` | Copies approved templates from a previous Messaging account (needs Watobot added as a partner on it). Answers `outcome: "unreadable"` if we can't read it. |
-| `importTemplates` | `templates` | Creates templates from an exported list, up to 100 at a time. |
+| `POST /setWebhook` | Checks the URL answers Meta's handshake, subscribes to it, and records it. During onboarding it also moves the wizard on. | `overrideCallbackUrl` |
+| `POST /registerNumber` | Registers an API-only number. Refused for a number on the WhatsApp Business app. | `pin` (6 digits) |
+| `POST /deregisterNumber` | Takes an API-only number off the Cloud API. Refused for a number on the Business app (disconnect there). | |
+| `POST /disconnectNumber` | What leaving Watobot does on Meta's side: unsubscribes our app, and de-registers an API-only number if asked. | `deregister` (boolean) |
 
 **Onboarding** (the wizard)
 
-| Function | Credential | What it does |
-| --- | --- | --- |
-| `checkCallbackUrl` | Signed in | Does Meta's handshake against a callback URL, before there is a number. |
-| `sendTestEvents` | Signed in | Posts one test webhook of each kind to a URL, with fresh codes. One send per 30 seconds. |
-| `verifyTestCodes` | Signed in | Says which of the four typed codes match the last send. |
-| `exchangeCode` | Signed in + `apiKey` | Exchanges the Embedded Signup code for the Meta token, stores it encrypted under the key, and starts the wizard for the number. Needs the signup `event`. |
-| `startSync` | Key | Requests the contacts, then the history sync (each once). Body: `syncType`. |
-| `setOnboardingStep` | Key | Moves the wizard between the steps the user chooses or confirms. Body: `step`. |
+| Method and path | Credential | What it does | Body |
+| --- | --- | --- | --- |
+| `POST /checkCallbackUrl` | Signed in | Does Meta's handshake against a callback URL, before there is a number. | `overrideCallbackUrl` |
+| `POST /sendTestEvents` | Signed in | Posts one test webhook of each kind to a URL, with fresh codes. One send per 30 seconds. | `overrideCallbackUrl` |
+| `POST /verifyTestCodes` | Signed in | Says which of the four typed codes match the last send. | `codes` |
+| `POST /exchangeCode` | Signed in + `apiKey` | Exchanges the Embedded Signup code for the Meta token, stores it encrypted under the key, and starts the wizard for the number. | `code`, `wabaId`, `phoneNumberId`, `apiKey`, `event` |
+| `POST /startSync` | Key | Requests the contacts, then the history sync (each once). | `phoneNumberId`, `apiKey`, `syncType` |
+| `POST /setOnboardingStep` | Key | Moves the wizard between the steps the user chooses or confirms. | `phoneNumberId`, `apiKey`, `step` |
 
 **Account**
 
-| Function | Credential | What it does |
-| --- | --- | --- |
-| `sendOtp`, `verifyOtp` | None | Sign-in by phone number and a code sent on WhatsApp. |
-| `rotateKey` | Signed in | Replaces the API key and re-encrypts every stored token. |
-| `joinWaitlist` | None | Counts a waitlist click. |
+| Method and path | Credential | What it does | Body |
+| --- | --- | --- | --- |
+| `POST /sendOtp` | None | Sends a sign-in code on WhatsApp. | `phone` |
+| `POST /verifyOtp` | None | Checks the code and signs in (or resets a lost key). | `phone`, `code`, `apiKey?`, `resetApiKey?` |
+| `POST /rotateKey` | Signed in | Replaces the API key and re-encrypts every stored token. | `oldApiKey`, `newApiKey` |
+| `POST /joinWaitlist` | None | Counts a waitlist click. | |
 
-**Meta calls this one:** `webhook` answers Meta's verification handshake and receives the webhooks that can't be overridden: Watobot keeps the number and template quality and status updates on the number's record, for the dashboard (`account_update` is not handled yet).
+**Meta calls this one**
+
+| Method and path | What it does |
+| --- | --- |
+| `GET /webhook` | Answers Meta's verification handshake. |
+| `POST /webhook` | Receives the webhooks that can't be overridden. Watobot keeps the number and template quality and status updates on the number's record, for the dashboard (`account_update` is not handled yet). |
 
 The request bodies are typed in `functions/src/helpers/types.ts`.
 

@@ -8,9 +8,7 @@ import { el, errorMessage } from '/assets/dom.js';
 import { wireTestEvents } from '/assets/test-events.js';
 import type {
   ExchangeCodeRequest,
-  ImportTemplatesRequest,
   ImportTemplatesResponse,
-  MigrateTemplatesRequest,
   MigrateTemplatesResponse,
   OnboardingResponse,
   OnboardingStep,
@@ -136,6 +134,18 @@ let exchanging = false;
 let resumeStep: OnboardingStep | null = null;
 
 const apiKey = () => keyInput.value.trim();
+
+/** POSTs to a path under templates/<number> with the Watobot API key as the bearer token. */
+async function templatesCall<T extends { ok: boolean; error?: string }>(path: string, body: object): Promise<T> {
+  const res = await fetch(`${functionsBase()}/templates/${encodeURIComponent(phoneNumberId!)}/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey()}` },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as T;
+  if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
 
 /** POSTs to a Function with the Watobot API key as the credential (no sign-in needed). */
 async function withKey<T extends { ok: boolean; error?: string }>(fn: string, body: object): Promise<T> {
@@ -579,7 +589,7 @@ el('tpl2-migrate').addEventListener('click', async () => {
   el<HTMLButtonElement>('tpl2-migrate').disabled = true;
   out.textContent = 'Copying…';
   try {
-    const res = await withKey<MigrateTemplatesResponse>('migrateTemplates', { sourceWabaId } satisfies Partial<MigrateTemplatesRequest>);
+    const res = await templatesCall<MigrateTemplatesResponse>('migrate', { sourceWabaId });
     if (res.outcome === 'unreadable') {
       out.textContent = 'We can\'t read that account. Either Watobot has not been added as a partner on it, or it belongs to your provider. Check the partner step, or ask your provider for the template list and create them below.';
     } else {
@@ -608,7 +618,7 @@ el('tpl2-import').addEventListener('click', async () => {
   el<HTMLButtonElement>('tpl2-import').disabled = true;
   out.textContent = 'Creating… this can take a while.';
   try {
-    const res = await withKey<ImportTemplatesResponse>('importTemplates', { templates } satisfies Partial<ImportTemplatesRequest>);
+    const res = await templatesCall<ImportTemplatesResponse>('import', { templates });
     const failed = res.failed ?? [];
     out.textContent =
       `${res.created} created, waiting for Meta's review.` +

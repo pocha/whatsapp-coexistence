@@ -21,9 +21,7 @@ import type {
   DeregisterNumberRequest,
   DisconnectNumberRequest,
   DisconnectNumberResponse,
-  ImportTemplatesRequest,
   ImportTemplatesResponse,
-  MigrateTemplatesRequest,
   MigrateTemplatesResponse,
   OnboardingState,
   OnboardingStep,
@@ -238,22 +236,18 @@ const WABA_ID = /^\d{8,20}$/;
  * Copies the approved templates of the user's previous Messaging account into this number's. It
  * first checks our token can read the source: if not (the user didn't share it, or it belongs to
  * their provider), the answer says so and the user is sent back to their provider.
+ * Served by the templates function: POST templates/<phoneNumberId>/migrate.
  */
-export const migrateTemplates = post(async (req, res) => {
-  const { phoneNumberId, apiKey, sourceWabaId } = (req.body ?? {}) as Partial<MigrateTemplatesRequest>;
-  if (!phoneNumberId || !apiKey || !WABA_ID.test(String(sourceWabaId ?? ''))) {
-    throw new HttpError(400, 'phoneNumberId, apiKey and the previous Messaging account ID (digits only) are required');
-  }
-  const { wabaId, accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
+export async function migrateTemplatesFor(phoneNumberId: string, apiKey: string, sourceWabaId: unknown): Promise<MigrateTemplatesResponse> {
+  if (!WABA_ID.test(String(sourceWabaId ?? ''))) throw new HttpError(400, 'sourceWabaId (the previous Messaging account ID, digits only) is required');
+  const { wabaId, accessToken } = await authenticateKey(phoneNumberId, apiKey);
   const source = String(sourceWabaId);
   if (source === wabaId) throw new HttpError(400, 'That is this number\'s own Messaging account.');
 
   try {
     await verifyWabaAccess(source, accessToken);
   } catch {
-    const body: MigrateTemplatesResponse = { ok: true, outcome: 'unreadable' };
-    res.status(200).send(body);
-    return;
+    return { ok: true, outcome: 'unreadable' };
   }
 
   let migrated = 0;
@@ -264,40 +258,36 @@ export const migrateTemplates = post(async (req, res) => {
     for (const [id, reason] of Object.entries(result.failed)) failed.push({ id, reason });
     if (result.migrated.length + Object.keys(result.failed).length < 500) break;
   }
-  await numbers().doc(String(phoneNumberId)).update({ 'onboarding.templateSourceWabaId': source });
-  const body: MigrateTemplatesResponse = { ok: true, outcome: 'done', migrated, failed };
-  res.status(200).send(body);
-});
+  await numbers().doc(phoneNumberId).update({ 'onboarding.templateSourceWabaId': source });
+  return { ok: true, outcome: 'done', migrated, failed };
+}
 
 // Meta allows 100 template creations per hour per account.
 const MAX_IMPORT = 100;
 
-/** Creates the templates in a list the previous provider exported, one at a time, and says which failed. */
-export const importTemplates = post(
-  async (req, res) => {
-    const { phoneNumberId, apiKey, templates } = (req.body ?? {}) as Partial<ImportTemplatesRequest>;
-    if (!phoneNumberId || !apiKey) throw new HttpError(400, 'phoneNumberId, apiKey and templates are required');
-    const { wabaId, accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
-    const parsed = parseTemplateExport(templates);
-    if (parsed.templates.length > MAX_IMPORT) {
-      throw new HttpError(400, `Import up to ${MAX_IMPORT} templates at a time: Meta allows ${MAX_IMPORT} creations per hour per account.`);
-    }
+/**
+ * Creates the templates in a list the previous provider exported, one at a time, and says which
+ * failed. Served by the templates function: POST templates/<phoneNumberId>/import.
+ */
+export async function importTemplatesFor(phoneNumberId: string, apiKey: string, templates: unknown): Promise<ImportTemplatesResponse> {
+  const { wabaId, accessToken } = await authenticateKey(phoneNumberId, apiKey);
+  const parsed = parseTemplateExport(templates);
+  if (parsed.templates.length > MAX_IMPORT) {
+    throw new HttpError(400, `Import up to ${MAX_IMPORT} templates at a time: Meta allows ${MAX_IMPORT} creations per hour per account.`);
+  }
 
-    let created = 0;
-    const failed = [...parsed.rejected];
-    for (const template of parsed.templates) {
-      try {
-        await createTemplate(wabaId, accessToken, template);
-        created += 1;
-      } catch (err) {
-        failed.push({ name: template.name, language: template.language, reason: (err as Error).message.slice(0, 300) });
-      }
+  let created = 0;
+  const failed = [...parsed.rejected];
+  for (const template of parsed.templates) {
+    try {
+      await createTemplate(wabaId, accessToken, template);
+      created += 1;
+    } catch (err) {
+      failed.push({ name: template.name, language: template.language, reason: (err as Error).message.slice(0, 300) });
     }
-    const body: ImportTemplatesResponse = { ok: true, created, failed };
-    res.status(200).send(body);
-  },
-  { timeoutSeconds: 300 },
-);
+  }
+  return { ok: true, created, failed };
+}
 
 // ---- test data for the user's own endpoint ----
 

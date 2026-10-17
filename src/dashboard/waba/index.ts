@@ -369,14 +369,16 @@ function renderCommands() {
     `  -d '${JSON.stringify({ phoneNumberId, apiKey: key })}'`,
   ].join('\n');
   el<HTMLTextAreaElement>('tpl-migrate-command').value = [
-    `curl -X POST '${base}/migrateTemplates' \\`,
+    `curl -X POST '${base}/templates/${phoneNumberId}/migrate' \\`,
+    `  ${auth} \\`,
     `  ${json} \\`,
-    `  -d '${JSON.stringify({ phoneNumberId, apiKey: key, sourceWabaId: 'PREVIOUS_MESSAGING_ACCOUNT_ID' })}'`,
+    `  -d '${JSON.stringify({ sourceWabaId: 'PREVIOUS_MESSAGING_ACCOUNT_ID' })}'`,
   ].join('\n');
   el<HTMLTextAreaElement>('tpl-import-command').value = [
-    `curl -X POST '${base}/importTemplates' \\`,
+    `curl -X POST '${base}/templates/${phoneNumberId}/import' \\`,
+    `  ${auth} \\`,
     `  ${json} \\`,
-    `  -d '{"phoneNumberId":"${phoneNumberId}","apiKey":"${key}","templates":[ ...the exported templates... ]}'`,
+    `  -d '{"templates":[ ...the exported templates... ]}'`,
   ].join('\n');
 
   const create = JSON.stringify({
