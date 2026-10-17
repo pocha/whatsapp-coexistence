@@ -15,8 +15,9 @@ import {
   verifyWabaAccess,
 } from './helpers/graphApi';
 import { post } from './helpers/http';
+import { relayLimits } from './helpers/numberView';
 import { parseTemplateExport } from './helpers/templateImport';
-import { effectiveConfig, limitsView, UNITS, type RateState } from './helpers/rateLimiter';
+import { limitsView, UNITS, type RateState } from './helpers/rateLimiter';
 import type { RateLimitConfig } from './helpers/rateLimitConfig';
 import { verifyEndpointChallenge } from './helpers/endpointCheck';
 import { HttpError } from './helpers/auth';
@@ -29,7 +30,6 @@ import type {
   MigrateTemplatesResponse,
   OnboardingResponse,
   RegisterNumberRequest,
-  RelayLimitsResponse,
   SetWebhookRequest,
 } from './helpers/types';
 import { authenticateKey } from './accounts';
@@ -332,22 +332,7 @@ relayApp.get('/:phoneNumberId/limits', async (req, res) => {
   }
   try {
     await authenticateKey(req.params.phoneNumberId, key);
-    const data = (await readNumber(req.params.phoneNumberId))!;
-    const config = effectiveConfig(data.rateLimits);
-    const now = Date.now();
-    const windows = limitsView(data.rateState, config, now);
-    const body: RelayLimitsResponse = {
-      ok: true,
-      appliesTo: 'template messages',
-      enabled: config.enabled,
-      windows: Object.fromEntries(
-        UNITS.map((unit) => [
-          unit,
-          { ...windows[unit], resetsAt: new Date(windows[unit].resetsAt).toISOString(), resetsInSeconds: Math.max(1, Math.ceil((windows[unit].resetsAt - now) / 1000)) },
-        ]),
-      ) as RelayLimitsResponse['windows'],
-    };
-    res.status(200).send(body);
+    res.status(200).send(relayLimits((await readNumber(req.params.phoneNumberId))!, Date.now()));
   } catch (err) {
     res.status(failedRequest(req, err)).send({ ok: false, error: (err as Error).message });
   }

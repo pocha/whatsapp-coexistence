@@ -14,4 +14,5 @@ export {
   startSync,
   verifyTestCodes,
 } from './onboarding';
+export { listNumbers, getNumber } from './numbers';
 export { joinWaitlist } from './joinWaitlist';
