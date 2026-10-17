@@ -6,43 +6,13 @@ import { exchangeCodeForToken, getDisplayPhoneNumber } from './helpers/graphApi'
 import type { ExchangeCodeRequest, OnboardingResponse, RotateKeyRequest, SignupEvent } from './helpers/types';
 import { HttpError, requireAuth } from './helpers/auth';
 import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKey } from './helpers/apiKey';
-import { firestore, numberOf, numbersOf, phoneIndexRef, phoneNumberRef, readNumber, userOf, userRef, users } from './helpers/model';
+import { firestore, getUser, numberOf, numbersOf, phoneNumberRef, readNumber, userRef, type UserRecord } from './helpers/model';
 
-// The data model is described in helpers/model.ts. Functions create the records and run the relay, webhook, onboarding and key rotation (rotateKey,
-// below). The user manages the rest of their account from the browser (see
-// src/assets/account.ts and firestore.rules); resetApiKey and setFirstApiKey stay here for
-// the sign-in reset and for scripts/seed-test-waba.js.
-
-export interface UserRecord {
-  userId: string;
-  phoneNumber: string;
-  apiKeyHash?: string;
-}
-
-/** Finds the user for a phone number, creating one (with a random id) if none exists. */
-export async function getOrCreateUserByPhone(phone: string): Promise<UserRecord> {
-  return firestore().runTransaction(async (tx) => {
-    const indexRef = phoneIndexRef(phone);
-    const indexSnap = await tx.get(indexRef);
-
-    if (indexSnap.exists) {
-      const userId = indexSnap.data()!.userId as string;
-      const userSnap = await tx.get(userRef(userId));
-      return { userId, phoneNumber: phone, apiKeyHash: userOf(userSnap)?.apiKeyHash };
-    }
-
-    const newUser = users().doc();
-    tx.set(newUser, { phoneNumber: phone, createdAt: Date.now() });
-    tx.set(indexRef, { userId: newUser.id });
-    return { userId: newUser.id, phoneNumber: phone };
-  });
-}
-
-export async function getUser(userId: string): Promise<UserRecord | undefined> {
-  const data = userOf(await userRef(userId).get());
-  if (!data) return undefined;
-  return { userId, phoneNumber: data.phoneNumber, apiKeyHash: data.apiKeyHash };
-}
+// Keys and tokens: checking an API key, opening the stored Meta token for a request, sealing a
+// new one, and the key rotation function. The records themselves are read and written through
+// helpers/model.ts (which describes the data model). The user manages the rest of their account
+// from the browser (see src/assets/account.ts and firestore.rules); setFirstApiKey stays here for
+// scripts/seed-test-waba.js.
 
 /** Stores the hash of a brand-new API key. Only allowed while the user has none. */
 export async function setFirstApiKey(userId: string, apiKey: string): Promise<void> {
@@ -116,24 +86,6 @@ export async function storeWabaToken(args: {
       },
       { merge: true },
     );
-}
-
-/**
- * For a lost key: the stored tokens can't be opened without it, so they are
- * deleted along with the key hash. The WABA records stay, but each number has to
- * be onboarded again before it can send.
- */
-export async function resetApiKey(userId: string): Promise<number> {
-  const numbers = await numbersOf(userId);
-  const batch = firestore().batch();
-  let wiped = 0;
-  numbers.forEach((snap) => {
-    if (numberOf(snap)!.encAccessToken) wiped += 1;
-    batch.update(snap.ref, { encAccessToken: FieldValue.delete() });
-  });
-  batch.update(userRef(userId), { apiKeyHash: FieldValue.delete(), rotatedAt: Date.now() });
-  await batch.commit();
-  return wiped;
 }
 
 const corsHandler = cors({ origin: true });

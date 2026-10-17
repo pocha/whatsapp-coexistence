@@ -6,8 +6,7 @@ import { config } from './helpers/config';
 import { sendWhatsappMessage } from './helpers/watobotApi';
 import { TEST_LOGIN } from './helpers/testLogin';
 import { apiKeyMatchesHash, isValidApiKey } from './helpers/apiKey';
-import { getOrCreateUserByPhone, resetApiKey, type UserRecord } from './accounts';
-import { otpRef } from './helpers/model';
+import { getOrCreateUserByPhone, otpRef, resetApiKey, type UserRecord } from './helpers/model';
 
 // Login by phone number and a WhatsApp one-time code: sendOtp sends it, verifyOtp checks it
 // (and the account's API key, once it has one) and mints the Firebase sign-in token.
