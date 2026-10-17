@@ -3,8 +3,9 @@ import { META_APP_ID, META_CONFIG_ID, WEBHOOK_VERIFY_TOKEN } from '/assets/app-c
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
 import { isValidApiKey } from '/assets/api-key.js';
-import { callAsUser, keyMatchesAccount } from '/assets/account.js';
+import { callAsUser, fetchNumber, keyMatchesAccount } from '/assets/account.js';
 import { el, errorMessage } from '/assets/dom.js';
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 import { wireTestEvents } from '/assets/test-events.js';
 import type {
   ExchangeCodeRequest,
@@ -12,7 +13,7 @@ import type {
   MigrateTemplatesResponse,
   OnboardingResponse,
   OnboardingStep,
-  PhoneNumberDoc,
+  NumberView,
   RegisterNumberRequest,
   SetOnboardingStepRequest,
   SetWebhookRequest,
@@ -22,8 +23,6 @@ import type {
   SyncType,
   UserDoc,
 } from '../../../functions/src/helpers/types';
-import { effectiveStep } from '../../../functions/src/helpers/onboardingSteps';
-import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 // The onboarding wizard. Before Meta's popup opens it checks what the user will need afterwards
 // (a callback URL that handles the data Meta sends, the Business app, where their templates are).
@@ -159,8 +158,8 @@ async function withKey<T extends { ok: boolean; error?: string }>(fn: string, bo
   return data;
 }
 
-async function loadNumber(): Promise<PhoneNumberDoc | undefined> {
-  return (await getDoc(doc(db, 'phoneNumbers', phoneNumberId!))).data() as PhoneNumberDoc | undefined;
+async function loadNumber(): Promise<NumberView> {
+  return fetchNumber(phoneNumberId!);
 }
 
 // --- The key ---------------------------------------------------------------------------------
@@ -669,7 +668,7 @@ onAuthStateChanged(auth, async (user) => {
     status.textContent = 'We could not find that number under your account.';
     return;
   }
-  const step = effectiveStep(data);
+  const step = data.step;
   if (step === 'done') {
     location.href = `/dashboard/waba/?id=${encodeURIComponent(resumeId)}`;
     return;

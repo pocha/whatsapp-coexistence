@@ -15,7 +15,7 @@ import {
   where,
   writeBatch,
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
-import type { ApiResponse, RotateKeyRequest, UserDoc } from '../../functions/src/helpers/types';
+import type { ApiResponse, GetNumberResponse, ListNumbersResponse, NumberView, RotateKeyRequest, UserDoc } from '../../functions/src/helpers/types';
 import { deleteUser } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 
 const userRef = (uid: string) => doc(db, 'users', uid);
@@ -70,4 +70,14 @@ export async function callAsUser<T extends ApiResponse = ApiResponse>(url: strin
   const data = (await res.json().catch(() => ({}))) as T;
   if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
+}
+
+/** The signed-in user's numbers. Read through the Functions, which never send the stored token. */
+export async function fetchNumbers(): Promise<NumberView[]> {
+  return (await callAsUser<ListNumbersResponse>(`${functionsBase()}/listNumbers`, {})).numbers;
+}
+
+/** One of the user's numbers, with where its wizard step stands. Throws if it isn't theirs. */
+export async function fetchNumber(phoneNumberId: string): Promise<NumberView> {
+  return (await callAsUser<GetNumberResponse>(`${functionsBase()}/getNumber`, { phoneNumberId })).number;
 }
