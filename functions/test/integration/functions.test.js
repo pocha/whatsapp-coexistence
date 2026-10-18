@@ -406,6 +406,37 @@ test('listNumbers and getNumber answer with the key or a sign-in, only for the c
   assert.equal((await post('/listNumbers', {})).status, 401);
 });
 
+test('the hosted MCP server takes the key as a bearer token or in the path, refuses anything else, and its tools work', async () => {
+  await seedNumber('9601', '9611');
+  const rpc = (url, body, headers = {}) =>
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', ...headers },
+      body: JSON.stringify({ jsonrpc: '2.0', ...body }),
+    });
+  const asBearer = `${FUNCTIONS_BASE}/mcp`;
+  const inPath = (key) => `${FUNCTIONS_BASE}/mcp/${key}`;
+  const init = { id: 1, method: 'initialize', params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'test', version: '0' } } };
+
+  assert.equal((await rpc(asBearer, init)).status, 401, 'no key');
+  assert.equal((await rpc(inPath(NEW_KEY), init)).status, 401, 'a key nobody has');
+  assert.equal((await rpc(inPath('nope'), init)).status, 401, 'not a key');
+
+  for (const [url, headers] of [[asBearer, { Authorization: `Bearer ${KEY}` }], [inPath(KEY), {}]]) {
+    const hello = await (await rpc(url, init, headers)).json();
+    assert.equal(hello.result.serverInfo.name, 'watobot');
+    const tools = await (await rpc(url, { id: 2, method: 'tools/list' }, headers)).json();
+    assert.ok(tools.result.tools.length >= 19);
+
+    const list = await (await rpc(url, { id: 3, method: 'tools/call', params: { name: 'list_numbers', arguments: {} } }, headers)).json();
+    assert.notEqual(list.result.isError, true, JSON.stringify(list));
+    const text = list.result.content[0].text;
+    assert.ok(JSON.parse(text).numbers.some((n) => n.phoneNumberId === '9601'), 'it lists the caller\'s numbers');
+    assert.equal(text.includes(KEY) || text.includes('ciphertext'), false, 'neither the key nor a token comes back');
+  }
+  assert.equal((await fetch(inPath(KEY))).status, 405, 'only POST');
+});
+
 test('login: a new phone number gets a user, sets a key, and then needs that key to log in', async () => {
   const phone = '919000000099';
   const otp = async () => db.collection('otps').doc(phone).set({ code: '123456', expiresAt: Date.now() + 60_000, attempts: 0, lastSentAt: 0 });

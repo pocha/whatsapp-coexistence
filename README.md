@@ -70,15 +70,18 @@ The request bodies are typed in `functions/src/helpers/types.ts`.
 
 ## MCP server
 
-`mcp/` is a small MCP server (package `watobot-mcp`) that lets an AI tool use the functions above: check a callback URL, send test events, get the link for Meta's sign-up, read a number's state, sync, register, send messages, manage templates, de-register and disconnect. It runs locally over stdio and holds the API key only in its environment.
+An AI tool can use the functions above through MCP: check a callback URL, send test events, get the link for Meta's sign-up, read a number's state, sync, register, send messages, manage templates, de-register and disconnect. `deregister_number`, `disconnect_number` and `delete_template` are marked destructive. The tools are one piece of code, [`functions/src/mcp/tools.ts`](functions/src/mcp/tools.ts), offered two ways:
 
-```bash
-claude mcp add watobot -e WATOBOT_API_KEY=<your key> -- npx -y watobot-mcp
-```
+| | Hosted | Local |
+| --- | --- | --- |
+| For | claude.ai, ChatGPT, and Claude Code or Cursor over http | Claude Code, Claude Desktop, Cursor and others that launch a program |
+| Where it runs | the `mcp` Function: `POST /mcp` | on the user's computer: the `watobot-mcp` package in [`mcp/`](mcp/), over stdio |
+| The key | `Authorization: Bearer <key>`, or in the address (`/mcp/<key>`) for tools that only take an address | the `WATOBOT_API_KEY` environment variable |
+| Setup | the dashboard's **API key** page builds the address and commands from the key you paste | `claude mcp add watobot -e WATOBOT_API_KEY=<key> -- npx -y watobot-mcp` |
 
-A new user signs up on the site and creates the key there (it is made in the browser and shown once, so no tool can make it). Meta's sign-up (Facebook login, the code or QR in the WhatsApp Business app) is always done by the person: the `start_onboarding_link` tool gives a link that opens the dashboard wizard at that step, with the checks already done. `deregister_number`, `disconnect_number` and `delete_template` are marked destructive.
+There is no OAuth: the Watobot API key is the credential, as everywhere else. The hosted server is stateless (each request is a new server, nothing about the caller is kept), checks the key against the account before answering anything (401 otherwise), and never logs it. A new user signs up on the site and creates the key there (it is made in the browser and shown once, so no tool can make it). Meta's sign-up (Facebook login, the code or QR in the WhatsApp Business app) is always done by the person: the `start_onboarding_link` tool gives a link that opens the dashboard wizard at that step, with the checks already done, and after the sign-up the wizard tells them to go back to their AI tool, which reads the result with `get_number`.
 
-Develop it with `cd mcp && npm test`. `WATOBOT_API_URL` points it at the emulators (`http://127.0.0.1:5001/wa-coexistence/us-central1`).
+Develop it with `cd functions && npm run test:unit` (the tools) and `cd mcp && npm test` (the local package builds, starts and lists its tools).
 
 ## Roadmap
 
@@ -271,10 +274,23 @@ Things to know:
 Check the app locally by signing in at `http://localhost:8765/dashboard/` with
 a number you own, entering the WhatsApp OTP you receive.
 
-**Try the MCP server locally.** [`mcp/`](mcp/) is launched by an AI tool, so you point the tool at the
-built file and give it your key. With `npm start` running, sign in at `http://localhost:8765/dashboard/`
-and create an API key on the **API key** page (the emulator database starts empty, so a key from the live
-site doesn't exist here). Then:
+**Try the MCP server locally.** With `npm start` running, sign in at `http://localhost:8765/dashboard/` and
+create an API key on the **API key** page (the emulator database starts empty, so a key from the live site
+doesn't exist here). There are two servers to try, and neither needs anything but `npm start`.
+
+*Hosted* (the `mcp` Function): it is served by the same emulator, at
+`http://127.0.0.1:5001/wa-coexistence/us-central1/mcp`. The key goes in the `Authorization: Bearer <key>` header
+or at the end of the address (`…/mcp/<key>`).
+
+- **MCP Inspector** (a web page with a button per tool, no AI involved; the best first try):
+  `npx @modelcontextprotocol/inspector`, then choose **Streamable HTTP**, enter the address and add the header.
+- **Claude Code**: `claude mcp add --transport http watobot http://127.0.0.1:5001/wa-coexistence/us-central1/mcp --header "Authorization: Bearer <key>"`
+- **claude.ai or ChatGPT** can't reach your computer, so give them a tunnel to the emulator:
+  `npx cloudflared tunnel --url http://127.0.0.1:5001`, then add a custom connector (no authentication) with
+  `https://<the tunnel>/wa-coexistence/us-central1/mcp/<key>`. The onboarding link it gives you opens
+  `http://localhost:8765`, which is right when the browser is on the same computer.
+
+*Local* (the npm package, launched by the tool):
 
 ```bash
 cd mcp && npm install && npm run build      # makes mcp/dist/index.js; rebuild after changes
@@ -288,8 +304,7 @@ Three environment variables point it at your local setup (without them it talks 
 | `WATOBOT_API_URL` | `http://127.0.0.1:5001/wa-coexistence/us-central1` |
 | `WATOBOT_SITE_URL` | `http://localhost:8765` (the onboarding link then opens your local wizard) |
 
-- **MCP Inspector** (a web page with a button per tool, no AI involved; the best first try):
-  `WATOBOT_API_KEY=<key> WATOBOT_API_URL=… WATOBOT_SITE_URL=… npx @modelcontextprotocol/inspector node $PWD/mcp/dist/index.js`
+- **MCP Inspector**: `WATOBOT_API_KEY=<key> WATOBOT_API_URL=… WATOBOT_SITE_URL=… npx @modelcontextprotocol/inspector node $PWD/mcp/dist/index.js`
 - **Claude Desktop**: add this to `~/Library/Application Support/Claude/claude_desktop_config.json`
   (Windows: `%APPDATA%\Claude\claude_desktop_config.json`), then quit and reopen it:
 
@@ -308,7 +323,7 @@ Meta's sign-up in the browser (Facebook login, then the code or QR in the WhatsA
 emulated functions call the real Meta API, so `functions/.env` needs real `META_APP_ID` and
 `META_APP_SECRET`, and your callback URL must be reachable from the internet. Afterwards ask the tool for
 the number's state: it reports the step (`sync` or `register`, then `done`). The key sits in the tool's
-config file in plain text, so don't use a production key where it could be shared or screen-recorded.
+config file (or, for a connector, in its address) in plain text, so don't use a production key where it could be shared or screen-recorded.
 
 **Waitlist.** The dashboard (`/dashboard/` and its pages) is open to anyone, so Meta's reviewers can
 sign in and test the app. The landing page's **Join Waitlist** button reveals the Google Group link,
@@ -351,6 +366,18 @@ assume it is served from the root of its domain.
    failed Meta call and each state change (number connected, registered, synced, disconnected) is a
    structured entry: filter by `jsonPayload.fn="registerNumber"`, `jsonPayload.phoneNumberId="…"` or
    `severity>=ERROR`. Keys, tokens, OTP codes and message bodies are never logged.
+
+**MCP server, hosted.** It is the `mcp` Function, deployed with the others. Its address is
+`https://us-central1-wa-coexistence.cloudfunctions.net/mcp`. Because the connector address carries the user's
+API key, keep that function's requests out of Cloud Logging, which records the full address of every request.
+Add an exclusion once per project (check the filter in the console's Logs Explorer first):
+
+```bash
+gcloud logging sinks update _Default --project <project-id> \
+  --add-exclusion='name=mcp-requests,filter=resource.type="cloud_run_revision" AND resource.labels.service_name="mcp" AND log_id("run.googleapis.com/requests")'
+```
+
+The function's own logs never contain the key. If an address does leak, replace the key on the **API key** page.
 
 **MCP server (npm).** Publish `mcp/` as `watobot-mcp` so people can run it with `npx`. Deploy the Functions
 first, then, from `mcp/`:

@@ -1,11 +1,11 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { callFunction, callWithBearer, SITE, UserError } from './api.js';
+import { apiFor, UserError, type Context } from './api';
 
-const INSTRUCTIONS = `Watobot lets a business use the WhatsApp Business app and the WhatsApp Cloud API on one number (coexistence), or run a number on the API alone.
+const instructions = (SITE: string) => `Watobot lets a business use the WhatsApp Business app and the WhatsApp Cloud API on one number (coexistence), or run a number on the API alone.
 
-First time: the person signs up at ${SITE} and creates their API key on the "API key" page (made in their browser, shown once). They put it in this server's settings as WATOBOT_API_KEY. You cannot create it.
+First time: the person signs up at ${SITE} and creates their API key on the "API key" page (made in their browser, shown once). The page also shows how to connect it to an AI tool: as WATOBOT_API_KEY for the local server, or inside the connector address for the hosted one. You cannot create the key.
 
 Onboarding a number, in order:
 1. The person needs a callback URL that receives the WhatsApp events Meta sends. Call check_callback_url, then send_test_events. Each event carries a code the person's endpoint prints or stores; ask them for the four codes and call verify_test_codes.
@@ -23,8 +23,10 @@ function text(value: unknown): CallToolResult {
   return { content: [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) }] };
 }
 
-export function createServer(): McpServer {
-  const server = new McpServer({ name: 'watobot', version: '0.1.0' }, { instructions: INSTRUCTIONS });
+export function createServer(ctx: Context): McpServer {
+  const SITE = ctx.siteUrl;
+  const { callFunction, callWithBearer } = apiFor(ctx);
+  const server = new McpServer({ name: 'watobot', version: '0.1.0' }, { instructions: instructions(SITE) });
 
   function tool<S extends Shape>(
     name: string,

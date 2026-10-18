@@ -7,9 +7,7 @@
     "watobot-mcp": "dist/index.js"
   },
   "files": [
-    "dist/index.js",
-    "dist/server.js",
-    "dist/api.js"
+    "dist/index.js"
   ],
   "keywords": [
     "mcp",
@@ -30,9 +28,10 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && esbuild src/index.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=dist/index.js",
     "prepublishOnly": "npm run build",
-    "test": "npm run build && node --test dist/server.test.js"
+    "test": "npm run build && node test/smoke.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
@@ -40,6 +39,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
+    "esbuild": "^0.28.2",
     "typescript": "^5.9.3"
   }
 }

@@ -39,15 +39,35 @@
 
         <!-- Once there is a key: use it from an AI tool -->
         <div id="claude-card" class="hidden card p-6">
-          <p class="section-title text-on-surface mb-1">Use Watobot from Claude</p>
+          <p class="section-title text-on-surface mb-1">Use Watobot from an AI tool</p>
           <p class="text-on-surface-variant font-body-md text-sm mb-3">
-            Add the Watobot MCP server to Claude Code and your AI tool can check your callback URL, onboard
-            a number, sync, register, send messages and manage templates. Replace
-            <span class="font-mono">YOUR_KEY</span> with your API key. Meta's sign-up (Facebook login and the
-            code in the WhatsApp Business app) is always done by you, in the browser.
+            An AI tool can check your callback URL, onboard a number, sync, register, send messages and manage
+            templates. Meta's sign-up (Facebook login and the code in the WhatsApp Business app) is always done
+            by you, in the browser. Paste your API key to get the setup for your tool (nothing is sent anywhere:
+            it is put together in this page). We can't show the key again, so it has to come from where you saved it.
           </p>
-          <pre id="claude-cmd" class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto">claude mcp add watobot -e WATOBOT_API_KEY=YOUR_KEY -- npx -y watobot-mcp</pre>
-          <button id="claude-copy-btn" type="button" class="mt-3 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+          <label class="label-strong text-on-surface-variant block" for="claude-key">Your API key</label>
+          <input id="claude-key" type="password" autocomplete="off" class="w-full mt-1 mb-4 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-xs"/>
+          <p id="claude-status" class="text-on-surface-variant font-body-md text-sm mb-3"></p>
+
+          <div id="claude-setup" class="hidden flex flex-col gap-4">
+            <div>
+              <p class="label-strong text-on-surface">Claude.ai or ChatGPT (a connector)</p>
+              <p class="text-on-surface-variant font-body-md text-sm mb-1">Add a custom connector with this address and no authentication. The address holds your key, so treat it like the key.</p>
+              <pre id="claude-url" class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto break-all whitespace-pre-wrap"></pre>
+              <button type="button" data-copy="claude-url" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+            </div>
+            <div>
+              <p class="label-strong text-on-surface">Claude Code, hosted</p>
+              <pre id="claude-http-cmd" class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto break-all whitespace-pre-wrap"></pre>
+              <button type="button" data-copy="claude-http-cmd" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+            </div>
+            <div>
+              <p class="label-strong text-on-surface">Claude Code, running on your computer</p>
+              <pre id="claude-cmd" class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto break-all whitespace-pre-wrap"></pre>
+              <button type="button" data-copy="claude-cmd" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>

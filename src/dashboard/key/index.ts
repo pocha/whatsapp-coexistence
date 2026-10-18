@@ -1,4 +1,4 @@
-import { auth, db, onAuthStateChanged } from '/assets/firebase-init.js';
+import { auth, db, functionsBase, onAuthStateChanged } from '/assets/firebase-init.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
 import { isValidApiKey } from '/assets/api-key.js';
@@ -47,10 +47,25 @@ el('reset-key-btn').addEventListener('click', async () => {
   }
 });
 
-el('claude-copy-btn').addEventListener('click', async () => {
-  await navigator.clipboard.writeText(el('claude-cmd').textContent ?? '');
-  el('claude-copy-btn').textContent = 'Copied';
+// The setup for an AI tool is put together here from the key the user pastes: it is never sent anywhere.
+const claudeKey = el<HTMLInputElement>('claude-key');
+claudeKey.addEventListener('input', () => {
+  const key = claudeKey.value.trim();
+  const ok = isValidApiKey(key);
+  el('claude-setup').classList.toggle('hidden', !ok);
+  el('claude-status').textContent = key && !ok ? 'An API key is 64 characters of 0-9 and a-f.' : '';
+  if (!ok) return;
+  const mcp = `${functionsBase()}/mcp`;
+  el('claude-url').textContent = `${mcp}/${key}`;
+  el('claude-http-cmd').textContent = `claude mcp add --transport http watobot ${mcp} --header "Authorization: Bearer ${key}"`;
+  el('claude-cmd').textContent = `claude mcp add watobot -e WATOBOT_API_KEY=${key} -- npx -y watobot-mcp`;
 });
+for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>('button[data-copy]'))) {
+  button.addEventListener('click', async () => {
+    await navigator.clipboard.writeText(el(button.dataset.copy!).textContent ?? '');
+    button.textContent = 'Copied';
+  });
+}
 
 el('create-key-btn').addEventListener('click', () =>
   showNewKey({ required: true, note: FIRST_KEY_NOTE, save: saveFirstKey, afterSave: signOutAfterNewKey }),

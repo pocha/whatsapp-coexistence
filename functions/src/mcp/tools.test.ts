@@ -4,10 +4,13 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { keyFromValue, UserError, type Context } from './api';
+import { createServer } from './tools';
 
 const KEY = '0123456789abcdef'.repeat(4);
 const seen: { method?: string; url?: string; auth?: string; body?: any }[] = [];
 let fake: http.Server;
+let apiBase = '';
 
 before(async () => {
   fake = http.createServer((req, res) => {
@@ -25,22 +28,27 @@ before(async () => {
     });
   });
   await new Promise<void>((resolve) => fake.listen(0, '127.0.0.1', resolve));
-  process.env.WATOBOT_API_URL = `http://127.0.0.1:${(fake.address() as AddressInfo).port}`;
+  apiBase = `http://127.0.0.1:${(fake.address() as AddressInfo).port}`;
 });
 after(() => fake.close());
 
-async function connect() {
-  const { createServer } = await import('./server.js');
+async function connect(key: () => string) {
+  const ctx: Context = { key, apiBase, siteUrl: 'https://watobot.com' };
   const [a, b] = InMemoryTransport.createLinkedPair();
-  await createServer().connect(a);
+  await createServer(ctx).connect(a);
   const client = new Client({ name: 'test', version: '0' });
   await client.connect(b);
   return client;
 }
 
+test('a key that is missing or malformed is refused with what to do about it', () => {
+  assert.throws(() => keyFromValue(undefined, 'https://watobot.com'), (e) => e instanceof UserError && /Sign up at https:\/\/watobot\.com/.test(e.message));
+  assert.throws(() => keyFromValue('abc', 'https://watobot.com'), (e) => e instanceof UserError && /not a Watobot API key/.test(e.message));
+  assert.equal(keyFromValue(` ${KEY}\n`, 'https://watobot.com'), KEY);
+});
+
 test('without a key every tool says how to get one, and nothing is sent', async () => {
-  delete process.env.WATOBOT_API_KEY;
-  const client = await connect();
+  const client = await connect(() => keyFromValue(undefined, 'https://watobot.com'));
   const res: any = await client.callTool({ name: 'list_numbers', arguments: {} });
   assert.equal(res.isError, true);
   assert.match(res.content[0].text, /Sign up at https:\/\/watobot\.com/);
@@ -48,8 +56,7 @@ test('without a key every tool says how to get one, and nothing is sent', async 
 });
 
 test('the key goes to the functions (in the body, or as the bearer token) and never comes back in an answer', async () => {
-  process.env.WATOBOT_API_KEY = KEY;
-  const client = await connect();
+  const client = await connect(() => KEY);
 
   const list: any = await client.callTool({ name: 'list_numbers', arguments: {} });
   assert.equal(list.isError, undefined);
@@ -68,8 +75,7 @@ test('the key goes to the functions (in the body, or as the bearer token) and ne
 });
 
 test('the tools that cannot be undone say so, and the link skips the finished checks', async () => {
-  process.env.WATOBOT_API_KEY = KEY;
-  const client = await connect();
+  const client = await connect(() => KEY);
   const { tools } = await client.listTools();
   const destructive = tools.filter((t) => t.annotations?.destructiveHint).map((t) => t.name).sort();
   assert.deepEqual(destructive, ['delete_template', 'deregister_number', 'disconnect_number']);
