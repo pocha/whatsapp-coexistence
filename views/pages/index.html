@@ -246,66 +246,41 @@
   <section class="px-gutter md:px-24 py-16" id="features">
     <div class="max-w-5xl mx-auto">
       <h2 class="reveal font-headline-lg text-headline-lg text-on-surface text-center mb-10">Features</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="reveal card p-8 gap-4 lift md:col-span-2 !flex-col md:!flex-row md:items-center">
-          <div class="tile !w-16 !h-16 !rounded-2xl flex-shrink-0"><span class="material-symbols-outlined !text-[34px]">smart_toy</span></div>
-          <div class="flex flex-col gap-2">
-            <p class="label-strong text-primary">AI ONBOARDING</p>
-            <p class="section-title text-on-surface" style="font-size:24px;line-height:32px">Onboard and run your number from your AI tool</p>
-            <p class="text-on-surface-variant font-body-md">
-              Add Watobot to <strong>Claude</strong>, <strong>ChatGPT</strong> or <strong>Claude Code</strong>
-              and ask it to get you onto the WhatsApp API. It checks that your endpoint receives what Meta
-              sends, hands you the link for Meta's sign-up, syncs your contacts and history, registers the
-              number and brings your templates across. Later it can send messages, show your limits and
-              manage templates. Meta's sign-up (Facebook login and the code in the WhatsApp Business app)
-              is always done by you.
-              <a class="text-primary font-bold hover:underline" href="/how-to/connect-watobot-to-ai-tool.html">How to connect your AI tool &rarr;</a>
-            </p>
-          </div>
-        </div>
-        <div class="reveal card p-8 gap-4 lift md:col-span-2 !border-2 !border-primary-container !bg-[#effcf3] !flex-col md:!flex-row md:items-center">
-          <div class="tile !w-16 !h-16 !rounded-2xl !bg-primary-container !text-white flex-shrink-0 pulse"><span class="material-symbols-outlined !text-[34px]">lock</span></div>
-          <div class="flex flex-col gap-2">
-            <p class="label-strong text-primary">PRIVACY · VERY FEW TECH PROVIDERS DO THIS</p>
-            <p class="section-title text-on-surface" style="font-size:24px;line-height:32px">Your token is zero-knowledge encrypted</p>
-            <p class="text-on-surface-variant font-body-md">
-              We value your privacy. Your WhatsApp access token is encrypted with your
-              Watobot API key, and we do <strong>NOT</strong> store that key on our server,
-              only a hash that can't open anything. Without your key, even we can't read or
-              use your token. If our database were ever leaked, an attacker would get only
-              scrambled data that can't be opened without your key.
-            </p>
-          </div>
-        </div>
-        <div class="reveal card p-8 gap-4 lift md:col-span-2 !flex-col md:!flex-row md:items-center">
-          <div class="tile !w-16 !h-16 !rounded-2xl flex-shrink-0"><span class="material-symbols-outlined !text-[34px]">speed</span></div>
-          <div class="flex flex-col gap-2">
-            <p class="label-strong text-primary">BAN PREVENTION</p>
-            <p class="section-title text-on-surface" style="font-size:24px;line-height:32px">Rate limits that keep your number from getting banned</p>
-            <p class="text-on-surface-variant font-body-md">
-              WhatsApp flags numbers that suddenly send far more than they used to. We limit template
-              messages per <strong>minute</strong>, per <strong>hour</strong> and per <strong>day</strong>,
-              and each window may only grow a little over the one before it, so your volume ramps up the
-              way Meta expects. If your app misbehaves, say a retry loop or a bug, the extra sends get a
-              clear <code>429</code> from us instead of reaching WhatsApp. You can see your limits, and
-              where each number stands, on its page in the dashboard.
-            </p>
-          </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="reveal card p-6 gap-3 lift">
+          <div class="tile"><span class="material-symbols-outlined">smart_toy</span></div>
+          <p class="section-title text-on-surface">AI native onboarding</p>
+          <p class="text-on-surface-variant font-body-md">Add Watobot to Claude, ChatGPT or Claude Code and ask it to onboard your number. It checks your setup and walks you through Meta's sign-up. <a class="text-primary font-bold hover:underline" href="/how-to/connect-watobot-to-ai-tool.html">How to connect</a></p>
         </div>
         <div class="reveal d1 card p-6 gap-3 lift">
-          <div class="tile"><span class="material-symbols-outlined">bolt</span></div>
-          <p class="section-title text-on-surface">Low latency</p>
-          <p class="text-on-surface-variant font-body-md">Incoming messages go straight from WhatsApp to your app, with no extra hop.</p>
+          <div class="tile"><span class="material-symbols-outlined">lock</span></div>
+          <p class="section-title text-on-surface">Zero-knowledge encrypted token</p>
+          <p class="text-on-surface-variant font-body-md">Your WhatsApp access token is encrypted with your Watobot API key. We keep only a hash that can't open it, so even we can't read your token, and a leaked database gives an attacker nothing.</p>
         </div>
         <div class="reveal d2 card p-6 gap-3 lift">
-          <div class="tile"><span class="material-symbols-outlined">code</span></div>
-          <p class="section-title text-on-surface">Open source</p>
-          <p class="text-on-surface-variant font-body-md">Every line is on GitHub and self-hostable. Read it, fork it, run your own copy.</p>
+          <div class="tile"><span class="material-symbols-outlined">speed</span></div>
+          <p class="section-title text-on-surface">Rate limits that protect your number</p>
+          <p class="text-on-surface-variant font-body-md">WhatsApp flags numbers that suddenly send far more than before. We limit template messages per minute, hour and day, and let each window grow only a little over the last. A blocked message gets a clear <code>429</code> and can always be retried. We don't queue messages yet.</p>
         </div>
-        <div class="reveal d1 card p-6 gap-3 lift opacity-80">
-          <div class="tile !bg-surface-container"><span class="material-symbols-outlined !text-on-surface-variant">low_priority</span></div>
-          <p class="section-title text-on-surface">Per-recipient ordering <span class="label-muted">(upcoming)</span></p>
-          <p class="text-on-surface-variant font-body-md">Messages to the same person are serialized, so retries can't look like spam.</p>
+        <div class="reveal card p-6 gap-3 lift">
+          <div class="tile"><span class="material-symbols-outlined">content_copy</span></div>
+          <p class="section-title text-on-surface">Template migration</p>
+          <p class="text-on-surface-variant font-body-md">Moving over? We copy your approved templates from your previous Messaging account, or import an export from your provider.</p>
+        </div>
+        <div class="reveal d1 card p-6 gap-3 lift">
+          <div class="tile"><span class="material-symbols-outlined">exit_to_app</span></div>
+          <p class="section-title text-on-surface">Moving out of your previous provider</p>
+          <p class="text-on-surface-variant font-body-md">Guides for leaving your current provider with your number: what to export, how to de-register, what to expect. <a class="text-primary font-bold hover:underline" href="/how-to/move-whatsapp-api-between-providers.html">Read the guide</a></p>
+        </div>
+        <div class="reveal d2 card p-6 gap-3 lift">
+          <div class="tile"><span class="material-symbols-outlined">fact_check</span></div>
+          <p class="section-title text-on-surface">Coexistence best practices, enforced</p>
+          <p class="text-on-surface-variant font-body-md">Meta lets each history and contacts sync run once. Before onboarding we check that your callback URL answers Meta and receives those events, so you don't lose the history you want to store.</p>
+        </div>
+        <div class="reveal card p-6 gap-3 lift opacity-80">
+          <div class="tile"><span class="material-symbols-outlined">monitor_heart</span></div>
+          <p class="section-title text-on-surface">Sending stops when quality drops <span class="label-muted">(upcoming)</span></p>
+          <p class="text-on-surface-variant font-body-md">Numbers often get blocked because the provider never tracks the quality of the number or its templates. We do, and we stop sends while it is degraded. The API response says why.</p>
         </div>
       </div>
     </div>
