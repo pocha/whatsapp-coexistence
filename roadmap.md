@@ -15,6 +15,7 @@ Last reviewed 2026-10-17. The functions that exist are listed in the README's AP
 - [x] App-level webhook fields subscribed (checked through the Meta MCP, 2026-10-16): `account_alerts`, `account_review_update`, `account_update`, `message_template_quality_update`, `message_template_status_update`, `messages`, `phone_number_name_update`, `phone_number_quality_update`, `security`, `history`, `smb_message_echoes`, `smb_app_state_sync`
 
 ### P0: the migration promise and launch
+- [ ] **Security: check ownership at sign-up.** `exchangeCode` takes the WABA and phone number IDs from the browser and stores the token under them without checking that the token reaches them, and `saveNumberToken` overwrites an existing record whatever its owner. A signed-in user could post another customer's phone number ID and take over that record. Fix: after the code exchange, confirm with Meta that the WABA is reachable and lists the phone number, and refuse to replace a record that belongs to another Watobot user.
 Design: onboarding is a guided, resumable flow that starts only once the user has what they need afterwards.
 
 **The flow**
@@ -45,12 +46,12 @@ A step-by-step wizard: `checks → Meta onboarding → callback override → (co
 ### P1: moving in and out
 - [x] Disconnect / leave Watobot: Delete account first disconnects each number from Meta (`disconnectNumber`: unsubscribe our app, and de-register an API-only number unless the user unticks it; a coexistence number is only unsubscribed, and the user is told to disconnect it in the Business app), then deletes the records. Needs the API key; "I've lost my key" skips the Meta calls.
 - [x] Deregister endpoint, standard numbers only (`deregisterNumber`; Meta's deregister can't be used on a number that is on both the app and the API)
-- [ ] Ownership check on the number page: is the Messaging account in the user's portfolio
-- [ ] Template status and quality shown in the dashboard, and alerts on `message_template_status_update` / `message_template_quality_update` (not built; Meta emails the admins about template decisions)
-- [ ] Alerts when a template or the number's quality drops (Meta's webhooks reach `/webhook` but are not kept; Meta's own emails may cover it), and optional throttling on quality drops
+- [ ] Ownership on the number page: show whether the number's Messaging account belongs to the user's own portfolio or to a previous provider (the template migration depends on it)
 - [x] **Rate-limit read API and headers:** `GET /relayMessage/<id>/limits`, and `X-RateLimit-Remaining-*` / `X-RateLimit-Reset-*` headers on template sends, so a client (or an AI tool) can pace itself.
 
 ### P2: reliability and trust
+- [ ] Template status and quality shown in the dashboard, and alerts on `message_template_status_update` / `message_template_quality_update` (not built; Meta emails the admins about template decisions)
+- [ ] Alerts when a template or the number's quality drops (Meta's webhooks reach `/webhook` but are not kept; Meta's own emails may cover it), and optional throttling on quality drops
 - [x] **MCP server**, hosted and local, one set of tools (`functions/src/mcp/tools.ts`): the `mcp` Function (`Authorization: Bearer <key>` or `/mcp/<key>`, for claude.ai, ChatGPT and any tool that takes an address) and the `watobot-mcp` package (`mcp/`, over stdio, for tools that launch a program). The API key is the credential, so there is no OAuth. Also built: key-only access to the wizard checks, `listNumbers` / `getNumber` (the dashboard reads through them as well, so the two cannot drift apart), and a link that opens the wizard at Meta's sign-up (`?checks=done&callback=`) and hands back to the AI tool afterwards. Still to do: exclude the `mcp` requests from Cloud Logging (see the README), publish to npm, check claude.ai and ChatGPT connect with the address (their auth options change), an OpenAPI description and `llms.txt`, and OAuth only if a connector directory asks for it.
 - [ ] Close the browser's read on `phoneNumbers` in the rules: blocked only by the key reset and delete account code in `src/assets/account.ts`, which still query the numbers directly
 - [ ] Move the last direct browser writes (first key, key reset, the Firestore side of delete account) into functions, so the rules can be read-only
