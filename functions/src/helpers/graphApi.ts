@@ -46,16 +46,38 @@ export async function subscribeApp(
   });
 }
 
-/**
- * The WABAs this token was granted `whatsapp_business_management` for, from Meta's Debug Token
- * endpoint (`granular_scopes`), so a WABA ID is known to be one the signing-up user really shared
- * and is not just what their browser said. Authorised as the app, with its ID and secret.
- */
-export async function getGrantedWabaIds(accessToken: string, appId: string, appSecret: string): Promise<string[]> {
+/** A read of any Graph path with the token (for the live details on getNumber). */
+export function graphGet(path: string, accessToken: string): Promise<any> {
+  return graphFetch(path, { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } });
+}
+
+/** What Meta says about a token, from Debug Token. Authorised as the app, with its ID and secret. */
+export async function debugToken(accessToken: string, appId: string, appSecret: string): Promise<{
+  type?: string;
+  isValid?: boolean;
+  scopes: string[];
+  expiresAt?: number;
+  dataAccessExpiresAt?: number;
+  grantedWabaIds: string[];
+}> {
   const params = new URLSearchParams({ input_token: accessToken, access_token: `${appId}|${appSecret}` });
-  const body = await graphFetch(`/debug_token?${params.toString()}`, { method: 'GET' });
-  const scopes: { scope?: string; target_ids?: string[] }[] = body?.data?.granular_scopes ?? [];
-  return scopes.filter((s) => s.scope === 'whatsapp_business_management').flatMap((s) => (s.target_ids ?? []).map(String));
+  const data = (await graphFetch(`/debug_token?${params.toString()}`, { method: 'GET' }))?.data ?? {};
+  const scopes: { scope?: string; target_ids?: string[] }[] = data.granular_scopes ?? [];
+  return {
+    type: data.type,
+    isValid: data.is_valid,
+    scopes: data.scopes ?? [],
+    expiresAt: data.expires_at,
+    dataAccessExpiresAt: data.data_access_expires_at,
+    // The WABAs this token was granted `whatsapp_business_management` for, so a WABA ID is known to be one
+    // the signing-up user really shared and is not just what their browser said.
+    grantedWabaIds: scopes.filter((s) => s.scope === 'whatsapp_business_management').flatMap((s) => (s.target_ids ?? []).map(String)),
+  };
+}
+
+/** The WABAs this token was granted (see debugToken). */
+export async function getGrantedWabaIds(accessToken: string, appId: string, appSecret: string): Promise<string[]> {
+  return (await debugToken(accessToken, appId, appSecret)).grantedWabaIds;
 }
 
 /** Whether the WABA's own list of phone numbers has this one (the first 100 are read). */

@@ -122,10 +122,35 @@ export interface ListNumbersResponse extends ApiResponse {
   numbers: NumberView[];
 }
 
+/** One live read from Meta: what it said, or why the read failed. Each part is separate so one failure hides nothing else. */
+export type MetaPart<T = unknown> = { ok: true; data: T } | { ok: false; error: string };
+
+/** What Meta says about a number and its account right now. Never holds the token. */
+export interface MetaSnapshot {
+  /** Status, display name and its approval, quality rating, Business app, account mode. */
+  phone: MetaPart<Record<string, unknown>>;
+  /** The number's messaging limit tier, e.g. TIER_250. */
+  messagingLimit: MetaPart<unknown>;
+  /** The Messaging account: name, currency, review and business verification status. */
+  waba: MetaPart<Record<string, unknown>>;
+  /** Who owns the Messaging account. */
+  ownership: MetaPart<Record<string, unknown>>;
+  /** The apps subscribed to the account, with any callback URL override. */
+  subscribedApps: MetaPart<unknown[]>;
+  /** The numbers Meta lists under the account. */
+  phoneNumbers: MetaPart<unknown[]>;
+  /** The stored token's own details: type, scopes, expiry and the WABAs it was granted. */
+  token: MetaPart<{ type?: string; isValid?: boolean; scopes: string[]; expiresAt?: number; dataAccessExpiresAt?: number; grantedWabaIds: string[] }>;
+}
+
 /** POST /getNumber (a Firebase token or `apiKey` in the body). */
 export interface GetNumberResponse extends ApiResponse {
   number: NumberView;
   limits: RelayLimitsResponse;
+  /** Live details from Meta. Only with the API key, which opens the stored token to read them. */
+  meta?: MetaSnapshot;
+  /** Why `meta` is missing, when a key was given. */
+  metaError?: string;
 }
 
 export interface ExchangeCodeRequest {

@@ -58,7 +58,7 @@ export function createServer(ctx: Context): McpServer {
 
   // ---- what the account has ----
   tool('list_numbers', 'Lists your numbers and where each is in onboarding (the "step"), whether it is also on the WhatsApp Business app, and when the syncs were requested.', {}, () => callFunction('listNumbers'), { readOnly: true });
-  tool('get_number', 'One number\'s state, with its template-send limits.', { phoneNumberId }, (a) => callFunction('getNumber', a), { readOnly: true });
+  tool('get_number', 'One number\'s state and its template-send limits, plus what Meta says about it right now: messaging limit tier, quality rating, display name status, account review, ownership, the callback URL override and the stored token\'s scopes. Each part of Meta\'s answer is separate, so a part that failed says why.', { phoneNumberId }, (a) => callFunction('getNumber', a), { readOnly: true });
 
   // ---- before the number exists ----
   tool('check_callback_url', 'Does Meta\'s handshake against your callback URL, to see it answers before onboarding.', { overrideCallbackUrl: callbackUrl }, (a) => callFunction('checkCallbackUrl', a), { readOnly: true });

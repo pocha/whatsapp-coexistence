@@ -56,7 +56,7 @@ Three kinds of credential:
 | `POST /sendOtp` | None | Sends a sign-in code on WhatsApp. | `phone` |
 | `POST /verifyOtp` | None | Checks the code and signs in (or resets a lost key). | `phone`, `code`, `apiKey?`, `resetApiKey?` |
 | `POST /listNumbers` | Signed in or key | The account's numbers: where each is in onboarding (`step`), whether it is on the Business app, the syncs, usage. Never the stored token (`hasToken` only). | (`apiKey` for a key) |
-| `POST /getNumber` | Signed in or key | One number, as above, plus its template-send limits. 404 for a number that is not the caller's. | `phoneNumberId` |
+| `POST /getNumber` | Signed in or key | One number, as above, plus its template-send limits. With the key it also reads what Meta says right now (`meta`): status, display name approval, quality rating, messaging limit tier, account review and ownership, the apps subscribed with their callback URL override, and the token's scopes and expiry. Each part is separate, and a part Meta refuses says why. Never the token. 404 for a number that is not the caller's. | `phoneNumberId` |
 | `POST /rotateKey` | Signed in | Replaces the API key and re-encrypts every stored token. | `oldApiKey`, `newApiKey` |
 | `POST /joinWaitlist` | None | Counts a waitlist click. | |
 

@@ -499,6 +499,25 @@ test('the hosted MCP server takes the key as a bearer token or in the path, refu
   assert.equal((await fetch(inPath(KEY))).status, 405, 'only POST');
 });
 
+test('getNumber adds what Meta says right now when the key is given, part by part, and never the token', async () => {
+  await seedNumber('9801', '9811');
+  const withKey = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9801' })).json();
+  assert.ok(withKey.meta, JSON.stringify(withKey));
+  assert.equal(withKey.meta.phone.ok, true);
+  assert.equal(withKey.meta.phone.data.quality_rating, 'GREEN');
+  assert.equal(withKey.meta.messagingLimit.data, 'TIER_250');
+  assert.equal(withKey.meta.subscribedApps.data[0].override_callback_uri, 'https://example.com/hook');
+  assert.equal(withKey.meta.ownership.ok, false, 'a part Meta refuses says why and hides nothing else');
+  assert.match(withKey.meta.ownership.error, /ownership not readable/);
+  assert.equal(withKey.meta.token.ok, true);
+  const text = JSON.stringify(withKey);
+  assert.equal(text.includes(META_TOKEN) || text.includes('ciphertext') || text.includes('encAccessToken'), false, 'no token anywhere in the answer');
+
+  const signedIn = await (await post('/getNumber', { phoneNumberId: '9801' }, asUser())).json();
+  assert.equal(signedIn.meta, undefined, 'a sign-in alone cannot open the token, so there is no live part');
+  assert.equal(signedIn.ok, true);
+});
+
 test('login: a new phone number gets a user, sets a key, and then needs that key to log in', async () => {
   const phone = '919000000099';
   const otp = async () => db.collection('otps').doc(phone).set({ code: '123456', expiresAt: Date.now() + 60_000, attempts: 0, lastSentAt: 0 });

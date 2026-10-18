@@ -111,6 +111,22 @@ function startMetaStub(port) {
       return;
     }
 
+    // Live details for getNumber: any field read of a number or account, and the subscribed apps.
+    if (req.method === 'GET' && req.url.match(/^\/\d+\/subscribed_apps$/)) {
+      res.writeHead(200).end(JSON.stringify({ data: [{ id: '1323887826398640', name: 'stub-app', override_callback_uri: 'https://example.com/hook' }] }));
+      return;
+    }
+    if (req.method === 'GET' && req.url.match(/^\/\d+\?fields=[a-z_,]+$/) && !req.url.includes('ownership_type')) {
+      res.writeHead(200).end(
+        JSON.stringify({ display_phone_number: '+1 555-000-0000', quality_rating: 'GREEN', status: 'CONNECTED', name: 'stub-account', whatsapp_business_manager_messaging_limit: 'TIER_250' }),
+      );
+      return;
+    }
+    if (req.method === 'GET' && req.url.match(/^\/\d+\?fields=ownership_type/)) {
+      res.writeHead(400).end(JSON.stringify({ error: { message: 'meta-stub: ownership not readable' } }));
+      return;
+    }
+
     if (req.method === 'POST' && req.url.endsWith('/migrate_message_templates')) {
       res.writeHead(200).end(JSON.stringify({ migrated_templates: ['1', '2', '3'], failed_templates: { 4: 'Incorrect category' } }));
       return;
