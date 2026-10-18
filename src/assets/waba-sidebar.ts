@@ -66,10 +66,10 @@ function wireDelete() {
     const done = { coexistence: [] as string[], deregistered: [] as string[] };
     for (const n of withToken()) {
       status.textContent = `Disconnecting ${shown(n)} from Meta…`;
-      const res = await fetch(`${functionsBase()}/disconnectNumber`, {
+      const res = await fetch(`${functionsBase()}/numbers/${encodeURIComponent(n.id)}/disconnect`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumberId: n.id, apiKey, deregister: el<HTMLInputElement>('delete-deregister').checked } satisfies DisconnectNumberRequest),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ deregister: el<HTMLInputElement>('delete-deregister').checked } satisfies Partial<DisconnectNumberRequest>),
       });
       const body = (await res.json().catch(() => ({}))) as DisconnectNumberResponse;
       if (!res.ok || !body.ok) {

@@ -59,13 +59,13 @@ export async function keyMatchesAccount(uid: string, apiKey: string): Promise<bo
   return Boolean(stored) && stored === (await hashApiKey(apiKey));
 }
 
-/** POSTs to a Function with the signed-in user's Firebase ID token. */
-export async function callAsUser<T extends ApiResponse = ApiResponse>(url: string, body: unknown): Promise<T> {
+/** Calls a Function with the signed-in user's Firebase ID token (a POST with a body, unless told otherwise). */
+export async function callAsUser<T extends ApiResponse = ApiResponse>(url: string, body?: unknown, method: 'GET' | 'POST' = 'POST'): Promise<T> {
   const idToken = await auth.currentUser!.getIdToken();
   const res = await fetch(url, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-    body: JSON.stringify(body),
+    body: method === 'GET' ? undefined : JSON.stringify(body ?? {}),
   });
   const data = (await res.json().catch(() => ({}))) as T;
   if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
@@ -74,10 +74,10 @@ export async function callAsUser<T extends ApiResponse = ApiResponse>(url: strin
 
 /** The signed-in user's numbers. Read through the Functions, which never send the stored token. */
 export async function fetchNumbers(): Promise<NumberView[]> {
-  return (await callAsUser<ListNumbersResponse>(`${functionsBase()}/listNumbers`, {})).numbers;
+  return (await callAsUser<ListNumbersResponse>(`${functionsBase()}/numbers`, undefined, 'GET')).numbers;
 }
 
 /** One of the user's numbers, with where its wizard step stands. Throws if it isn't theirs. */
 export async function fetchNumber(phoneNumberId: string): Promise<NumberView> {
-  return (await callAsUser<GetNumberResponse>(`${functionsBase()}/getNumber`, { phoneNumberId })).number;
+  return (await callAsUser<GetNumberResponse>(`${functionsBase()}/numbers/${encodeURIComponent(phoneNumberId)}`, undefined, 'GET')).number;
 }

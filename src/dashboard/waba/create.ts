@@ -143,24 +143,17 @@ let resumeStep: OnboardingStep | null = null;
 
 const apiKey = () => keyInput.value.trim();
 
-/** POSTs to a path under templates/<number> with the Watobot API key as the bearer token. */
-async function templatesCall<T extends { ok: boolean; error?: string }>(path: string, body: object): Promise<T> {
-  const res = await fetch(`${functionsBase()}/templates/${encodeURIComponent(phoneNumberId!)}/${path}`, {
-    method: 'POST',
+/** Calls /<resource>/<this number>/<path> with the Watobot API key as the bearer token (no sign-in needed). */
+async function withKey<T extends { ok: boolean; error?: string }>(
+  method: 'POST' | 'PUT',
+  resource: 'numbers' | 'onboarding' | 'templatesBulk',
+  path: string,
+  body: object = {},
+): Promise<T> {
+  const res = await fetch(`${functionsBase()}/${resource}/${encodeURIComponent(phoneNumberId!)}/${path}`, {
+    method,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey()}` },
     body: JSON.stringify(body),
-  });
-  const data = (await res.json().catch(() => ({}))) as T;
-  if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
-}
-
-/** POSTs to a Function with the Watobot API key as the credential (no sign-in needed). */
-async function withKey<T extends { ok: boolean; error?: string }>(fn: string, body: object): Promise<T> {
-  const res = await fetch(`${functionsBase()}/${fn}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phoneNumberId, apiKey: apiKey(), ...body }),
   });
   const data = (await res.json().catch(() => ({}))) as T;
   if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
@@ -226,7 +219,7 @@ el('cb-verify').addEventListener('click', async () => {
   const url = cbUrl.value.trim();
   cbStatus.textContent = 'Checking…';
   try {
-    await callAsUser(`${functionsBase()}/checkCallbackUrl`, { overrideCallbackUrl: url });
+    await callAsUser(`${functionsBase()}/onboarding/callback-check`, { overrideCallbackUrl: url });
     urlVerified = true;
     callbackUrl = url;
     cbStatus.textContent = 'Your URL answered Meta\'s handshake.';
@@ -239,7 +232,7 @@ el('cb-verify').addEventListener('click', async () => {
 
 // The test chatbot's settings, for someone who has no endpoint yet (same as on the number page).
 el('chatbot-env').textContent =
-  `WEBHOOK_VERIFY_TOKEN=${WEBHOOK_VERIFY_TOKEN}\nRELAY_BASE=${functionsBase()}/relayMessage\nWATOBOT_API_KEY=`;
+  `WEBHOOK_VERIFY_TOKEN=${WEBHOOK_VERIFY_TOKEN}\nRELAY_BASE=${functionsBase()}/numbers\nWATOBOT_API_KEY=`;
 el('copy-env-btn').addEventListener('click', async () => {
   await navigator.clipboard.writeText(el('chatbot-env').textContent ?? '');
   el('copy-env-btn').textContent = 'Copied';
@@ -435,7 +428,7 @@ async function maybeFinish() {
   exchanging = true;
   status.textContent = 'Connecting your number…';
   try {
-    await callAsUser(`${functionsBase()}/exchangeCode`, {
+    await callAsUser(`${functionsBase()}/numbers`, {
       code: signupCode,
       wabaId,
       phoneNumberId,
@@ -470,7 +463,9 @@ async function connectOverride(url: string) {
   fail(undefined);
   try {
     const res = await withKey<OnboardingResponse>(
-      'setWebhook',
+      'PUT',
+      'numbers',
+      'webhook',
       (noCallback && !url ? { noCallback: true } : { overrideCallbackUrl: url }) satisfies Partial<SetWebhookRequest>,
     );
     status.textContent = '';
@@ -532,7 +527,7 @@ async function surfaceSavedError() {
 }
 
 async function moveTo(step: SetOnboardingStepRequest['step']) {
-  const res = await withKey<OnboardingResponse>('setOnboardingStep', { step });
+  const res = await withKey<OnboardingResponse>('PUT', 'onboarding', 'step', { step });
   await showStep(res.step ?? step);
 }
 
@@ -560,7 +555,7 @@ el('register-btn').addEventListener('click', async () => {
   el<HTMLButtonElement>('register-btn').disabled = true;
   out.textContent = 'Registering. This can take up to a minute…';
   try {
-    const res = await withKey<OnboardingResponse>('registerNumber', { pin } satisfies Partial<RegisterNumberRequest>);
+    const res = await withKey<OnboardingResponse>('POST', 'numbers', 'register', { pin } satisfies Partial<RegisterNumberRequest>);
     out.textContent = '';
     await showStep(res.step ?? 'templates');
   } catch (err) {
@@ -603,7 +598,7 @@ el('sync-btn').addEventListener('click', async () => {
     for (const syncType of SYNC_TYPES) {
       const data = await loadNumber();
       if (data?.sync?.[syncType]?.state === 'requested') continue;
-      await withKey('startSync', { syncType } satisfies Partial<StartSyncRequest>);
+      await withKey('POST', 'onboarding', 'sync', { syncType } satisfies Partial<StartSyncRequest>);
     }
     out.textContent = 'Both requested. Your endpoint now receives the data.';
   } catch (err) {
@@ -618,7 +613,7 @@ el('sync-skip-btn').addEventListener('click', async () => {
   );
   if (!sure) return;
   try {
-    await withKey('skipSync', {});
+    await withKey('POST', 'onboarding', 'sync/skip');
     await showStep('templates');
   } catch (err) {
     el('sync-status').textContent = errorMessage(err);
@@ -666,7 +661,7 @@ el('tpl2-migrate').addEventListener('click', async () => {
   el<HTMLButtonElement>('tpl2-migrate').disabled = true;
   out.textContent = 'Copying…';
   try {
-    const res = await templatesCall<MigrateTemplatesResponse>('migrate', { sourceWabaId });
+    const res = await withKey<MigrateTemplatesResponse>('POST', 'templatesBulk', 'migrate', { sourceWabaId });
     if (res.outcome === 'unreadable') {
       out.textContent = 'We can\'t read that account. Either Watobot has not been added as a partner on it, or it belongs to your provider. Check the partner step, or ask your provider for the template list and create them below.';
     } else {
@@ -695,7 +690,7 @@ el('tpl2-import').addEventListener('click', async () => {
   el<HTMLButtonElement>('tpl2-import').disabled = true;
   out.textContent = 'Creating… this can take a while.';
   try {
-    const res = await templatesCall<ImportTemplatesResponse>('import', { templates });
+    const res = await withKey<ImportTemplatesResponse>('POST', 'templatesBulk', 'import', { templates });
     const failed = res.failed ?? [];
     out.textContent =
       `${res.created} created, waiting for Meta's review.` +

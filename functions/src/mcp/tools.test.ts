@@ -19,7 +19,7 @@ before(async () => {
     req.on('end', () => {
       seen.push({ method: req.method, url: req.url, auth: req.headers.authorization, body: raw ? JSON.parse(raw) : undefined });
       res.setHeader('Content-Type', 'application/json');
-      if (req.url === '/getNumber') {
+      if (req.url === '/numbers/1234567890') {
         res.statusCode = 404;
         res.end(JSON.stringify({ ok: false, error: 'Unknown phone number ID.' }));
       } else {
@@ -60,13 +60,18 @@ test('the key goes to the functions (in the body, or as the bearer token) and ne
 
   const list: any = await client.callTool({ name: 'list_numbers', arguments: {} });
   assert.equal(list.isError, undefined);
-  assert.equal(seen.at(-1)!.url, '/listNumbers');
-  assert.equal(seen.at(-1)!.body.apiKey, KEY);
+  assert.equal(seen.at(-1)!.url, '/numbers');
+  assert.equal(seen.at(-1)!.auth, `Bearer ${KEY}`);
   assert.equal(JSON.stringify(list).includes(KEY), false);
 
   await client.callTool({ name: 'get_limits', arguments: { phoneNumberId: '1234567890' } });
-  assert.equal(seen.at(-1)!.url, '/relayMessage/1234567890/limits');
+  assert.equal(seen.at(-1)!.url, '/numbers/1234567890/limits');
   assert.equal(seen.at(-1)!.auth, `Bearer ${KEY}`);
+
+  // The wizard's checks, which are not about a number yet, take the key in the body.
+  await client.callTool({ name: 'check_callback_url', arguments: { overrideCallbackUrl: 'https://example.com/hook' } });
+  assert.equal(seen.at(-1)!.url, '/onboarding/callback-check');
+  assert.equal(seen.at(-1)!.body.apiKey, KEY);
 
   const missing: any = await client.callTool({ name: 'get_number', arguments: { phoneNumberId: '1234567890' } });
   assert.equal(missing.isError, true);

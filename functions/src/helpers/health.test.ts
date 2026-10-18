@@ -6,6 +6,12 @@ import type { MetaSnapshot } from './types';
 const snapshot = (phone: Record<string, unknown>): Pick<MetaSnapshot, 'phone'> => ({ phone: { ok: true, data: phone } });
 const sip = { error_code: 138024, error_description: 'WhatsApp Business calling cannot use SIP because it is not enabled' };
 
+test('a reason or a display name with fields Meta left out is still plain data', () => {
+  const derived = deriveHealth(snapshot({ health_status: { entities: [{ entity_type: 'WABA', can_send_message: 'BLOCKED', errors: [{ error_code: 141006 }] }] } }), 5)!;
+  assert.equal(derived.health.reasons[0].message, 'Meta gave no description.');
+  assert.equal(derived.displayName.name, undefined);
+});
+
 test('a blocked account blocks, and calling errors are left out', () => {
   const derived = deriveHealth(
     snapshot({

@@ -310,11 +310,11 @@ function renderHealth(data: NumberView) {
 }
 
 /** Asks Meta again, with the key (it opens the stored token), and shows what came back. */
-async function postWithKey(path: string, body: object) {
-  const res = await fetch(`${functionsBase()}/${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phoneNumberId, apiKey: apiKeyInput.value.trim(), ...body }),
+async function callWithKey(method: 'GET' | 'PUT', path: string, body?: object) {
+  const res = await fetch(`${functionsBase()}/numbers/${encodeURIComponent(phoneNumberId)}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKeyInput.value.trim()}` },
+    body: body ? JSON.stringify(body) : undefined,
   });
   const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; number?: NumberView; metaError?: string };
   if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
@@ -330,7 +330,7 @@ async function refreshHealth() {
   el<HTMLButtonElement>('health-refresh').disabled = true;
   status.textContent = 'Asking Meta…';
   try {
-    const result = await postWithKey('getNumber', {});
+    const result = await callWithKey('GET', '');
     if (result.metaError) throw new Error(result.metaError);
     renderHealth(result.number!);
     status.textContent = 'Updated.';
@@ -352,7 +352,7 @@ el('display-name-btn').addEventListener('click', async () => {
   el<HTMLButtonElement>('display-name-btn').disabled = true;
   status.textContent = 'Sending the request to Meta…';
   try {
-    await postWithKey('setDisplayName', { displayName });
+    await callWithKey('PUT', '/display-name', { displayName });
     status.textContent = 'Sent. Meta now reviews it; refresh later to see the decision.';
     await refreshHealth();
   } catch (err) {
@@ -363,7 +363,7 @@ el('display-name-btn').addEventListener('click', async () => {
 
 // --- Override incoming message URL ------------------------------------------
 el('chatbot-env').textContent =
-  `WEBHOOK_VERIFY_TOKEN=${WEBHOOK_VERIFY_TOKEN}\nRELAY_BASE=${functionsBase()}/relayMessage\nWATOBOT_API_KEY=`;
+  `WEBHOOK_VERIFY_TOKEN=${WEBHOOK_VERIFY_TOKEN}\nRELAY_BASE=${functionsBase()}/numbers\nWATOBOT_API_KEY=`;
 el('copy-env-btn').addEventListener('click', async () => {
   await navigator.clipboard.writeText(el('chatbot-env').textContent ?? '');
   el('copy-env-btn').textContent = 'Copied';
@@ -382,10 +382,10 @@ overrideBtn.addEventListener('click', async () => {
   overrideBtn.disabled = true;
   overrideStatus.textContent = 'Checking your URL and updating WhatsApp…';
   try {
-    const res = await fetch(`${functionsBase()}/setWebhook`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phoneNumberId, apiKey, overrideCallbackUrl } satisfies SetWebhookRequest),
+    const res = await fetch(`${functionsBase()}/numbers/${encodeURIComponent(phoneNumberId)}/webhook`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ overrideCallbackUrl } satisfies Partial<SetWebhookRequest>),
     });
     const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     if (!res.ok || !body.ok) {
@@ -420,7 +420,7 @@ function renderCommands() {
     template: { name: 'hello_world', language: { code: 'en_US' } },
   });
   el<HTMLTextAreaElement>('send-command').value = [
-    `curl -X POST '${base}/relayMessage/${phoneNumberId}/messages' \\`,
+    `curl -X POST '${base}/numbers/${phoneNumberId}/messages' \\`,
     `  ${auth} \\`,
     `  ${json} \\`,
     `  -d '${message}'`,
@@ -434,7 +434,7 @@ function renderCommands() {
     text: { body: 'Hello from Watobot' },
   });
   el<HTMLTextAreaElement>('send-text-command').value = [
-    `curl -X POST '${base}/relayMessage/${phoneNumberId}/messages' \\`,
+    `curl -X POST '${base}/numbers/${phoneNumberId}/messages' \\`,
     `  ${auth} \\`,
     `  ${json} \\`,
     `  -d '${text}'`,
@@ -447,13 +447,13 @@ function renderCommands() {
     `  -d '${JSON.stringify({ phoneNumberId, apiKey: key })}'`,
   ].join('\n');
   el<HTMLTextAreaElement>('tpl-migrate-command').value = [
-    `curl -X POST '${base}/templates/${phoneNumberId}/migrate' \\`,
+    `curl -X POST '${base}/templatesBulk/${phoneNumberId}/migrate' \\`,
     `  ${auth} \\`,
     `  ${json} \\`,
     `  -d '${JSON.stringify({ sourceWabaId: 'PREVIOUS_MESSAGING_ACCOUNT_ID' })}'`,
   ].join('\n');
   el<HTMLTextAreaElement>('tpl-import-command').value = [
-    `curl -X POST '${base}/templates/${phoneNumberId}/import' \\`,
+    `curl -X POST '${base}/templatesBulk/${phoneNumberId}/import' \\`,
     `  ${auth} \\`,
     `  ${json} \\`,
     `  -d '{"templates":[ ...the exported templates... ]}'`,

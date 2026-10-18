@@ -68,7 +68,7 @@ export function apiFor(ctx: Context) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...body, apiKey: ctx.key() }),
       }),
-    callWithBearer: (method: 'GET' | 'POST' | 'DELETE', path: string, body?: unknown) =>
+    callWithBearer: (method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown) =>
       send(`${ctx.apiBase}/${path}`, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ctx.key()}` },

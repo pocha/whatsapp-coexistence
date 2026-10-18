@@ -17,12 +17,42 @@ let db;
 let idToken;
 let userId;
 
-const post = (path, body, headers = {}) =>
-  fetch(`${FUNCTIONS_BASE}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify(body),
+// Calls to the Functions. The calls about a number go to the `numbers` API (see numbersApi.ts), where the
+// number ID is in the path and the key is the bearer token; the tests below keep naming them by what they
+// do, and this maps each name onto its route.
+const NUMBER_ROUTES = {
+  listNumbers: ['GET', () => '/numbers'],
+  getNumber: ['GET', (id) => `/numbers/${id}`],
+  setWebhook: ['PUT', (id) => `/numbers/${id}/webhook`],
+  setDisplayName: ['PUT', (id) => `/numbers/${id}/display-name`],
+  registerNumber: ['POST', (id) => `/numbers/${id}/register`],
+  deregisterNumber: ['POST', (id) => `/numbers/${id}/deregister`],
+  disconnectNumber: ['POST', (id) => `/numbers/${id}/disconnect`],
+  startSync: ['POST', (id) => `/onboarding/${id}/sync`],
+  skipSync: ['POST', (id) => `/onboarding/${id}/sync/skip`],
+  setOnboardingStep: ['PUT', (id) => `/onboarding/${id}/step`],
+};
+// Calls that come before there is a number: the body is unchanged, only the path differs.
+const PLAIN_ROUTES = {
+  exchangeCode: '/numbers',
+  checkCallbackUrl: '/onboarding/callback-check',
+  sendTestEvents: '/onboarding/test-events',
+  verifyTestCodes: '/onboarding/test-codes',
+};
+
+const post = (path, body, headers = {}) => {
+  const route = NUMBER_ROUTES[path.slice(1)];
+  if (!route) {
+    return fetch(`${FUNCTIONS_BASE}${PLAIN_ROUTES[path.slice(1)] ?? path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
+  }
+  const { phoneNumberId, apiKey, ...rest } = body ?? {};
+  const [method, urlFor] = route;
+  return fetch(`${FUNCTIONS_BASE}${urlFor(phoneNumberId)}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(apiKey !== undefined ? { Authorization: `Bearer ${apiKey}` } : {}), ...headers },
+    body: method === 'GET' ? undefined : JSON.stringify(rest),
   });
+};
 
 const asUser = () => ({ Authorization: `Bearer ${idToken}` });
 const FieldValueDelete = () => require('firebase-admin').firestore.FieldValue.delete();
@@ -128,10 +158,10 @@ test('setWebhook needs the API key, then verifies the endpoint and subscribes, w
   assert.equal(badEndpoint.status, 400);
 });
 
-test('relayMessage authenticates with the API key, sends with the decrypted Meta token, and records usage', async () => {
+test('the relay authenticates with the API key, sends with the decrypted Meta token, and records usage', async () => {
   await seedNumber('555', '666');
   const send = (key) =>
-    fetch(`${FUNCTIONS_BASE}/relayMessage/555/messages`, {
+    fetch(`${FUNCTIONS_BASE}/numbers/555/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
       body: JSON.stringify({ messaging_product: 'whatsapp', to: '15551234567', type: 'text', text: { body: 'hi' } }),
@@ -155,7 +185,7 @@ test('template sends are rate limited per number, and free-form text is not', as
     rateLimits: { headroomSigmas: 0, minute: tight, hour: tight, day: tight },
   });
   const send = (message) =>
-    fetch(`${FUNCTIONS_BASE}/relayMessage/556/messages`, {
+    fetch(`${FUNCTIONS_BASE}/numbers/556/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
       body: JSON.stringify({ messaging_product: 'whatsapp', to: '15551234567', ...message }),
@@ -163,7 +193,7 @@ test('template sends are rate limited per number, and free-form text is not', as
   const template = { type: 'template', template: { name: 'hello_world', language: { code: 'en_US' } } };
 
   const limits = (key = KEY) =>
-    fetch(`${FUNCTIONS_BASE}/relayMessage/556/limits`, { headers: { Authorization: `Bearer ${key}` } });
+    fetch(`${FUNCTIONS_BASE}/numbers/556/limits`, { headers: { Authorization: `Bearer ${key}` } });
 
   // Before anything is sent, the whole allowance is there.
   const start = await (await limits()).json();
@@ -348,7 +378,7 @@ test('each sync can be requested once: contacts first, no repeat after it was ac
 
 test('templates: a source we cannot read sends the user to their provider; a readable one is copied', async () => {
   const migrate = (sourceWabaId) =>
-    fetch(`${FUNCTIONS_BASE}/templates/222/migrate`, {
+    fetch(`${FUNCTIONS_BASE}/templatesBulk/222/migrate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
       body: JSON.stringify({ sourceWabaId }),
@@ -521,7 +551,7 @@ test('getNumber adds what Meta says right now when the key is given, part by par
 
 test('a blocked number sends no templates but can reply; refreshing stores the status and a Meta refusal sets it', async () => {
   const relay = (id, body) =>
-    fetch(`${FUNCTIONS_BASE}/relayMessage/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` }, body: JSON.stringify(body) });
+    fetch(`${FUNCTIONS_BASE}/numbers/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` }, body: JSON.stringify(body) });
   const template = { messaging_product: 'whatsapp', to: '15551234567', type: 'template', template: { name: 'hello', language: { code: 'en_US' } } };
   const text = { messaging_product: 'whatsapp', to: '15551234567', type: 'text', text: { body: 'hi' } };
 
@@ -553,7 +583,7 @@ test('a blocked number sends no templates but can reply; refreshing stores the s
 test('a limited number may send only a few templates a day, and a business that is only unverified is not limited', async () => {
   const template = { messaging_product: 'whatsapp', to: '15551234567', type: 'template', template: { name: 'hello', language: { code: 'en_US' } } };
   const relay = (id) =>
-    fetch(`${FUNCTIONS_BASE}/relayMessage/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` }, body: JSON.stringify(template) });
+    fetch(`${FUNCTIONS_BASE}/numbers/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` }, body: JSON.stringify(template) });
 
   await seedNumber('9802', '9812');
   const read = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9802' })).json();

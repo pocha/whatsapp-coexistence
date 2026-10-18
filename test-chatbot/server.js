@@ -21,7 +21,7 @@ const PORT = process.env.PORT || 3000;
 const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN;
 const WATOBOT_API_KEY = process.env.WATOBOT_API_KEY;
 const RELAY_BASE =
-  process.env.RELAY_BASE || 'http://127.0.0.1:5001/wa-coexistence/us-central1/relayMessage';
+  process.env.RELAY_BASE || 'http://127.0.0.1:5001/wa-coexistence/us-central1/numbers';
 
 if (!VERIFY_TOKEN) {
   console.error('WEBHOOK_VERIFY_TOKEN is missing. Copy .env.example to .env and fill it in (see README.md).');

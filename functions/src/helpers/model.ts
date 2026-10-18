@@ -179,7 +179,8 @@ export async function saveNumberToken(args: {
 
 /** Stores what the last read from Meta said about whether the number may send, and its display name. */
 export const setHealth = (phoneNumberId: string, health: NumberHealth, displayName?: DisplayNameState) =>
-  phoneNumberRef(phoneNumberId).update({ health, ...(displayName ? { displayName } : {}) });
+  // Firestore refuses `undefined` (Meta leaves fields out), so both are copied through JSON, which drops them.
+  phoneNumberRef(phoneNumberId).update(JSON.parse(JSON.stringify({ health, ...(displayName ? { displayName } : {}) })));
 
 export const setDisplayPhoneNumber = (phoneNumberId: string, displayPhoneNumber: string) =>
   phoneNumberRef(phoneNumberId).update({ displayPhoneNumber });

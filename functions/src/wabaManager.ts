@@ -1,6 +1,5 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import express from 'express';
-import cors from 'cors';
 import { config } from './helpers/config';
 import {
   createTemplate,
@@ -16,7 +15,7 @@ import {
   unsubscribeApp,
   verifyWabaAccess,
 } from './helpers/graphApi';
-import { post } from './helpers/http';
+import { newApp, type Handler } from './helpers/http';
 import { relayLimits } from './helpers/numberView';
 import { refreshHealth } from './helpers/healthRefresh';
 import { healthFromRefusal } from './helpers/health';
@@ -60,7 +59,6 @@ import {
 // key, decrypts the stored Meta token in memory for the request, and calls Meta with it. The
 // wizard that onboards a number is in onboarding.ts.
 
-const corsHandler = cors({ origin: true });
 
 /** Saves how the number is shown (best-effort; the sidebar falls back to the phone number ID). */
 async function rememberDisplayNumber(phoneNumberId: string, accessToken: string): Promise<void> {
@@ -85,62 +83,55 @@ async function rememberDisplayNumber(phoneNumberId: string, accessToken: string)
 //
 // On success the new URL is recorded on the number's record, so the Dashboard can show
 // it. The browser never writes it.
-export const setWebhook = onRequest((req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method !== 'POST') {
-      res.status(405).send({ ok: false, error: 'Use POST' });
-      return;
-    }
+export const setWebhook: Handler = async (req, res) => {
+  const { phoneNumberId, apiKey, overrideCallbackUrl, noCallback } = (req.body ?? {}) as Partial<SetWebhookRequest>;
+  if (!phoneNumberId || !apiKey || (!overrideCallbackUrl && noCallback !== true)) {
+    res.status(400).send({ ok: false, error: 'phoneNumberId, apiKey and either overrideCallbackUrl or noCallback are required' });
+    return;
+  }
 
-    const { phoneNumberId, apiKey, overrideCallbackUrl, noCallback } = (req.body ?? {}) as Partial<SetWebhookRequest>;
-    if (!phoneNumberId || !apiKey || (!overrideCallbackUrl && noCallback !== true)) {
-      res.status(400).send({ ok: false, error: 'phoneNumberId, apiKey and either overrideCallbackUrl or noCallback are required' });
-      return;
-    }
+  try {
+    const { wabaId, accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
 
     try {
-      const { wabaId, accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
-
-      try {
-        // With a URL it must answer Meta's handshake first. With none, the app is subscribed with no
-        // override and incoming events go to Watobot's own webhook, which discards them.
-        const url = noCallback === true ? undefined : overrideCallbackUrl;
-        if (url) {
-          const check = await verifyEndpointChallenge(url, config.webhookVerifyToken);
-          if (!check.ok) throw new HttpError(400, check.error!);
-        }
-
-        await subscribeApp(wabaId, accessToken, url, config.webhookVerifyToken);
-        await setCallback(String(phoneNumberId), url);
-        await rememberDisplayNumber(String(phoneNumberId), accessToken);
-
-        // A number in the onboarding wizard moves on from here; a finished one just gets its new URL.
-        const doc = (await readNumber(String(phoneNumberId)))!;
-        if (doc.onboarding.step === 'override') {
-          const next = await advanceAfterOverride(String(phoneNumberId), accessToken);
-          const body: OnboardingResponse = { ok: true, ...next };
-          res.status(200).send(body);
-          return;
-        }
-        res.status(200).send({ ok: true });
-      } catch (err) {
-        logEvent('override subscription failed', { phoneNumberId, error: (err as Error).message });
-        await noteOnboardingError(String(phoneNumberId), 'override', (err as Error).message);
-        throw err;
+      // With a URL it must answer Meta's handshake first. With none, the app is subscribed with no
+      // override and incoming events go to Watobot's own webhook, which discards them.
+      const url = noCallback === true ? undefined : overrideCallbackUrl;
+      if (url) {
+        const check = await verifyEndpointChallenge(url, config.webhookVerifyToken);
+        if (!check.ok) throw new HttpError(400, check.error!);
       }
+
+      await subscribeApp(wabaId, accessToken, url, config.webhookVerifyToken);
+      await setCallback(String(phoneNumberId), url);
+      await rememberDisplayNumber(String(phoneNumberId), accessToken);
+
+      // A number in the onboarding wizard moves on from here; a finished one just gets its new URL.
+      const doc = (await readNumber(String(phoneNumberId)))!;
+      if (doc.onboarding.step === 'override') {
+        const next = await advanceAfterOverride(String(phoneNumberId), accessToken);
+        const body: OnboardingResponse = { ok: true, ...next };
+        res.status(200).send(body);
+        return;
+      }
+      res.status(200).send({ ok: true });
     } catch (err) {
-      const status = failedRequest(req, err);
-      res.status(status).send({ ok: false, error: (err as Error).message });
+      logEvent('override subscription failed', { phoneNumberId, error: (err as Error).message });
+      await noteOnboardingError(String(phoneNumberId), 'override', (err as Error).message);
+      throw err;
     }
-  });
-});
+  } catch (err) {
+    const status = failedRequest(req, err);
+    res.status(status).send({ ok: false, error: (err as Error).message });
+  }
+};
 
 // ---- setDisplayName ----
 
 // Asks Meta to review a new display name. Only one change may wait for review at a time: asking again
 // while one is pending (or while Meta's answer can't be read) is refused here, so nobody ends up
 // resubmitting while the first is in review. Needs the Watobot API key, like the other number calls.
-export const setDisplayName = post(async (req, res) => {
+export const setDisplayName: Handler = async (req, res) => {
   const { phoneNumberId, apiKey, displayName } = (req.body ?? {}) as Partial<SetDisplayNameRequest>;
   const name = String(displayName ?? '').trim();
   if (!phoneNumberId || !apiKey || name.length < 3) throw new HttpError(400, 'phoneNumberId, apiKey and a display name of at least 3 characters are required');
@@ -161,55 +152,48 @@ export const setDisplayName = post(async (req, res) => {
   // The new request shows in the stored display name state straight away.
   await refreshHealth({ phoneNumberId: String(phoneNumberId), wabaId, accessToken }).catch(() => undefined);
   res.status(200).send({ ok: true });
-});
+};
 
 // ---- registerNumber ----
 
 // Registers a number for Cloud API use after Embedded Signup, which a brand-new (not
 // coexistence) number needs before it can send or receive. Same auth as setWebhook: the
 // Watobot API key, no sign-in. Meta's error is returned as is, so a failure says why.
-// timeoutSeconds leaves room for Meta's slow register call (see registerPhoneNumber).
-export const registerNumber = onRequest({ timeoutSeconds: 90 }, (req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method !== 'POST') {
-      res.status(405).send({ ok: false, error: 'Use POST' });
-      return;
-    }
+// Meta's register call can be slow, so registerPhoneNumber waits up to 45 s of the function's minute.
+export const registerNumber: Handler = async (req, res) => {
+  const { phoneNumberId, apiKey, pin } = (req.body ?? {}) as Partial<RegisterNumberRequest>;
+  if (!phoneNumberId || !apiKey || !/^\d{6}$/.test(String(pin ?? ''))) {
+    res.status(400).send({ ok: false, error: 'phoneNumberId, apiKey and a 6-digit pin are required' });
+    return;
+  }
 
-    const { phoneNumberId, apiKey, pin } = (req.body ?? {}) as Partial<RegisterNumberRequest>;
-    if (!phoneNumberId || !apiKey || !/^\d{6}$/.test(String(pin ?? ''))) {
-      res.status(400).send({ ok: false, error: 'phoneNumberId, apiKey and a 6-digit pin are required' });
-      return;
-    }
-
+  try {
+    const { accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
     try {
-      const { accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
-      try {
-        // A number that is also on the WhatsApp Business app is already registered. Registering it
-        // for the API alone would take it off the app, so it is refused.
-        const info = await getPhoneNumberInfo(String(phoneNumberId), accessToken);
-        if (info.isOnBizApp === true) {
-          throw new HttpError(409, 'This number is on the WhatsApp Business app, which already registers it. Registering it for the API alone would take it off the app, so it is not done.');
-        }
-        await registerPhoneNumber(String(phoneNumberId), accessToken, String(pin));
-      } catch (err) {
-        await noteOnboardingError(String(phoneNumberId), 'register', (err as Error).message);
-        throw err;
+      // A number that is also on the WhatsApp Business app is already registered. Registering it
+      // for the API alone would take it off the app, so it is refused.
+      const info = await getPhoneNumberInfo(String(phoneNumberId), accessToken);
+      if (info.isOnBizApp === true) {
+        throw new HttpError(409, 'This number is on the WhatsApp Business app, which already registers it. Registering it for the API alone would take it off the app, so it is not done.');
       }
-      await rememberDisplayNumber(String(phoneNumberId), accessToken);
-
-      // The API-only path of the wizard continues with templates once the number is registered.
-      const doc = (await readNumber(String(phoneNumberId)))!;
-      await markRegistered(String(phoneNumberId), doc.onboarding.step === 'register' ? movedTo(doc.onboarding, 'templates') : undefined);
-      logEvent('number registered', { phoneNumberId });
-      const body: OnboardingResponse = { ok: true, step: effectiveStep((await readNumber(String(phoneNumberId)))!) };
-      res.status(200).send(body);
+      await registerPhoneNumber(String(phoneNumberId), accessToken, String(pin));
     } catch (err) {
-      const status = failedRequest(req, err);
-      res.status(status).send({ ok: false, error: (err as Error).message });
+      await noteOnboardingError(String(phoneNumberId), 'register', (err as Error).message);
+      throw err;
     }
-  });
-});
+    await rememberDisplayNumber(String(phoneNumberId), accessToken);
+
+    // The API-only path of the wizard continues with templates once the number is registered.
+    const doc = (await readNumber(String(phoneNumberId)))!;
+    await markRegistered(String(phoneNumberId), doc.onboarding.step === 'register' ? movedTo(doc.onboarding, 'templates') : undefined);
+    logEvent('number registered', { phoneNumberId });
+    const body: OnboardingResponse = { ok: true, step: effectiveStep((await readNumber(String(phoneNumberId)))!) };
+    res.status(200).send(body);
+  } catch (err) {
+    const status = failedRequest(req, err);
+    res.status(status).send({ ok: false, error: (err as Error).message });
+  }
+};
 
 // ---- leaving the API ----
 
@@ -218,7 +202,7 @@ export const registerNumber = onRequest({ timeoutSeconds: 90 }, (req, res) => {
  * number that is also on the WhatsApp Business app can't be deregistered: the way off is to
  * disconnect in the app, so that is what the answer says.
  */
-export const deregisterNumber = post(async (req, res) => {
+export const deregisterNumber: Handler = async (req, res) => {
   const { phoneNumberId, apiKey } = (req.body ?? {}) as Partial<DeregisterNumberRequest>;
   if (!phoneNumberId || !apiKey) throw new HttpError(400, 'phoneNumberId and apiKey are required');
   const { accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
@@ -235,7 +219,7 @@ export const deregisterNumber = post(async (req, res) => {
   await markDeregistered(String(phoneNumberId));
   logEvent('number deregistered', { phoneNumberId });
   res.status(200).send({ ok: true });
-});
+};
 
 /**
  * What leaving Watobot does on Meta's side, for one number: our app stops receiving its webhooks
@@ -244,7 +228,7 @@ export const deregisterNumber = post(async (req, res) => {
  * it, and the way off is the app's own Disconnect, which the answer tells the caller to point out.
  * The records are deleted by the caller afterwards.
  */
-export const disconnectNumber = post(async (req, res) => {
+export const disconnectNumber: Handler = async (req, res) => {
   const { phoneNumberId, apiKey, deregister } = (req.body ?? {}) as Partial<DisconnectNumberRequest>;
   if (!phoneNumberId || !apiKey) throw new HttpError(400, 'phoneNumberId and apiKey are required');
   const { wabaId, accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
@@ -260,7 +244,7 @@ export const disconnectNumber = post(async (req, res) => {
   }
   const body: DisconnectNumberResponse = { ok: true, coexistence, deregistered };
   res.status(200).send(body);
-});
+};
 
 // ---- relayMessage ----
 
@@ -292,9 +276,12 @@ function setRateHeaders(res: express.Response, state: RateState, config: RateLim
   }
 }
 
-const relayApp = express();
-relayApp.use(cors({ origin: true }));
-relayApp.use(express.json());
+// The functions that serve a customer's numbers are Express apps, each one deployed function with its own
+// timeout (the default minute unless noted):
+//   numbers        /numbers/<phone number ID>/...   the relay is registered here; numbersApi.ts adds the rest
+//   templates      /templates/<phone number ID>/... list, create, edit, delete
+//   templatesBulk  /templatesBulk/<id>/...          migrate and import: they go through many templates, so 300 s
+export const numbersApp = newApp();
 
 // The actual product: a proxy in front of Meta's own /{phone-number-id}/messages
 // endpoint. The caller authenticates with their Watobot API key, not a Meta
@@ -304,7 +291,7 @@ relayApp.use(express.json());
 // Because every send passes through here, usage is counted reliably, and rate
 // limiting and per-recipient serialization (upcoming, see README) can be added
 // in this one place.
-relayApp.post('/:phoneNumberId/messages', async (req, res) => {
+numbersApp.post('/:phoneNumberId/messages', async (req, res) => {
   const { phoneNumberId } = req.params;
   const authHeader = req.headers.authorization;
   const key = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
@@ -378,7 +365,7 @@ relayApp.post('/:phoneNumberId/messages', async (req, res) => {
 
 // Where the number stands against its template-send limits, so a sender (or an AI tool) can pace
 // itself: per window what went through, what is left and when it resets.
-relayApp.get('/:phoneNumberId/limits', async (req, res) => {
+numbersApp.get('/:phoneNumberId/limits', async (req, res) => {
   const key = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : undefined;
   if (!key) {
     res.status(401).send({ ok: false, error: 'Missing Authorization: Bearer <your Watobot API key>' });
@@ -392,7 +379,6 @@ relayApp.get('/:phoneNumberId/limits', async (req, res) => {
   }
 });
 
-export const relayMessage = onRequest(relayApp);
 
 // ---- templates ----
 
@@ -457,9 +443,8 @@ export async function importTemplatesFor(phoneNumberId: string, apiKey: string, 
   return { ok: true, created, failed };
 }
 
-const templatesApp = express();
-templatesApp.use(cors({ origin: true }));
-templatesApp.use(express.json());
+const templatesApp = newApp();
+const templatesBulkApp = newApp();
 
 // Message template list / create / edit / delete for a number's WABA, using the stored
 // Meta token. Same auth as the relay: `Authorization: Bearer <Watobot API key>`.
@@ -510,10 +495,10 @@ async function withKeyAnswer(req: express.Request, res: express.Response, run: (
     res.status(failedRequest(req, err)).send({ ok: false, error: (err as Error).message });
   }
 }
-templatesApp.post('/:phoneNumberId/migrate', (req, res) =>
+templatesBulkApp.post('/:phoneNumberId/migrate', (req, res) =>
   withKeyAnswer(req, res, (key) => migrateTemplatesFor(req.params.phoneNumberId, key, req.body?.sourceWabaId)),
 );
-templatesApp.post('/:phoneNumberId/import', (req, res) =>
+templatesBulkApp.post('/:phoneNumberId/import', (req, res) =>
   withKeyAnswer(req, res, (key) => importTemplatesFor(req.params.phoneNumberId, key, req.body?.templates)),
 );
 templatesApp.post('/:phoneNumberId/:templateId', (req, res) => {
@@ -527,5 +512,6 @@ templatesApp.delete('/:phoneNumberId', (req, res) =>
   forward(req, res, 'DELETE', `?name=${encodeURIComponent(String(req.query.name ?? ''))}`),
 );
 
-// Importing creates templates one at a time, which can take a while.
-export const templates = onRequest({ timeoutSeconds: 300 }, templatesApp);
+export const templates = onRequest(templatesApp);
+// Migrating and importing go through many templates (Meta allows 100 creations an hour), so they get longer.
+export const templatesBulk = onRequest({ timeoutSeconds: 300 }, templatesBulkApp);

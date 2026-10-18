@@ -5,6 +5,7 @@ import { exchangeCodeForToken, getDisplayPhoneNumber, getGrantedWabaIds, getPhon
 import type { ExchangeCodeRequest, OnboardingResponse, RotateKeyRequest, SignupEvent } from './helpers/types';
 import { HttpError, requireAuth } from './helpers/auth';
 import { failedRequest, logEvent } from './helpers/log';
+import type { Handler } from './helpers/http';
 import { apiKeyMatchesHash, decryptToken, encryptToken, hashApiKey, isValidApiKey } from './helpers/apiKey';
 import { getUser, readNumber, replaceApiKey, saveNumberToken, setDisplayPhoneNumber, setFirstApiKeyHash, userIdByKeyHash, type UserRecord } from './helpers/model';
 
@@ -160,42 +161,35 @@ const ID_RE = /^\d{1,32}$/;
 // is needed for the exchange, which is why this runs server-side. The plaintext
 // token only lives in memory for this request: it is never returned, stored or
 // logged in the clear.
-export const exchangeCode = onRequest((req, res) => {
-  corsHandler(req, res, async () => {
-    if (req.method !== 'POST') {
-      res.status(405).send({ ok: false, error: 'Use POST' });
-      return;
+export const exchangeCode: Handler = async (req, res) => {
+  try {
+    const userId = await requireAuth(req);
+    const { code, wabaId, phoneNumberId, apiKey, event } = (req.body ?? {}) as Partial<ExchangeCodeRequest>;
+    if (!code || !ID_RE.test(String(wabaId)) || !ID_RE.test(String(phoneNumberId))) {
+      throw new HttpError(400, 'code, wabaId and phoneNumberId are required.');
     }
+    if (event !== 'FINISH' && event !== 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING') {
+      throw new HttpError(400, 'event must be the Embedded Signup event the popup sent.');
+    }
+    await requireUserKey(userId, apiKey);
 
+    const accessToken = await exchangeCodeForToken(code, config.metaAppId, config.metaAppSecret);
+    await verifySignupOwnership(accessToken, String(wabaId), String(phoneNumberId));
+    await storeWabaToken({ userId, wabaId: String(wabaId), phoneNumberId: String(phoneNumberId), accessToken, apiKey: apiKey as string, event });
+    // How the number is shown in the dashboard. Best-effort: it falls back to the phone number ID.
     try {
-      const userId = await requireAuth(req);
-      const { code, wabaId, phoneNumberId, apiKey, event } = (req.body ?? {}) as Partial<ExchangeCodeRequest>;
-      if (!code || !ID_RE.test(String(wabaId)) || !ID_RE.test(String(phoneNumberId))) {
-        throw new HttpError(400, 'code, wabaId and phoneNumberId are required.');
+      const displayPhoneNumber = await getDisplayPhoneNumber(String(phoneNumberId), accessToken);
+      if (displayPhoneNumber) {
+        await setDisplayPhoneNumber(String(phoneNumberId), displayPhoneNumber);
       }
-      if (event !== 'FINISH' && event !== 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING') {
-        throw new HttpError(400, 'event must be the Embedded Signup event the popup sent.');
-      }
-      await requireUserKey(userId, apiKey);
-
-      const accessToken = await exchangeCodeForToken(code, config.metaAppId, config.metaAppSecret);
-      await verifySignupOwnership(accessToken, String(wabaId), String(phoneNumberId));
-      await storeWabaToken({ userId, wabaId: String(wabaId), phoneNumberId: String(phoneNumberId), accessToken, apiKey: apiKey as string, event });
-      // How the number is shown in the dashboard. Best-effort: it falls back to the phone number ID.
-      try {
-        const displayPhoneNumber = await getDisplayPhoneNumber(String(phoneNumberId), accessToken);
-        if (displayPhoneNumber) {
-          await setDisplayPhoneNumber(String(phoneNumberId), displayPhoneNumber);
-        }
-      } catch {
-        // Not fatal.
-      }
-      logEvent('number connected', { phoneNumberId, wabaId, metaEvent: event });
-      const body: OnboardingResponse = { ok: true, step: 'override' };
-      res.status(200).send({ ...body, wabaId, phoneNumberId });
-    } catch (err) {
-      const status = failedRequest(req, err);
-      res.status(status).send({ ok: false, error: (err as Error).message });
+    } catch {
+      // Not fatal.
     }
-  });
-});
+    logEvent('number connected', { phoneNumberId, wabaId, metaEvent: event });
+    const body: OnboardingResponse = { ok: true, step: 'override' };
+    res.status(200).send({ ...body, wabaId, phoneNumberId });
+  } catch (err) {
+    const status = failedRequest(req, err);
+    res.status(status).send({ ok: false, error: (err as Error).message });
+  }
+};

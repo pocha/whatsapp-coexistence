@@ -8,66 +8,89 @@ Firebase Functions, Firestore and Firebase Auth.
 
 ## API
 
-Everything is a Firebase HTTPS function. The base URL is `https://us-central1-wa-coexistence.cloudfunctions.net`, and a function's path is its name (`/setWebhook`), except the two that serve several routes: `relayMessage` and `templates`. Answers are JSON with `ok` (and `error` when `ok` is false), except the relay and the template list/create/edit/delete, which return Meta's response unchanged.
+Everything is a Firebase HTTPS function under `https://us-central1-wa-coexistence.cloudfunctions.net`, and a function is an Express app that routes by the rest of the path. They are grouped by what they work on, each with the phone number ID in the path where there is a number:
+
+| Function | Path | Timeout |
+| --- | --- | --- |
+| `numbers` | `/numbers`, `/numbers/<id>/...`: the number, and the relay | 60 s |
+| `templates` | `/templates/<id>/...`: list, create, edit, delete | 60 s |
+| `templatesBulk` | `/templatesBulk/<id>/...`: migrate and import, which go through many templates | 300 s |
+| `onboarding` | `/onboarding/...`: the wizard | 60 s |
+
+The sign-in (`sendOtp`, `verifyOtp`, `rotateKey`), `webhook`, `mcp` and `joinWaitlist` are separate functions. Answers are JSON with `ok` (and `error` when `ok` is false), except the relay and the template list, create, edit and delete, which return Meta's response unchanged.
 
 Three kinds of credential:
-- **Key**: the Watobot API key, as `Authorization: Bearer <key>` (relay and templates) or as `apiKey` in the body (the rest). It is checked against the account, then used to open the stored Meta token for that one request.
-- **Signed in**: a Firebase ID token, `Authorization: Bearer <id token>`. Used by the dashboard.
+- **Key**: the Watobot API key, as `Authorization: Bearer <key>`. It is checked against the account, then used to open the stored Meta token for that one request. (The wizard's three checks take it as `apiKey` in the body instead, since they may also come from a signed-in browser.)
+- **Signed in**: a Firebase ID token, `Authorization: Bearer <id token>`. Used by the dashboard, for the two reads of a number.
 - **None**: anyone, or Meta.
 
-**Messaging and templates** (for customers' apps; the key is the bearer token; `<id>` is the phone number ID)
+### Numbers: `/numbers`
+
+`<id>` is the phone number ID. Every call takes the key as the bearer token; the two reads also take a sign-in.
 
 | Method and path | What it does | Body |
 | --- | --- | --- |
-| `POST /relayMessage/<id>/messages` | Sends a message through Meta with the stored token. Template sends are rate limited: a refused one gets 429 with `Retry-After`, and every template send answers with `X-RateLimit-Remaining-<Minute|Hour|Day>` and `X-RateLimit-Reset-<...>` (epoch seconds). | Meta's messages body |
-| `GET /relayMessage/<id>/limits` | Where the number stands against its template-send limits, per minute, hour and day window: accepted, attempted, previous window's count, limit, remaining and when it resets. Free-form messages are not limited. | |
-| `GET /templates/<id>` | Lists the account's templates (id, name, status, category, language, components). The response is what `/import` takes. | |
+| `GET /numbers` | The account's numbers: where each is in onboarding (`step`), whether it is on the Business app, the syncs, usage, the sending status and the display name. Never the stored token (`hasToken` only). | |
+| `POST /numbers` | Sign-up: exchanges the Embedded Signup code for the Meta token, checks with Meta that the WABA and phone number really are the signing-up user's (and that no other Watobot account holds the number), stores the token encrypted under the key, and starts the wizard for the number. Signed in, with the key in the body. | `code`, `wabaId`, `phoneNumberId`, `apiKey`, `event` |
+| `GET /numbers/<id>` | One number as above, plus its template-send limits. With the key it also asks Meta right now (`meta`): the number's status and display name approval, quality rating, messaging limit tier, account review and ownership, the apps subscribed with their callback URL override, the token's scopes and expiry, and Meta's own `health_status`. Each part is a separate read, and a part Meta refuses says why. It also stores the sending status (below). Never the token. 404 for a number that is not the caller's. | |
+| `PUT /numbers/<id>/webhook` | Checks the URL answers Meta's handshake, subscribes to it, and records it. During onboarding it also moves the wizard on. With `noCallback` instead of a URL it subscribes with no override: incoming events go to Watobot's own webhook, which discards them, and a coexistence number's contacts and history sync is skipped (Meta allows it once, to a URL). | `overrideCallbackUrl` or `noCallback` |
+| `PUT /numbers/<id>/display-name` | Asks Meta to review a new display name. Refused while an earlier change is still in review, so nobody resubmits while waiting. | `displayName` |
+| `POST /numbers/<id>/register` | Registers an API-only number. Refused for a number on the WhatsApp Business app. Waits up to 45 s for Meta. | `pin` (6 digits) |
+| `POST /numbers/<id>/deregister` | Takes an API-only number off the Cloud API. Refused for a number on the Business app (disconnect there). | |
+| `POST /numbers/<id>/disconnect` | What leaving Watobot does on Meta's side: unsubscribes our app, and de-registers an API-only number if asked. | `deregister` (boolean) |
+| `POST /numbers/<id>/messages` | Sends a message through Meta with the stored token. Template sends are rate limited: a refused one gets 429 with `Retry-After`, and every template send answers with `X-RateLimit-Remaining-<Minute|Hour|Day>` and `X-RateLimit-Reset-<...>` (epoch seconds). A blocked number gets 403 for template sends (below). | Meta's messages body |
+| `GET /numbers/<id>/limits` | Where the number stands against its template-send limits, per minute, hour and day window: accepted, attempted, previous window's count, limit, remaining and when it resets. Free-form messages are not limited. | |
+
+### Templates: `/templates`, `/templatesBulk`
+
+| Method and path | What it does | Body |
+| --- | --- | --- |
+| `GET /templates/<id>` | Lists the account's templates (id, name, status, category, language, components). The response is what `/templatesBulk/<id>/import` takes. | |
 | `POST /templates/<id>` | Creates a template. | Meta's template body |
 | `POST /templates/<id>/<templateId>` | Edits a template. | Meta's template body |
 | `DELETE /templates/<id>?name=<name>` | Deletes every template with that name. | |
-| `POST /templates/<id>/migrate` | Copies approved templates from a previous Messaging account (Watobot must be a partner on it). Answers `outcome: "unreadable"` if we can't read it. | `{ sourceWabaId }` |
-| `POST /templates/<id>/import` | Creates templates from an exported list, up to 100 at a time. | `{ templates }` |
+| `POST /templatesBulk/<id>/migrate` | Copies approved templates from a previous Messaging account (Watobot must be a partner on it). Answers `outcome: "unreadable"` if we can't read it. | `{ sourceWabaId }` |
+| `POST /templatesBulk/<id>/import` | Creates templates from an exported list, up to 100 at a time. | `{ templates }` |
 
-**A number** (key in the body: `phoneNumberId` and `apiKey` in every one)
-
-| Method and path | What it does | Other body fields |
-| --- | --- | --- |
-| `POST /setWebhook` | Checks the URL answers Meta's handshake, subscribes to it, and records it. During onboarding it also moves the wizard on. With `noCallback` instead of a URL it subscribes with no override: incoming events go to Watobot's own webhook, which discards them, and a coexistence number's contacts and history sync is skipped (Meta allows it once, to a URL). | `overrideCallbackUrl` or `noCallback` |
-| `POST /registerNumber` | Registers an API-only number. Refused for a number on the WhatsApp Business app. | `pin` (6 digits) |
-| `POST /deregisterNumber` | Takes an API-only number off the Cloud API. Refused for a number on the Business app (disconnect there). | |
-| `POST /disconnectNumber` | What leaving Watobot does on Meta's side: unsubscribes our app, and de-registers an API-only number if asked. | `deregister` (boolean) |
-
-**Onboarding** (the wizard)
+### The wizard: `/onboarding`
 
 | Method and path | Credential | What it does | Body |
 | --- | --- | --- | --- |
-| `POST /checkCallbackUrl` | Signed in or key | Does Meta's handshake against a callback URL, before there is a number. | `overrideCallbackUrl` |
-| `POST /sendTestEvents` | Signed in or key | Posts one test webhook of each kind to a URL, with fresh codes. One send per 30 seconds. | `overrideCallbackUrl` |
-| `POST /verifyTestCodes` | Signed in or key | Says which of the four typed codes match the last send. | `codes` |
-| `POST /exchangeCode` | Signed in + `apiKey` | Exchanges the Embedded Signup code for the Meta token, checks with Meta that the WABA and phone number really are the signing-up user's (and that no other Watobot account holds the number), stores the token encrypted under the key, and starts the wizard for the number. | `code`, `wabaId`, `phoneNumberId`, `apiKey`, `event` |
-| `POST /startSync` | Key | Requests the contacts, then the history sync (each once). | `phoneNumberId`, `apiKey`, `syncType` |
-| `POST /skipSync` | Key | Skips the contacts and history sync for good (Meta allows each once). Only at the sync step. | `phoneNumberId`, `apiKey` |
-| `POST /setOnboardingStep` | Key | Moves the wizard between the steps the user chooses or confirms. | `phoneNumberId`, `apiKey`, `step` |
+| `POST /onboarding/callback-check` | Signed in or key | Does Meta's handshake against a callback URL, before there is a number. | `overrideCallbackUrl` (and `apiKey` for a key) |
+| `POST /onboarding/test-events` | Signed in or key | Posts one test webhook of each kind to a URL, with fresh codes. One send per 30 seconds. | `overrideCallbackUrl` |
+| `POST /onboarding/test-codes` | Signed in or key | Says which of the four typed codes match the last send. | `codes` |
+| `PUT /onboarding/<id>/step` | Key | Moves the wizard between the steps the user chooses or confirms. | `step` |
+| `POST /onboarding/<id>/sync` | Key | Requests the contacts, then the history sync (each once). | `syncType` |
+| `POST /onboarding/<id>/sync/skip` | Key | Skips the contacts and history sync for good (Meta allows each once). Only at the sync step. | |
 
-**Account**
+**Sending status.** Each number keeps one status from the last time Meta was asked about it: when the key was used to read the number (`GET /numbers/<id>`, which is the dashboard's refresh and an AI tool's `get_number`), at the end of onboarding, and when Meta refuses a send because the account can't send. It does not update on its own: the user fixes what it names and refreshes. The relay uses it, and the rules are fixed in `functions/src/helpers/health.ts`:
+
+| Status | When | What the relay does |
+| --- | --- | --- |
+| `blocked` | Meta says the account (WABA) or the number is blocked, for example a payment method problem | Template messages get `403` with Meta's reasons and fixes. Free-form messages still go through. |
+| `limited` | The number itself is limited, which for a new number means its display name is not approved yet | At most 5 template messages a day (our own cautious figure; Meta's documentation gives none). Beyond that the usual 429. |
+| `ok` | Anything else. A business that is limited only because it is not verified is shown as information and changes nothing | Normal limits. |
+
+The status is shown on the number's page in the dashboard, with the reasons and a refresh button that needs the key.
+
+### The account and the rest
 
 | Method and path | Credential | What it does | Body |
 | --- | --- | --- | --- |
 | `POST /sendOtp` | None | Sends a sign-in code on WhatsApp. | `phone` |
 | `POST /verifyOtp` | None | Checks the code and signs in (or resets a lost key). | `phone`, `code`, `apiKey?`, `resetApiKey?` |
-| `POST /listNumbers` | Signed in or key | The account's numbers: where each is in onboarding (`step`), whether it is on the Business app, the syncs, usage. Never the stored token (`hasToken` only). | (`apiKey` for a key) |
-| `POST /getNumber` | Signed in or key | One number, as above, plus its template-send limits. With the key it also reads what Meta says right now (`meta`): status, display name approval, quality rating, messaging limit tier, account review and ownership, the apps subscribed with their callback URL override, and the token's scopes and expiry. Each part is separate, and a part Meta refuses says why. Never the token. 404 for a number that is not the caller's. | `phoneNumberId` |
 | `POST /rotateKey` | Signed in | Replaces the API key and re-encrypts every stored token. | `oldApiKey`, `newApiKey` |
 | `POST /joinWaitlist` | None | Counts a waitlist click. | |
+| `POST /mcp` | Key (bearer, or `/mcp/<key>`) | The hosted MCP server (see below). | MCP messages |
 
-**Meta calls this one**
+### Meta calls this one
 
 | Method and path | What it does |
 | --- | --- |
 | `GET /webhook` | Answers Meta's verification handshake. |
 | `POST /webhook` | Receives the webhooks that can't be overridden (template and account-level updates). Checks Meta's `X-Hub-Signature-256` (an HMAC of the body with the app secret), refuses anything else with 401, and acknowledges the rest. Nothing is done with them yet: Meta emails the account's admins about the ones that matter. |
 
-The request bodies are typed in `functions/src/helpers/types.ts`.
+The request bodies are typed in `functions/src/helpers/types.ts`, and each function's routes are listed at the top of `numbersApi.ts`, `onboardingApi.ts` and `wabaManager.ts` (templates).
 
 ## MCP server
 
@@ -360,12 +383,12 @@ assume it is served from the root of its domain.
    ```
 
    Redeploy the Functions whenever one changes: the dashboard and the MCP server call them by name, so a
-   page or an MCP release that uses a new function (for example `listNumbers` and `getNumber`) needs the
+   page or an MCP release that uses a new route (for example `GET /numbers`) needs the
    Functions deployed first. `META_APP_SECRET` must be in `functions/.env`: it is how `webhook` checks that
    a request was signed by Meta, and anything else gets a 401.
 5. Read what the Functions did in Cloud Logging (or `firebase functions:log`). Each failed request, each
    failed Meta call and each state change (number connected, registered, synced, disconnected) is a
-   structured entry: filter by `jsonPayload.fn="registerNumber"`, `jsonPayload.phoneNumberId="…"` or
+   structured entry: filter by `jsonPayload.fn="numbers"`, `jsonPayload.phoneNumberId="…"` or
    `severity>=ERROR`. Keys, tokens, OTP codes and message bodies are never logged.
 
 **MCP server, hosted.** It is the `mcp` Function, deployed with the others. Its address is
@@ -477,7 +500,7 @@ gives Watobot the token, which it stores encrypted under your key and opens only
    and run it in a terminal:
 
    ```bash
-   curl -X POST https://us-central1-wa-coexistence.cloudfunctions.net/relayMessage/<phone number ID>/messages \
+   curl -X POST https://us-central1-wa-coexistence.cloudfunctions.net/numbers/<phone number ID>/messages \
      -H "Authorization: Bearer <your Watobot API key>" -H "Content-Type: application/json" \
      -d '{"messaging_product":"whatsapp","to":"<recipient, digits only>","type":"text","text":{"body":"Hello from Watobot"}}'
    ```
@@ -486,7 +509,7 @@ gives Watobot the token, which it stores encrypted under your key and opens only
    the number in the last 24 hours; otherwise send a template message (see
    [Rate limits](#rate-limits)).
 
-To check the result without the dashboard, `GET /relayMessage/<phone number ID>/limits` with the same bearer key
+To check the result without the dashboard, `GET /numbers/<phone number ID>/limits` with the same bearer key
 shows the number's send limits, and the MCP server's `get_number` and `get_limits` tools show the state.
 
 ![A WABA page with the incoming-message URL saved](public/assets/24.waba-page.png)

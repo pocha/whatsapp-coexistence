@@ -111,7 +111,7 @@ export async function registerPhoneNumber(phoneNumberId: string, accessToken: st
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ messaging_product: 'whatsapp', pin }),
-  }, 60000); // registering can take Meta well over the usual 10 seconds
+  }, 45000); // registering can take Meta well over the usual 10 seconds, but the function's whole minute has to cover it
 }
 
 /**

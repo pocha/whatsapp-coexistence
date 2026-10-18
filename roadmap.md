@@ -8,8 +8,8 @@ Last reviewed 2026-10-17. The functions that exist are listed in the README's AP
 ### Built
 - [x] Phone + WhatsApp OTP sign-in, per-account Watobot API key, key rotation
 - [x] Meta token stored encrypted under the user's Watobot API key (decrypted in memory per request)
-- [x] Message relay, incoming-URL override (`setWebhook`), template manager (list, create, edit, delete)
-- [x] `registerNumber` (used by the wizard's register step)
+- [x] Message relay, incoming-URL override (`PUT /numbers/<id>/webhook`), template manager (list, create, edit, delete)
+- [x] `POST /numbers/<id>/register` (used by the wizard's register step)
 - [x] Rate limiting for template sends (ramp-up, attempts vs accepted, per-number override) and usage counters
 - [x] Embedded Signup launched with `featureType: whatsapp_business_app_onboarding`
 - [x] App-level webhook fields subscribed (checked through the Meta MCP, 2026-10-16): `account_alerts`, `account_review_update`, `account_update`, `message_template_quality_update`, `message_template_status_update`, `messages`, `phone_number_name_update`, `phone_number_quality_update`, `security`, `history`, `smb_message_echoes`, `smb_app_state_sync`
@@ -43,11 +43,15 @@ A step-by-step wizard: `checks → Meta onboarding → callback override → (co
 - [x] The wizard keeps the source account ID on the number's document once it exists; before that it lives only in the page. Watobot's business portfolio ID for the partner share is `1821963108976783`.
 - [x] Fallback: create templates in the template manager, or skip for now.
 
+- [x] **The API is grouped by resource,** with the key as the bearer token: `/numbers/<id>/...`, `/templates/<id>/...`, `/templatesBulk/<id>/...` (the 300 s one), `/onboarding/...`. The old one-function-per-call names are gone.
+- [x] **Sending status:** Meta's `health_status` is read when the key is used to read a number, stored as one status with its reasons (`blocked`, `limited`, `ok`), and used by the relay: a blocked number sends no template messages, a limited one five a day. Shown on the number page with a refresh. Not re-checked on its own; a Meta refusal that says the account cannot send also sets it.
+- [x] **Display name requests** (`PUT /numbers/<id>/display-name`): one change at a time, refused while one is in review.
+
 ### P1: moving in and out
-- [x] Disconnect / leave Watobot: Delete account first disconnects each number from Meta (`disconnectNumber`: unsubscribe our app, and de-register an API-only number unless the user unticks it; a coexistence number is only unsubscribed, and the user is told to disconnect it in the Business app), then deletes the records. Needs the API key; "I've lost my key" skips the Meta calls.
-- [x] Deregister endpoint, standard numbers only (`deregisterNumber`; Meta's deregister can't be used on a number that is on both the app and the API)
+- [x] Disconnect / leave Watobot: Delete account first disconnects each number from Meta (`POST /numbers/<id>/disconnect`: unsubscribe our app, and de-register an API-only number unless the user unticks it; a coexistence number is only unsubscribed, and the user is told to disconnect it in the Business app), then deletes the records. Needs the API key; "I've lost my key" skips the Meta calls.
+- [x] Deregister endpoint, standard numbers only (`POST /numbers/<id>/deregister`; Meta's deregister can't be used on a number that is on both the app and the API)
 - [ ] Ownership on the number page: show whether the number's Messaging account belongs to the user's own portfolio or to a previous provider (the template migration depends on it)
-- [x] **Rate-limit read API and headers:** `GET /relayMessage/<id>/limits`, and `X-RateLimit-Remaining-*` / `X-RateLimit-Reset-*` headers on template sends, so a client (or an AI tool) can pace itself.
+- [x] **Rate-limit read API and headers:** `GET /numbers/<id>/limits`, and `X-RateLimit-Remaining-*` / `X-RateLimit-Reset-*` headers on template sends, so a client (or an AI tool) can pace itself.
 
 ### P2: reliability and trust
 - [ ] Template status and quality shown in the dashboard, and alerts on `message_template_status_update` / `message_template_quality_update` (not built; Meta emails the admins about template decisions)

@@ -1,6 +1,6 @@
 import { HttpError } from './helpers/auth';
 import { authenticateKey, requireCaller } from './accounts';
-import { post } from './helpers/http';
+import { post, type Handler } from './helpers/http';
 import { listNumbersForUser, readNumber } from './helpers/model';
 import { numberView, relayLimits } from './helpers/numberView';
 import { refreshHealth } from './helpers/healthRefresh';
@@ -10,13 +10,13 @@ import { logEvent } from './helpers/log';
 // Reads for the dashboard and the MCP: what numbers an account has and where each stands. They
 // answer the caller about their own numbers only, and never carry the stored token (numberView).
 
-export const listNumbers = post(async (req, res) => {
+export const listNumbers: Handler = async (req, res) => {
   const userId = await requireCaller(req);
   const body: ListNumbersResponse = { ok: true, numbers: (await listNumbersForUser(userId)).map(numberView) };
   res.status(200).send(body);
-});
+};
 
-export const getNumber = post(async (req, res) => {
+export const getNumber: Handler = async (req, res) => {
   const userId = await requireCaller(req);
   const phoneNumberId = String(req.body?.phoneNumberId ?? '');
   const doc = phoneNumberId ? await readNumber(phoneNumberId) : undefined;
@@ -37,4 +37,4 @@ export const getNumber = post(async (req, res) => {
     }
   }
   res.status(200).send(body);
-});
+};

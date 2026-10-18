@@ -57,17 +57,17 @@ export function createServer(ctx: Context): McpServer {
   const callbackUrl = z.string().url().describe('The public https URL that receives the WhatsApp events');
 
   // ---- what the account has ----
-  tool('list_numbers', 'Lists your numbers and where each is in onboarding (the "step"), whether it is also on the WhatsApp Business app, and when the syncs were requested.', {}, () => callFunction('listNumbers'), { readOnly: true });
-  tool('get_number', 'One number\'s state and its template-send limits, plus what Meta says about it right now: messaging limit tier, quality rating, display name status, account review, ownership, the callback URL override and the stored token\'s scopes. Each part of Meta\'s answer is separate, so a part that failed says why.', { phoneNumberId }, (a) => callFunction('getNumber', a), { readOnly: true });
+  tool('list_numbers', 'Lists your numbers and where each is in onboarding (the "step"), whether it is also on the WhatsApp Business app, and when the syncs were requested.', {}, () => callWithBearer('GET', 'numbers'), { readOnly: true });
+  tool('get_number', 'One number\'s state and its template-send limits, plus what Meta says about it right now: messaging limit tier, quality rating, display name status, account review, ownership, the callback URL override and the stored token\'s scopes. Each part of Meta\'s answer is separate, so a part that failed says why.', { phoneNumberId }, (a) => callWithBearer('GET', `numbers/${a.phoneNumberId}`), { readOnly: true });
 
   // ---- before the number exists ----
-  tool('check_callback_url', 'Does Meta\'s handshake against your callback URL, to see it answers before onboarding.', { overrideCallbackUrl: callbackUrl }, (a) => callFunction('checkCallbackUrl', a), { readOnly: true });
-  tool('send_test_events', 'Posts one test event of each kind (message, echo, contacts, history) to your callback URL, each with a code your endpoint should store. One send per 30 seconds.', { overrideCallbackUrl: callbackUrl }, (a) => callFunction('sendTestEvents', a));
+  tool('check_callback_url', 'Does Meta\'s handshake against your callback URL, to see it answers before onboarding.', { overrideCallbackUrl: callbackUrl }, (a) => callFunction('onboarding/callback-check', a), { readOnly: true });
+  tool('send_test_events', 'Posts one test event of each kind (message, echo, contacts, history) to your callback URL, each with a code your endpoint should store. One send per 30 seconds.', { overrideCallbackUrl: callbackUrl }, (a) => callFunction('onboarding/test-events', a));
   tool(
     'verify_test_codes',
     'Says which of the codes the person read from their endpoint match the last send_test_events.',
     { message: z.string().optional(), echo: z.string().optional(), contacts: z.string().optional(), history: z.string().optional() },
-    (codes) => callFunction('verifyTestCodes', { codes }),
+    (codes) => callFunction('onboarding/test-codes', { codes }),
     { readOnly: true },
   );
   tool(
@@ -83,33 +83,33 @@ export function createServer(ctx: Context): McpServer {
     'set_webhook',
     'Points the number\'s incoming events at a callback URL (checks it answers Meta\'s handshake first), or with noCallback=true at none: then incoming messages and delivery receipts reach no app of the person\'s, and the one-time contacts and history sync is skipped.',
     { phoneNumberId, overrideCallbackUrl: callbackUrl.optional(), noCallback: z.boolean().optional() },
-    (a) => callFunction('setWebhook', a),
+    ({ phoneNumberId, ...body }) => callWithBearer('PUT', `numbers/${phoneNumberId}/webhook`, body),
   );
   tool(
     'set_display_name',
     'Asks Meta to review a new display name for the number. Only one change can be in review at a time, so it refuses while one is pending. Meta\'s decision takes a while: check get_number\'s displayName for the status, and do not ask again meanwhile.',
     { phoneNumberId, displayName: z.string().min(3) },
-    (a) => callFunction('setDisplayName', a),
+    ({ phoneNumberId, ...body }) => callWithBearer('PUT', `numbers/${phoneNumberId}/display-name`, body),
   );
-  tool('skip_sync', 'Coexistence only: skips the contacts and history sync for good (Meta allows each once, within 24 hours of onboarding). Ask the person first.', { phoneNumberId }, (a) => callFunction('skipSync', a), { destructive: true });
-  tool('start_sync', 'Coexistence only: asks Meta to send the contacts, or the history, to the callback URL. Each can be requested once, contacts first, within 24 hours of onboarding.', { phoneNumberId, syncType: z.enum(['contacts', 'history']) }, (a) => callFunction('startSync', a));
-  tool('register_number', 'API-only numbers: registers the number for the Cloud API with a six-digit PIN (two-step verification). Refused for a number on the WhatsApp Business app.', { phoneNumberId, pin: z.string().regex(/^\d{6}$/) }, (a) => callFunction('registerNumber', a));
-  tool('set_onboarding_step', 'Moves the wizard on when the person chooses or confirms: "register" (API only, from "not on the app"), "templates" (after the syncs) or "done".', { phoneNumberId, step: z.enum(['register', 'templates', 'done']) }, (a) => callFunction('setOnboardingStep', a));
+  tool('skip_sync', 'Coexistence only: skips the contacts and history sync for good (Meta allows each once, within 24 hours of onboarding). Ask the person first.', { phoneNumberId }, (a) => callWithBearer('POST', `onboarding/${a.phoneNumberId}/sync/skip`), { destructive: true });
+  tool('start_sync', 'Coexistence only: asks Meta to send the contacts, or the history, to the callback URL. Each can be requested once, contacts first, within 24 hours of onboarding.', { phoneNumberId, syncType: z.enum(['contacts', 'history']) }, ({ phoneNumberId, ...body }) => callWithBearer('POST', `onboarding/${phoneNumberId}/sync`, body));
+  tool('register_number', 'API-only numbers: registers the number for the Cloud API with a six-digit PIN (two-step verification). Refused for a number on the WhatsApp Business app.', { phoneNumberId, pin: z.string().regex(/^\d{6}$/) }, ({ phoneNumberId, ...body }) => callWithBearer('POST', `numbers/${phoneNumberId}/register`, body));
+  tool('set_onboarding_step', 'Moves the wizard on when the person chooses or confirms: "register" (API only, from "not on the app"), "templates" (after the syncs) or "done".', { phoneNumberId, step: z.enum(['register', 'templates', 'done']) }, ({ phoneNumberId, ...body }) => callWithBearer('PUT', `onboarding/${phoneNumberId}/step`, body));
 
   // ---- sending ----
-  tool('send_message', 'Sends a message through Watobot to Meta. The body is Meta\'s messages body (messaging_product, to, type, ...). Template sends are limited; free-form replies are not.', { phoneNumberId, message: z.record(z.string(), z.unknown()).describe('Meta\'s /messages request body') }, (a) => callWithBearer('POST', `relayMessage/${a.phoneNumberId}/messages`, a.message));
-  tool('get_limits', 'Where the number stands against its template-send limits per minute, hour and day: how many went through, how many are left, when each window resets.', { phoneNumberId }, (a) => callWithBearer('GET', `relayMessage/${a.phoneNumberId}/limits`), { readOnly: true });
+  tool('send_message', 'Sends a message through Watobot to Meta. The body is Meta\'s messages body (messaging_product, to, type, ...). Template sends are limited; free-form replies are not.', { phoneNumberId, message: z.record(z.string(), z.unknown()).describe('Meta\'s /messages request body') }, (a) => callWithBearer('POST', `numbers/${a.phoneNumberId}/messages`, a.message));
+  tool('get_limits', 'Where the number stands against its template-send limits per minute, hour and day: how many went through, how many are left, when each window resets.', { phoneNumberId }, (a) => callWithBearer('GET', `numbers/${a.phoneNumberId}/limits`), { readOnly: true });
 
   // ---- templates ----
   tool('list_templates', 'Lists the number\'s message templates (the output is what import_templates takes).', { phoneNumberId }, (a) => callWithBearer('GET', `templates/${a.phoneNumberId}`), { readOnly: true });
   tool('create_template', 'Creates a message template (Meta\'s template body). Meta reviews it, which can take up to 24 hours.', { phoneNumberId, template: z.record(z.string(), z.unknown()) }, (a) => callWithBearer('POST', `templates/${a.phoneNumberId}`, a.template));
   tool('delete_template', 'Deletes every template with that name.', { phoneNumberId, name: z.string().min(1) }, (a) => callWithBearer('DELETE', `templates/${a.phoneNumberId}?name=${encodeURIComponent(a.name)}`), { destructive: true });
-  tool('migrate_templates', 'Copies approved templates from the number\'s previous Messaging account (Watobot must be a partner on it). Says "unreadable" when it can\'t read that account: then ask the previous provider for an export and use import_templates.', { phoneNumberId, sourceWabaId: z.string().regex(/^\d{8,20}$/).describe('The previous Messaging account ID (previously called WABA ID)') }, (a) => callWithBearer('POST', `templates/${a.phoneNumberId}/migrate`, { sourceWabaId: a.sourceWabaId }));
-  tool('import_templates', 'Creates templates from an export of the previous provider (Meta\'s message_templates response), up to 100 at a time.', { phoneNumberId, templates: z.unknown().describe('The exported list, or Meta\'s whole response') }, (a) => callWithBearer('POST', `templates/${a.phoneNumberId}/import`, { templates: a.templates }));
+  tool('migrate_templates', 'Copies approved templates from the number\'s previous Messaging account (Watobot must be a partner on it). Says "unreadable" when it can\'t read that account: then ask the previous provider for an export and use import_templates.', { phoneNumberId, sourceWabaId: z.string().regex(/^\d{8,20}$/).describe('The previous Messaging account ID (previously called WABA ID)') }, (a) => callWithBearer('POST', `templatesBulk/${a.phoneNumberId}/migrate`, { sourceWabaId: a.sourceWabaId }));
+  tool('import_templates', 'Creates templates from an export of the previous provider (Meta\'s message_templates response), up to 100 at a time.', { phoneNumberId, templates: z.unknown().describe('The exported list, or Meta\'s whole response') }, (a) => callWithBearer('POST', `templatesBulk/${a.phoneNumberId}/import`, { templates: a.templates }));
 
   // ---- leaving ----
-  tool('deregister_number', 'API-only numbers: takes the number off the Cloud API (it can then be registered elsewhere). Refused for a number on the WhatsApp Business app: disconnect it in that app.', { phoneNumberId }, (a) => callFunction('deregisterNumber', a), { destructive: true });
-  tool('disconnect_number', 'What leaving Watobot does on Meta\'s side: unsubscribes Watobot from the number, and with deregister=true also de-registers an API-only number. Messages stop arriving.', { phoneNumberId, deregister: z.boolean().default(false) }, (a) => callFunction('disconnectNumber', a), { destructive: true });
+  tool('deregister_number', 'API-only numbers: takes the number off the Cloud API (it can then be registered elsewhere). Refused for a number on the WhatsApp Business app: disconnect it in that app.', { phoneNumberId }, (a) => callWithBearer('POST', `numbers/${a.phoneNumberId}/deregister`), { destructive: true });
+  tool('disconnect_number', 'What leaving Watobot does on Meta\'s side: unsubscribes Watobot from the number, and with deregister=true also de-registers an API-only number. Messages stop arriving.', { phoneNumberId, deregister: z.boolean().default(false) }, ({ phoneNumberId, ...body }) => callWithBearer('POST', `numbers/${phoneNumberId}/disconnect`, body), { destructive: true });
 
   return server;
 }
