@@ -1,7 +1,7 @@
 import { onRequest, type Request } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { config } from './helpers/config';
-import { exchangeCodeForToken, getDisplayPhoneNumber } from './helpers/graphApi';
+import { exchangeCodeForToken, getDisplayPhoneNumber, getGrantedWabaIds, getPhoneNumberInfo, wabaHasPhoneNumber } from './helpers/graphApi';
 import type { ExchangeCodeRequest, OnboardingResponse, RotateKeyRequest, SignupEvent } from './helpers/types';
 import { HttpError, requireAuth } from './helpers/auth';
 import { failedRequest, logEvent } from './helpers/log';
@@ -80,13 +80,41 @@ export async function storeWabaToken(args: {
   apiKey: string;
   event: SignupEvent;
 }): Promise<void> {
-  await saveNumberToken({
+  const saved = await saveNumberToken({
     userId: args.userId,
     wabaId: args.wabaId,
     phoneNumberId: args.phoneNumberId,
     encAccessToken: encryptToken(args.accessToken, args.apiKey),
     event: args.event,
   });
+  if (saved === 'owned_by_other') throw new HttpError(409, 'This number is already connected to another Watobot account.');
+}
+
+/**
+ * The WABA and phone number IDs come from the user's browser, so before storing a token under them
+ * they are checked against what Meta says about the token: the WABA must be one the token was granted,
+ * and the number must belong to it. If Meta's list of a WABA's numbers can't be read, the weaker check
+ * is that the token can read the number at all, which still stops one customer claiming another's
+ * number. The fallback is logged, so we can see if it is ever the normal path.
+ */
+export async function verifySignupOwnership(accessToken: string, wabaId: string, phoneNumberId: string): Promise<void> {
+  const refused = new HttpError(403, 'Meta does not show that number under the account you signed in with.');
+  const granted = await getGrantedWabaIds(accessToken, config.metaAppId, config.metaAppSecret);
+  if (!granted.includes(wabaId)) throw refused;
+
+  let listed: boolean;
+  try {
+    listed = await wabaHasPhoneNumber(wabaId, phoneNumberId, accessToken);
+  } catch (err) {
+    logEvent('ownership check fell back', { wabaId, phoneNumberId, error: (err as Error).message.slice(0, 200) });
+    try {
+      await getPhoneNumberInfo(phoneNumberId, accessToken);
+    } catch {
+      throw refused;
+    }
+    return;
+  }
+  if (!listed) throw refused;
 }
 
 const corsHandler = cors({ origin: true });
@@ -151,6 +179,7 @@ export const exchangeCode = onRequest((req, res) => {
       await requireUserKey(userId, apiKey);
 
       const accessToken = await exchangeCodeForToken(code, config.metaAppId, config.metaAppSecret);
+      await verifySignupOwnership(accessToken, String(wabaId), String(phoneNumberId));
       await storeWabaToken({ userId, wabaId: String(wabaId), phoneNumberId: String(phoneNumberId), accessToken, apiKey: apiKey as string, event });
       // How the number is shown in the dashboard. Best-effort: it falls back to the phone number ID.
       try {

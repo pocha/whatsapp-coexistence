@@ -6,6 +6,7 @@ const http = require('node:http');
 function startMetaStub(port) {
   // Every request the stub got, so a test can check that something was (or was not) called.
   const calls = [];
+  let granted = null;
   const server = http.createServer((req, res) => {
     res.setHeader('Content-Type', 'application/json');
 
@@ -15,8 +16,31 @@ function startMetaStub(port) {
     }
     calls.push(`${req.method} ${req.url}`);
 
+    // A signup code of the form c:<WABA ID> grants that WABA to the token it is exchanged for.
+    // (Tests run one signup at a time, so the last grant is the one debug_token reports.)
     if (req.method === 'GET' && req.url.startsWith('/oauth/access_token')) {
+      const grant = new URL(req.url, 'http://x').searchParams.get('code')?.match(/^c:(\d+)$/);
+      granted = grant ? grant[1] : null;
       res.writeHead(200).end(JSON.stringify({ access_token: 'stub-access-token' }));
+      return;
+    }
+
+    if (req.method === 'GET' && req.url.startsWith('/debug_token')) {
+      res.writeHead(200).end(
+        JSON.stringify({ data: { is_valid: true, granular_scopes: [{ scope: 'whatsapp_business_management', target_ids: granted ? [granted] : [] }] } }),
+      );
+      return;
+    }
+
+    // A WABA's phone numbers: WABA 9<n> holds number <n> (and 111 holds 222). WABA 9777 can't be read.
+    const numbersOfWaba = req.url.match(/^\/(\d+)\/phone_numbers\?/);
+    if (req.method === 'GET' && numbersOfWaba) {
+      if (numbersOfWaba[1] === '9777') {
+        res.writeHead(400).end(JSON.stringify({ error: { message: 'meta-stub: cannot list' } }));
+        return;
+      }
+      const own = numbersOfWaba[1] === '111' ? '222' : numbersOfWaba[1].slice(1);
+      res.writeHead(200).end(JSON.stringify({ data: [{ id: own }] }));
       return;
     }
 

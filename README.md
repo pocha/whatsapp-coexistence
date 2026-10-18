@@ -44,7 +44,7 @@ Three kinds of credential:
 | `POST /checkCallbackUrl` | Signed in or key | Does Meta's handshake against a callback URL, before there is a number. | `overrideCallbackUrl` |
 | `POST /sendTestEvents` | Signed in or key | Posts one test webhook of each kind to a URL, with fresh codes. One send per 30 seconds. | `overrideCallbackUrl` |
 | `POST /verifyTestCodes` | Signed in or key | Says which of the four typed codes match the last send. | `codes` |
-| `POST /exchangeCode` | Signed in + `apiKey` | Exchanges the Embedded Signup code for the Meta token, stores it encrypted under the key, and starts the wizard for the number. | `code`, `wabaId`, `phoneNumberId`, `apiKey`, `event` |
+| `POST /exchangeCode` | Signed in + `apiKey` | Exchanges the Embedded Signup code for the Meta token, checks with Meta that the WABA and phone number really are the signing-up user's (and that no other Watobot account holds the number), stores the token encrypted under the key, and starts the wizard for the number. | `code`, `wabaId`, `phoneNumberId`, `apiKey`, `event` |
 | `POST /startSync` | Key | Requests the contacts, then the history sync (each once). | `phoneNumberId`, `apiKey`, `syncType` |
 | `POST /skipSync` | Key | Skips the contacts and history sync for good (Meta allows each once). Only at the sync step. | `phoneNumberId`, `apiKey` |
 | `POST /setOnboardingStep` | Key | Moves the wizard between the steps the user chooses or confirms. | `phoneNumberId`, `apiKey`, `step` |

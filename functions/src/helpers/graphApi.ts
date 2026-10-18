@@ -46,6 +46,27 @@ export async function subscribeApp(
   });
 }
 
+/**
+ * The WABAs this token was granted `whatsapp_business_management` for, from Meta's Debug Token
+ * endpoint (`granular_scopes`), so a WABA ID is known to be one the signing-up user really shared
+ * and is not just what their browser said. Authorised as the app, with its ID and secret.
+ */
+export async function getGrantedWabaIds(accessToken: string, appId: string, appSecret: string): Promise<string[]> {
+  const params = new URLSearchParams({ input_token: accessToken, access_token: `${appId}|${appSecret}` });
+  const body = await graphFetch(`/debug_token?${params.toString()}`, { method: 'GET' });
+  const scopes: { scope?: string; target_ids?: string[] }[] = body?.data?.granular_scopes ?? [];
+  return scopes.filter((s) => s.scope === 'whatsapp_business_management').flatMap((s) => (s.target_ids ?? []).map(String));
+}
+
+/** Whether the WABA's own list of phone numbers has this one (the first 100 are read). */
+export async function wabaHasPhoneNumber(wabaId: string, phoneNumberId: string, accessToken: string): Promise<boolean> {
+  const body = await graphFetch(`/${encodeURIComponent(wabaId)}/phone_numbers?fields=id&limit=100`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return ((body?.data ?? []) as { id?: string }[]).some((n) => String(n.id) === phoneNumberId);
+}
+
 /** The number as people see it, e.g. "+1 555-339-3615". */
 export async function getDisplayPhoneNumber(phoneNumberId: string, accessToken: string): Promise<string | undefined> {
   const body = await graphFetch(`/${encodeURIComponent(phoneNumberId)}?fields=display_phone_number`, {

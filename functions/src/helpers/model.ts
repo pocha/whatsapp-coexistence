@@ -149,21 +149,29 @@ export async function saveNumberToken(args: {
   phoneNumberId: string;
   encAccessToken: EncryptedToken;
   event: SignupEvent;
-}): Promise<void> {
-  await phoneNumberRef(args.phoneNumberId).set(
-    {
-      userId: args.userId,
-      wabaId: args.wabaId,
-      phoneNumberId: args.phoneNumberId,
-      encAccessToken: args.encAccessToken,
-      onboarding: { step: 'override', event: args.event, updatedAt: Date.now() },
-      sync: FieldValue.delete(),
-      isOnBizApp: FieldValue.delete(),
-      platformType: FieldValue.delete(),
-      metaStatus: FieldValue.delete(),
-    },
-    { merge: true },
-  );
+}): Promise<'ok' | 'owned_by_other'> {
+  const ref = phoneNumberRef(args.phoneNumberId);
+  return db().runTransaction(async (tx) => {
+    const existing = numberOf(await tx.get(ref));
+    // A number that belongs to another Watobot account is never taken over by a sign-up.
+    if (existing && existing.userId !== args.userId) return 'owned_by_other' as const;
+    tx.set(
+      ref,
+      {
+        userId: args.userId,
+        wabaId: args.wabaId,
+        phoneNumberId: args.phoneNumberId,
+        encAccessToken: args.encAccessToken,
+        onboarding: { step: 'override', event: args.event, updatedAt: Date.now() },
+        sync: FieldValue.delete(),
+        isOnBizApp: FieldValue.delete(),
+        platformType: FieldValue.delete(),
+        metaStatus: FieldValue.delete(),
+      },
+      { merge: true },
+    );
+    return 'ok' as const;
+  });
 }
 
 export const setDisplayPhoneNumber = (phoneNumberId: string, displayPhoneNumber: string) =>

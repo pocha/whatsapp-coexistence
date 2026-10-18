@@ -70,7 +70,7 @@ test('webhook GET verify handshake echoes the challenge for a matching token', a
 test('exchangeCode stores the Meta token encrypted under the API key and never returns it', async () => {
   const res = await post(
     '/exchangeCode',
-    { code: 'fake-signup-code', wabaId: '111', phoneNumberId: '222', apiKey: KEY, event: 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING' },
+    { code: 'c:111', wabaId: '111', phoneNumberId: '222', apiKey: KEY, event: 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING' },
     asUser(),
   );
   const body = await res.json();
@@ -87,7 +87,7 @@ test('exchangeCode stores the Meta token encrypted under the API key and never r
 });
 
 test('exchangeCode refuses a wrong API key and an unauthenticated caller', async () => {
-  const body = { code: 'c', wabaId: '111', phoneNumberId: '223', apiKey: NEW_KEY, event: 'FINISH' };
+  const body = { code: 'c:111', wabaId: '111', phoneNumberId: '222', apiKey: NEW_KEY, event: 'FINISH' };
   assert.equal((await post('/exchangeCode', body, asUser())).status, 401);
   assert.equal((await post('/exchangeCode', { ...body, apiKey: KEY })).status, 401);
   assert.equal((await db.collection('phoneNumbers').doc('223').get()).exists, false);
@@ -222,7 +222,7 @@ const numberDoc = async (id) => (await db.collection('phoneNumbers').doc(id).get
 async function onboard(phoneNumberId, event) {
   const exchanged = await post(
     '/exchangeCode',
-    { code: 'c', wabaId: `9${phoneNumberId}`, phoneNumberId, apiKey: KEY, event },
+    { code: `c:9${phoneNumberId}`, wabaId: `9${phoneNumberId}`, phoneNumberId, apiKey: KEY, event },
     asUser(),
   );
   assert.equal(exchanged.status, 200, JSON.stringify(await exchanged.clone().json()));
@@ -244,7 +244,7 @@ test('a coexistence signup goes on to the sync step and is never registered; a p
 });
 
 test('onboarding with no callback URL subscribes without an override, skips the syncs, and still counts as set up', async () => {
-  const exchange = (id, event) => post('/exchangeCode', { code: 'c', wabaId: `9${id}`, phoneNumberId: id, apiKey: KEY, event }, asUser());
+  const exchange = (id, event) => post('/exchangeCode', { code: `c:9${id}`, wabaId: `9${id}`, phoneNumberId: id, apiKey: KEY, event }, asUser());
 
   assert.equal((await exchange('2280', 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING')).status, 200);
   const none = await post('/setWebhook', { phoneNumberId: '2280', apiKey: KEY, noCallback: true });
@@ -279,6 +279,30 @@ test('skipping the sync marks both as skipped, moves on, and cannot be done twic
   assert.equal(saved.overrideUrl, BUSINESS_ENDPOINT, 'the URL is kept');
   assert.equal((await post('/skipSync', { phoneNumberId: '2283', apiKey: KEY })).status, 409);
   assert.equal((await post('/skipSync', { phoneNumberId: '2283', apiKey: NEW_KEY })).status, 401);
+});
+
+test('sign-up refuses IDs Meta does not back, and a number that belongs to another Watobot account', async () => {
+  const exchange = (code, wabaId, phoneNumberId) => post('/exchangeCode', { code, wabaId, phoneNumberId, apiKey: KEY, event: 'FINISH' }, asUser());
+
+  // The token was granted WABA 9990, but the browser says another one.
+  const wrongWaba = await exchange('c:9990', '9991', '991');
+  assert.equal(wrongWaba.status, 403);
+  assert.equal((await db.collection('phoneNumbers').doc('991').get()).exists, false, 'nothing is stored');
+
+  // The token covers WABA 9990, which does not list the number the browser names.
+  const wrongNumber = await exchange('c:9990', '9990', '222');
+  assert.equal(wrongNumber.status, 403);
+
+  // A number that is on another Watobot account is not replaced, even with a real grant for it.
+  await db.collection('phoneNumbers').doc('992').set({ userId: 'someone-else', wabaId: '9992', phoneNumberId: '992', onboarding: { step: 'done', event: 'FINISH', updatedAt: 1 } });
+  const taken = await exchange('c:9992', '9992', '992');
+  assert.equal(taken.status, 409);
+  assert.equal((await db.collection('phoneNumbers').doc('992').get()).data().userId, 'someone-else', 'the owner is unchanged');
+
+  // When Meta's list of a WABA's numbers can't be read, the token reading the number is enough.
+  const fallback = await exchange('c:9777', '9777', '777');
+  assert.equal(fallback.status, 200, JSON.stringify(await fallback.json()));
+  assert.equal((await db.collection('phoneNumbers').doc('777').get()).data().userId, userId);
 });
 
 test('register refuses a number on the Business app, moves a plain number on, and keeps the step when Meta refuses', async () => {

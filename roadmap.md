@@ -15,7 +15,7 @@ Last reviewed 2026-10-17. The functions that exist are listed in the README's AP
 - [x] App-level webhook fields subscribed (checked through the Meta MCP, 2026-10-16): `account_alerts`, `account_review_update`, `account_update`, `message_template_quality_update`, `message_template_status_update`, `messages`, `phone_number_name_update`, `phone_number_quality_update`, `security`, `history`, `smb_message_echoes`, `smb_app_state_sync`
 
 ### P0: the migration promise and launch
-- [ ] **Security: check ownership at sign-up.** `exchangeCode` takes the WABA and phone number IDs from the browser and stores the token under them without checking that the token reaches them, and `saveNumberToken` overwrites an existing record whatever its owner. A signed-in user could post another customer's phone number ID and take over that record. Fix: after the code exchange, confirm with Meta that the WABA is reachable and lists the phone number, and refuse to replace a record that belongs to another Watobot user.
+- [x] **Security: ownership is checked at sign-up.** `exchangeCode` no longer trusts the IDs the browser sends: Meta's `debug_token` must list the WABA among those the token was granted, and the WABA's phone number list must hold the number (if that list can't be read, the token must at least be able to read the number, and the fallback is logged as `ownership check fell back`). A number that belongs to another Watobot account is never replaced (409). Not yet run against real Meta: the `debug_token` call authorised with the app token, and `GET /<WABA>/phone_numbers`.
 Design: onboarding is a guided, resumable flow that starts only once the user has what they need afterwards.
 
 **The flow**
