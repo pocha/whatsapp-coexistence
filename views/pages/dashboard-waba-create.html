@@ -81,6 +81,17 @@
             your endpoint must parse and save it. Meta gives 24 hours to request that sync, so we
             check your endpoint first.
           </p>
+          <label class="flex items-start gap-2 text-on-surface-variant font-body-md text-sm">
+            <input id="cb-none" type="checkbox" class="mt-1"/>
+            <span>I only send messages and reply in the WhatsApp Business app, so I don't need a callback URL.</span>
+          </label>
+          <p id="cb-none-note" class="hidden rounded-lg bg-surface-container-low p-3 text-on-surface-variant font-body-md text-sm">
+            Incoming messages, and delivery and read receipts for what you send, will reach no app of yours.
+            Meta also sends the contacts and chat history sync only once, to a callback URL, so it is skipped
+            and can't be done later. Replies still appear in the WhatsApp Business app. You can add a URL later
+            from the number's page.
+          </p>
+          <div id="cb-fields" class="flex flex-col gap-2">
           <label class="label-strong text-on-surface-variant block" for="cb-url">Your callback URL</label>
           <div class="flex flex-col sm:flex-row gap-2">
             <input id="cb-url" placeholder="https://your-app.example.com/webhook" class="flex-1 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"/>
@@ -103,10 +114,17 @@
             </div>
           </details>
           <label class="flex items-start gap-2 text-on-surface-variant font-body-md text-sm">
+            <input id="cb-skip-test" type="checkbox" class="mt-1"/>
+            <span>Skip the data test. I won't know my endpoint stores the history and contacts Meta sends once.</span>
+          </label>
+          <div id="cb-test" class="flex flex-col gap-2">
+          <label class="flex items-start gap-2 text-on-surface-variant font-body-md text-sm">
             <input id="cb-confirm" type="checkbox" class="mt-1"/>
             <span>My endpoint parses and stores history, contacts and echoed messages.</span>
           </label>
           <!--#include partial="test-events"-->
+          </div>
+          </div>
         </div>
 
         <!-- Step 3: the Business app -->
@@ -262,6 +280,7 @@
               <button id="sync-done-btn" disabled class="ml-2 rounded-xl border border-outline-variant bg-white px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all disabled:opacity-50 disabled:cursor-not-allowed">Finished</button>
             </div>
             <p id="sync-status" class="text-on-surface-variant font-body-md text-sm"></p>
+            <button id="sync-skip-btn" type="button" class="self-start text-on-surface-variant font-body-md text-sm hover:underline">Skip the sync (it can't be done later)</button>
           </div>
         </div>
 

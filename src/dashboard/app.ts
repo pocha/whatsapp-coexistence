@@ -166,8 +166,8 @@ function renderCards(numbers: NumberRecord[]) {
     const status = document.createElement('span');
     status.className = 'label-muted whitespace-nowrap';
     // A number with no stored token (after a key reset) can't send until onboarded again.
-    status.textContent = !waba.hasToken ? 'Onboard again' : waba.overrideUrl ? 'Incoming URL set' : 'Setup incomplete';
-    status.classList.add(waba.hasToken && waba.overrideUrl ? 'text-primary' : 'text-on-surface-variant');
+    status.textContent = !waba.hasToken ? 'Onboard again' : waba.overrideUrl ? 'Incoming URL set' : waba.callbackSkipped ? 'No incoming URL' : 'Setup incomplete';
+    status.classList.add(waba.hasToken && (waba.overrideUrl || waba.callbackSkipped) ? 'text-primary' : 'text-on-surface-variant');
     row.append(title, status);
     card.append(row);
 

@@ -10,13 +10,14 @@ import type { OnboardingStep, PhoneNumberDoc } from './types';
  */
 export function effectiveStep(doc: PhoneNumberDoc): OnboardingStep {
   const stored = doc.onboarding.step;
-  if (!doc.overrideUrl) return 'override';
+  if (!doc.overrideUrl && !doc.callbackSkipped) return 'override';
 
   // An API-only number that Meta no longer shows as connected has to be registered again.
   if (doc.isOnBizApp === false && doc.metaStatus && doc.metaStatus !== 'CONNECTED' && stored !== 'not_on_app') return 'register';
 
-  // A coexistence number is not finished until both syncs have been requested.
-  if (doc.isOnBizApp === true && !(doc.sync?.contacts?.state === 'requested' && doc.sync?.history?.state === 'requested')) return 'sync';
+  // A coexistence number is not finished until both syncs have been requested or skipped.
+  const settled = (type: 'contacts' | 'history') => doc.sync?.[type]?.state === 'requested' || doc.sync?.[type]?.state === 'skipped';
+  if (doc.isOnBizApp === true && !(settled('contacts') && settled('history'))) return 'sync';
 
   return stored;
 }

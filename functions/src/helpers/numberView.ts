@@ -12,6 +12,7 @@ export function numberView(doc: PhoneNumberDoc): NumberView {
     wabaId: doc.wabaId,
     displayPhoneNumber: doc.displayPhoneNumber,
     overrideUrl: doc.overrideUrl,
+    callbackSkipped: doc.callbackSkipped,
     activatedAt: doc.activatedAt,
     lastRelayCall: doc.lastRelayCall,
     usage: doc.usage,

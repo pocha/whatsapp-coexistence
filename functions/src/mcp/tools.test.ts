@@ -78,7 +78,7 @@ test('the tools that cannot be undone say so, and the link skips the finished ch
   const client = await connect(() => KEY);
   const { tools } = await client.listTools();
   const destructive = tools.filter((t) => t.annotations?.destructiveHint).map((t) => t.name).sort();
-  assert.deepEqual(destructive, ['delete_template', 'deregister_number', 'disconnect_number']);
+  assert.deepEqual(destructive, ['delete_template', 'deregister_number', 'disconnect_number', 'skip_sync']);
 
   const link: any = await client.callTool({ name: 'start_onboarding_link', arguments: { overrideCallbackUrl: 'https://example.com/hook' } });
   assert.match(link.content[0].text, /create\.html\?checks=done&callback=https%3A%2F%2Fexample\.com%2Fhook/);

@@ -32,7 +32,7 @@ Three kinds of credential:
 
 | Method and path | What it does | Other body fields |
 | --- | --- | --- |
-| `POST /setWebhook` | Checks the URL answers Meta's handshake, subscribes to it, and records it. During onboarding it also moves the wizard on. | `overrideCallbackUrl` |
+| `POST /setWebhook` | Checks the URL answers Meta's handshake, subscribes to it, and records it. During onboarding it also moves the wizard on. With `noCallback` instead of a URL it subscribes with no override: incoming events go to Watobot's own webhook, which discards them, and a coexistence number's contacts and history sync is skipped (Meta allows it once, to a URL). | `overrideCallbackUrl` or `noCallback` |
 | `POST /registerNumber` | Registers an API-only number. Refused for a number on the WhatsApp Business app. | `pin` (6 digits) |
 | `POST /deregisterNumber` | Takes an API-only number off the Cloud API. Refused for a number on the Business app (disconnect there). | |
 | `POST /disconnectNumber` | What leaving Watobot does on Meta's side: unsubscribes our app, and de-registers an API-only number if asked. | `deregister` (boolean) |
@@ -46,6 +46,7 @@ Three kinds of credential:
 | `POST /verifyTestCodes` | Signed in or key | Says which of the four typed codes match the last send. | `codes` |
 | `POST /exchangeCode` | Signed in + `apiKey` | Exchanges the Embedded Signup code for the Meta token, stores it encrypted under the key, and starts the wizard for the number. | `code`, `wabaId`, `phoneNumberId`, `apiKey`, `event` |
 | `POST /startSync` | Key | Requests the contacts, then the history sync (each once). | `phoneNumberId`, `apiKey`, `syncType` |
+| `POST /skipSync` | Key | Skips the contacts and history sync for good (Meta allows each once). Only at the sync step. | `phoneNumberId`, `apiKey` |
 | `POST /setOnboardingStep` | Key | Moves the wizard between the steps the user chooses or confirms. | `phoneNumberId`, `apiKey`, `step` |
 
 **Account**

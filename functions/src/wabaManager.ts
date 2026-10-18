@@ -86,9 +86,9 @@ export const setWebhook = onRequest((req, res) => {
       return;
     }
 
-    const { phoneNumberId, apiKey, overrideCallbackUrl } = (req.body ?? {}) as Partial<SetWebhookRequest>;
-    if (!phoneNumberId || !apiKey || !overrideCallbackUrl) {
-      res.status(400).send({ ok: false, error: 'phoneNumberId, apiKey and overrideCallbackUrl are all required' });
+    const { phoneNumberId, apiKey, overrideCallbackUrl, noCallback } = (req.body ?? {}) as Partial<SetWebhookRequest>;
+    if (!phoneNumberId || !apiKey || (!overrideCallbackUrl && noCallback !== true)) {
+      res.status(400).send({ ok: false, error: 'phoneNumberId, apiKey and either overrideCallbackUrl or noCallback are required' });
       return;
     }
 
@@ -96,11 +96,16 @@ export const setWebhook = onRequest((req, res) => {
       const { wabaId, accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
 
       try {
-        const check = await verifyEndpointChallenge(overrideCallbackUrl, config.webhookVerifyToken);
-        if (!check.ok) throw new HttpError(400, check.error!);
+        // With a URL it must answer Meta's handshake first. With none, the app is subscribed with no
+        // override and incoming events go to Watobot's own webhook, which discards them.
+        const url = noCallback === true ? undefined : overrideCallbackUrl;
+        if (url) {
+          const check = await verifyEndpointChallenge(url, config.webhookVerifyToken);
+          if (!check.ok) throw new HttpError(400, check.error!);
+        }
 
-        await subscribeApp(wabaId, accessToken, overrideCallbackUrl, config.webhookVerifyToken);
-        await setCallback(String(phoneNumberId), overrideCallbackUrl);
+        await subscribeApp(wabaId, accessToken, url, config.webhookVerifyToken);
+        await setCallback(String(phoneNumberId), url);
         await rememberDisplayNumber(String(phoneNumberId), accessToken);
 
         // A number in the onboarding wizard moves on from here; a finished one just gets its new URL.

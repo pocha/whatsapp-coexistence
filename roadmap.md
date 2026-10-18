@@ -74,6 +74,7 @@ A step-by-step wizard: `checks → Meta onboarding → callback override → (co
 | New account model GA 2026-09-23; Phase 2 (H1 2027) adds `waac_id` to message events; Phase 3 (H1 2028) requires WAAC IDs in API paths | Account model evolution | 2026-09-22 |
 
 ### Open questions
+- Onboarding with no callback URL (`noCallback`) subscribes the app with no `override_callback_uri`. Not yet checked against Meta: that incoming events then reach the app's own webhook, and whether subscribing without an override removes an override set earlier
 - Whether migrated templates are reviewed again (Meta says only that migration "recreates" them; review "can take up to 24 hours")
 - What happens to templates on a second coexistence onboarding, and which Messaging account a standard-to-coexistence move ends up in
 - Whether unsharing a coexistence partner in Business Settings disconnects it (Meta documents only the Business app disconnect)

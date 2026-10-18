@@ -2,14 +2,16 @@ import { HttpError } from './helpers/auth';
 import { authenticateKey, requireCaller } from './accounts';
 import { getPhoneNumberInfo, requestSmbAppData } from './helpers/graphApi';
 import { checkPublicUrl, verifyEndpointChallenge } from './helpers/endpointCheck';
-import { claimSync, moveStep, movedTo, readNumber, readTestRun, recordOverrideResult, reserveTestSend, setSyncState } from './helpers/model';
+import { claimSync, moveStep, movedTo, readNumber, readTestRun, recordOverrideResult, reserveTestSend, setSyncState, skipSync as skipSyncRecord } from './helpers/model';
 import { config } from './helpers/config';
 import { logEvent } from './helpers/log';
 import { post } from './helpers/http';
 import { newCodes, sendTestEvent, TEST_EVENT_TYPES } from './helpers/testEvents';
 import type {
+  OnboardingResponse,
   OnboardingStep,
   SendTestEventsRequest,
+  SkipSyncRequest,
   SendTestEventsResponse,
   SetOnboardingStepRequest,
   StartSyncRequest,
@@ -33,13 +35,16 @@ export async function advanceAfterOverride(phoneNumberId: string, accessToken: s
   const doc = (await readNumber(phoneNumberId))!;
   const info = await getPhoneNumberInfo(phoneNumberId, accessToken);
   const coexistence = doc.onboarding.event === 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING' || info.isOnBizApp === true;
-  const step: OnboardingStep = coexistence ? 'sync' : 'not_on_app';
+  // With no callback URL there is nowhere to send the syncs, and Meta allows each once, so they are skipped.
+  const noSync = coexistence && doc.callbackSkipped === true;
+  const step: OnboardingStep = coexistence ? (noSync ? 'templates' : 'sync') : 'not_on_app';
   await recordOverrideResult(phoneNumberId, {
     onboarding: movedTo(doc.onboarding, step),
     isOnBizApp: info.isOnBizApp ?? false,
     metaStatus: info.status,
     platformType: info.platformType,
-    startSync: coexistence,
+    startSync: coexistence && !noSync,
+    skipSync: noSync,
   });
   return { step, isOnBizApp: info.isOnBizApp };
 }
@@ -57,6 +62,7 @@ export const checkCallbackUrl = post(async (req, res) => {
 
 // ---- the contacts and history syncs ----
 
+const SYNC_TYPES = ['contacts', 'history'] as const;
 const META_SYNC_TYPE = { contacts: 'smb_app_state_sync', history: 'history' } as const;
 /**
  * Asks Meta to send the coexistence number's contacts, then its history, to the customer's callback
@@ -98,6 +104,16 @@ export const startSync = post(async (req, res) => {
 
 // ---- moving through the wizard ----
 
+/** The user chooses not to sync their contacts and history. Meta allows each once, so it can't be done later. */
+export const skipSync = post(async (req, res) => {
+  const { phoneNumberId, apiKey } = (req.body ?? {}) as Partial<SkipSyncRequest>;
+  if (!phoneNumberId || !apiKey) throw new HttpError(400, 'phoneNumberId and apiKey are required');
+  await authenticateKey(String(phoneNumberId), apiKey);
+  if ((await skipSyncRecord(String(phoneNumberId))) === 'not_at_step') throw new HttpError(409, 'This number is not at the sync step.');
+  logEvent('sync skipped', { phoneNumberId });
+  res.status(200).send({ ok: true, step: 'templates' } satisfies OnboardingResponse);
+});
+
 /** The steps the user moves between by choice or confirmation. The others are set by the step's own function. */
 export const setOnboardingStep = post(async (req, res) => {
   const { phoneNumberId, apiKey, step } = (req.body ?? {}) as Partial<SetOnboardingStepRequest>;
@@ -109,7 +125,7 @@ export const setOnboardingStep = post(async (req, res) => {
     current = doc.onboarding.step;
     const allowed =
       (step === 'register' && current === 'not_on_app') ||
-      (step === 'templates' && current === 'sync' && doc.sync?.contacts?.state === 'requested' && doc.sync?.history?.state === 'requested') ||
+      (step === 'templates' && current === 'sync' && SYNC_TYPES.every((t) => doc.sync?.[t]?.state === 'requested' || doc.sync?.[t]?.state === 'skipped')) ||
       (step === 'done' && current === 'templates');
     return allowed ? step : null;
   });

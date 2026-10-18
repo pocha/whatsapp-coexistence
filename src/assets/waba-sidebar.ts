@@ -171,7 +171,7 @@ export async function fillSidebar(uid: string, currentId?: string | null): Promi
     const icon = document.createElement('span');
     icon.className = 'material-symbols-outlined text-[22px] flex-shrink-0';
     if (unfinished) icon.style.color = '#b45309'; // amber: needs attention
-    icon.textContent = unfinished ? 'pending' : waba.overrideUrl && waba.hasToken ? 'chat' : 'chat_bubble_outline';
+    icon.textContent = unfinished ? 'pending' : (waba.overrideUrl || waba.callbackSkipped) && waba.hasToken ? 'chat' : 'chat_bubble_outline';
 
     const label = document.createElement('span');
     label.className = 'hidden lg:inline truncate';

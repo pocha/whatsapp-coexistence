@@ -45,7 +45,8 @@ export type SyncType = 'contacts' | 'history';
 
 /** `requesting` is held while the request to Meta is in flight, so a double click can't send it twice. */
 export interface SyncStatus {
-  state: 'none' | 'requesting' | 'requested' | 'failed';
+  /** `skipped`: the user chose not to request it, and Meta allows each only once, so it can't be asked for later. */
+  state: 'none' | 'requesting' | 'requested' | 'failed' | 'skipped';
   /** When the state last changed. */
   at?: number;
   error?: string;
@@ -79,6 +80,8 @@ export interface PhoneNumberDoc {
   rateLimits?: RateLimitOverride;
   /** Wizard progress. Written only by the Functions. */
   onboarding: OnboardingState;
+  /** The user chose to onboard without a callback URL: nothing of theirs receives incoming messages. */
+  callbackSkipped?: boolean;
   /** From Meta, after onboarding: whether the number is also on the WhatsApp Business app. */
   isOnBizApp?: boolean;
   platformType?: string;
@@ -97,6 +100,7 @@ export interface NumberView {
   wabaId: string;
   displayPhoneNumber?: string;
   overrideUrl?: string;
+  callbackSkipped?: boolean;
   activatedAt?: number;
   lastRelayCall?: number;
   usage?: Usage;
@@ -224,7 +228,15 @@ export interface RelayLimitsResponse extends ApiResponse {
 export interface SetWebhookRequest {
   phoneNumberId: string;
   apiKey: string;
-  overrideCallbackUrl: string;
+  /** Where Meta sends incoming messages and events. Leave it out, with `noCallback`, to receive none. */
+  overrideCallbackUrl?: string;
+  /** Onboard without a callback URL: incoming messages go to Watobot, which discards them. */
+  noCallback?: boolean;
+}
+
+export interface SkipSyncRequest {
+  phoneNumberId: string;
+  apiKey: string;
 }
 
 export interface RegisterNumberRequest {

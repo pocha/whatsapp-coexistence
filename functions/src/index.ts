@@ -11,6 +11,7 @@ export {
   checkCallbackUrl,
   sendTestEvents,
   setOnboardingStep,
+  skipSync,
   startSync,
   verifyTestCodes,
 } from './onboarding';

@@ -32,8 +32,8 @@ export async function exchangeCodeForToken(code: string, appId: string, appSecre
 export async function subscribeApp(
   wabaId: string,
   accessToken: string,
-  overrideCallbackUrl: string,
-  verifyToken: string,
+  overrideCallbackUrl?: string,
+  verifyToken?: string,
 ): Promise<void> {
   await graphFetch(`/${wabaId}/subscribed_apps`, {
     method: 'POST',
@@ -41,10 +41,8 @@ export async function subscribeApp(
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      override_callback_uri: overrideCallbackUrl,
-      verify_token: verifyToken,
-    }),
+    // Without a callback URL the app is subscribed with no override, so Meta uses the app's own webhook.
+    body: JSON.stringify(overrideCallbackUrl ? { override_callback_uri: overrideCallbackUrl, verify_token: verifyToken } : {}),
   });
 }
 

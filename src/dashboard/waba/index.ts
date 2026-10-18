@@ -205,6 +205,7 @@ function syncText(s: SyncStatus | undefined): string {
   if (!s || s.state === 'none') return 'not requested';
   if (s.state === 'requesting') return 'being requested';
   if (s.state === 'failed') return `failed (${s.error ?? 'unknown error'})`;
+  if (s.state === 'skipped') return 'skipped';
   return `requested ${new Date(s.at ?? 0).toLocaleString()}`;
 }
 

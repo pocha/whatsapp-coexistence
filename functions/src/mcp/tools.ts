@@ -8,14 +8,14 @@ const instructions = (SITE: string) => `Watobot lets a business use the WhatsApp
 First time: the person signs up at ${SITE} and creates their API key on the "API key" page (made in their browser, shown once). The page also shows how to connect it to an AI tool: as WATOBOT_API_KEY for the local server, or inside the connector address for the hosted one. You cannot create the key.
 
 Onboarding a number, in order:
-1. The person needs a callback URL that receives the WhatsApp events Meta sends. Call check_callback_url, then send_test_events. Each event carries a code the person's endpoint prints or stores; ask them for the four codes and call verify_test_codes.
-2. Call start_onboarding_link with that callback URL and give the person the link. Meta's sign-up (Facebook login, the WhatsApp Business app's code or QR) can only be done by the person in their browser; no tool can do it.
-3. Call get_number (or list_numbers) until the number appears. Its "step" says what is next: "sync" (call start_sync for contacts, then history, once each), "register" (call register_number with a 6-digit PIN, API-only numbers), "templates", then "done".
+1. Ask whether the person wants incoming messages in an app of their own. If yes they need a callback URL that receives the WhatsApp events Meta sends: call check_callback_url, then send_test_events (optional, but it is the only way to know their endpoint stores the one-time history and contacts sync). Each event carries a code their endpoint prints or stores; ask for the four codes and call verify_test_codes. If they only send messages and reply in the WhatsApp Business app, they can have no callback URL: say plainly what that costs (no incoming messages or delivery receipts reach them, and the contacts and history sync is skipped for good, since Meta allows it once) and get their agreement.
+2. Call start_onboarding_link with that callback URL (or none) and give the person the link. Meta's sign-up (Facebook login, the WhatsApp Business app's code or QR) can only be done by the person in their browser; no tool can do it.
+3. Call get_number (or list_numbers) until the number appears. Its "step" says what is next: "sync" (call start_sync for contacts, then history, once each; skip_sync skips both for good), "register" (call register_number with a 6-digit PIN, API-only numbers), "templates", then "done".
 4. Templates: migrate_templates (from the previous Messaging account) or import_templates (from an export).
 
 Sending: send_message through Watobot; template sends are limited per minute, hour and day. Call get_limits to see how much room is left and wait when remaining is 0.
 
-deregister_number, disconnect_number and delete_template cannot be undone. Ask the person before calling them.`;
+deregister_number, disconnect_number, delete_template and skip_sync cannot be undone. Ask the person before calling them.`;
 
 type Shape = Record<string, z.ZodTypeAny>;
 
@@ -72,14 +72,20 @@ export function createServer(ctx: Context): McpServer {
   );
   tool(
     'start_onboarding_link',
-    'The link the person opens to finish onboarding in their browser: it skips the checks already done here and goes to Meta\'s sign-up. Only give it after check_callback_url and verify_test_codes passed.',
-    { overrideCallbackUrl: callbackUrl },
-    async (a) => `${SITE}/dashboard/waba/create.html?checks=done&callback=${encodeURIComponent(a.overrideCallbackUrl)}\n\nThe person opens this, enters their API key, and completes Meta's sign-up (Facebook login, then the code or QR in the WhatsApp Business app). Then call get_number.`,
+    'The link the person opens to finish onboarding in their browser: it skips the checks already done here and goes to Meta\'s sign-up. Give it after check_callback_url (and verify_test_codes, if they want that test) passed, or with no callback URL if they chose to have none.',
+    { overrideCallbackUrl: callbackUrl.optional().describe('Leave out to onboard with no callback URL') },
+    async (a) => `${SITE}/dashboard/waba/create.html?checks=done&callback=${a.overrideCallbackUrl ? encodeURIComponent(a.overrideCallbackUrl) : 'none'}\n\nThe person opens this, enters their API key, and completes Meta's sign-up (Facebook login, then the code or QR in the WhatsApp Business app). Then call get_number.`,
     { readOnly: true },
   );
 
   // ---- a number going through onboarding ----
-  tool('set_webhook', 'Points the number\'s incoming events at a callback URL (checks it answers Meta\'s handshake first).', { phoneNumberId, overrideCallbackUrl: callbackUrl }, (a) => callFunction('setWebhook', a));
+  tool(
+    'set_webhook',
+    'Points the number\'s incoming events at a callback URL (checks it answers Meta\'s handshake first), or with noCallback=true at none: then incoming messages and delivery receipts reach no app of the person\'s, and the one-time contacts and history sync is skipped.',
+    { phoneNumberId, overrideCallbackUrl: callbackUrl.optional(), noCallback: z.boolean().optional() },
+    (a) => callFunction('setWebhook', a),
+  );
+  tool('skip_sync', 'Coexistence only: skips the contacts and history sync for good (Meta allows each once, within 24 hours of onboarding). Ask the person first.', { phoneNumberId }, (a) => callFunction('skipSync', a), { destructive: true });
   tool('start_sync', 'Coexistence only: asks Meta to send the contacts, or the history, to the callback URL. Each can be requested once, contacts first, within 24 hours of onboarding.', { phoneNumberId, syncType: z.enum(['contacts', 'history']) }, (a) => callFunction('startSync', a));
   tool('register_number', 'API-only numbers: registers the number for the Cloud API with a six-digit PIN (two-step verification). Refused for a number on the WhatsApp Business app.', { phoneNumberId, pin: z.string().regex(/^\d{6}$/) }, (a) => callFunction('registerNumber', a));
   tool('set_onboarding_step', 'Moves the wizard on when the person chooses or confirms: "register" (API only, from "not on the app"), "templates" (after the syncs) or "done".', { phoneNumberId, step: z.enum(['register', 'templates', 'done']) }, (a) => callFunction('setOnboardingStep', a));

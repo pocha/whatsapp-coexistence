@@ -80,11 +80,11 @@
       </p>
       <ol class="flex flex-col gap-2 list-decimal list-inside text-on-surface-variant font-body-md">
         <li><strong>Your API key.</strong> Enter it. We encrypt the access token Meta gives us with it, so only you can unlock it.</li>
-        <li><strong>Your callback URL.</strong> Enter your app's incoming-message URL. We check it answers Meta's handshake, then send it a test message, an echo, contacts and history, each with a code. Type the four codes your app received, so you know it stores what Meta will send.</li>
+        <li><strong>Your callback URL.</strong> Enter your app's incoming-message URL. We check it answers Meta's handshake, then send it a test message, an echo, contacts and history, each with a code. Type the four codes your app received, so you know it stores what Meta will send. You can skip that data test. And if you only send messages and reply in the WhatsApp Business app, you can onboard with no callback URL at all, but then no incoming messages or delivery receipts reach an app of yours, and the contacts and history sync is skipped for good, since Meta allows it only once.</li>
         <li><strong>The WhatsApp Business app.</strong> Confirm your number is on it.</li>
         <li><strong>Your templates.</strong> Say where they are: none, in your previous Messaging account, or in an export from your provider.</li>
         <li><strong>Meta's sign-up.</strong> A Facebook popup connects the number, and you pick your business portfolio there. We then point Meta at your URL, so messages go straight from WhatsApp to your app.</li>
-        <li><strong>Sync, or register.</strong> A coexistence number requests its contacts and chat history, which Meta allows once each, within 24 hours. A number that isn't on the app can carry on as API-only and is registered with a six-digit PIN.</li>
+        <li><strong>Sync, or register.</strong> A coexistence number requests its contacts and chat history, which Meta allows once each, within 24 hours (you can also skip it, for good). A number that isn't on the app can carry on as API-only and is registered with a six-digit PIN.</li>
         <li><strong>Templates.</strong> We copy them across, or import your export.</li>
       </ol>
 

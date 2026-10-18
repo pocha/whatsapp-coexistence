@@ -40,10 +40,10 @@ function startMetaStub(port) {
       return;
     }
 
-    // Number info. 222 is also on the WhatsApp Business app (coexistence); any other number is not.
+    // Number info. 222, 2280 and 2283 are also on the WhatsApp Business app (coexistence); any other number is not.
     const info = req.url.match(/^\/(\d+)\?fields=status,code_verification_status,is_on_biz_app,platform_type/);
     if (req.method === 'GET' && info) {
-      const onApp = info[1] === '222';
+      const onApp = info[1] === '222' || /^228[03]$/.test(info[1]);
       res.writeHead(200).end(
         JSON.stringify({ id: info[1], status: 'CONNECTED', code_verification_status: 'VERIFIED', is_on_biz_app: onApp, platform_type: 'CLOUD_API' }),
       );

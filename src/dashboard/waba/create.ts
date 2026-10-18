@@ -35,7 +35,10 @@ const resumeId = params.get('id');
 // A link from the MCP (or any tool) that has already done steps 2 to 4: it carries the callback URL
 // it checked. Nothing on the server depends on those steps, so the page takes the link's word for
 // it and, once the key is entered, goes straight to Meta's sign-up.
-const linkedCallback = params.get('checks') === 'done' ? (params.get('callback') ?? '') : '';
+const linkedChecks = params.get('checks') === 'done';
+const linkedCallback = linkedChecks ? (params.get('callback') ?? '') : '';
+// A link with no callback URL (or callback=none) means the user chose to onboard without one.
+const linkedNone = linkedChecks && !/^https?:\/\//.test(linkedCallback);
 
 const keyInput = el<HTMLInputElement>('key-input');
 const status = el('onboarding-status');
@@ -206,6 +209,19 @@ cbUrl.addEventListener('input', () => {
   refreshNav();
 });
 
+// No callback URL (nothing of theirs receives incoming messages), or no data test.
+let noCallback = false;
+let skipTest = false;
+function applyCallbackChoice() {
+  noCallback = el<HTMLInputElement>('cb-none').checked;
+  skipTest = el<HTMLInputElement>('cb-skip-test').checked;
+  el('cb-fields').classList.toggle('hidden', noCallback);
+  el('cb-none-note').classList.toggle('hidden', !noCallback);
+  el('cb-test').classList.toggle('hidden', skipTest);
+  refreshNav();
+}
+for (const id of ['cb-none', 'cb-skip-test']) el(id).addEventListener('change', applyCallbackChoice);
+
 el('cb-verify').addEventListener('click', async () => {
   const url = cbUrl.value.trim();
   cbStatus.textContent = 'Checking…';
@@ -243,15 +259,20 @@ function countTemplates(parsed: unknown): number {
 
 /** Marks steps 2 to 4 as done, as the link says they are. */
 function takeLinkedChecks() {
-  cbUrl.value = linkedCallback;
-  callbackUrl = linkedCallback;
-  urlVerified = true;
-  testCodesOk = true;
+  if (linkedNone) {
+    el<HTMLInputElement>('cb-none').checked = true;
+    applyCallbackChoice();
+  } else {
+    cbUrl.value = linkedCallback;
+    callbackUrl = linkedCallback;
+    urlVerified = true;
+    testCodesOk = true;
+  }
   for (const id of ['cb-confirm', 'app-confirm']) el<HTMLInputElement>(id).checked = true;
   const none = tplRadios.find((r) => r.value === 'none');
   if (none) none.checked = true;
   readTemplateChoice();
-  status.textContent = 'Your callback URL was checked in your AI tool. Enter your API key, then continue to Meta.';
+  status.textContent = 'The checks were done in your AI tool. Enter your API key, then continue to Meta.';
   refreshNav();
 }
 
@@ -287,7 +308,9 @@ function missingFor(n: number): string | null {
     case 1:
       return keyVerified ? null : 'Enter your API key.';
     case 2:
+      if (noCallback) return null;
       if (!urlVerified) return 'Verify your callback URL.';
+      if (skipTest) return null;
       if (!el<HTMLInputElement>('cb-confirm').checked) return 'Confirm your endpoint stores the data.';
       return testCodesOk ? null : 'Send the test data and check the four codes.';
     case 3:
@@ -318,7 +341,7 @@ function refreshNav() {
 for (const id of ['cb-confirm', 'app-confirm']) el(id).addEventListener('change', refreshNav);
 
 nextBtn.addEventListener('click', async () => {
-  if (currentStep === 1 && linkedCallback) {
+  if (currentStep === 1 && linkedChecks) {
     goStep(5);
     return;
   }
@@ -443,14 +466,17 @@ el('handback-continue-btn').addEventListener('click', async () => {
 
 /** Subscribes the user's URL (and, for a number in the wizard, finds the next step). */
 async function connectOverride(url: string) {
-  busy('Pointing Meta at your URL…');
+  busy(noCallback && !url ? 'Finishing…' : 'Pointing Meta at your URL…');
   fail(undefined);
   try {
-    const res = await withKey<OnboardingResponse>('setWebhook', { overrideCallbackUrl: url } satisfies Partial<SetWebhookRequest>);
+    const res = await withKey<OnboardingResponse>(
+      'setWebhook',
+      (noCallback && !url ? { noCallback: true } : { overrideCallbackUrl: url }) satisfies Partial<SetWebhookRequest>,
+    );
     status.textContent = '';
     const next = res.step ?? 'done';
     // Opened from an AI tool's link: it carries on from here, unless the user chooses to stay.
-    if (linkedCallback && !carryOnHere && next !== 'done') {
+    if (linkedChecks && !carryOnHere && next !== 'done') {
       handedBackAt = next;
       show('view-handback');
     } else {
@@ -551,6 +577,7 @@ function describe(s: SyncStatus | undefined): string {
   if (!s || s.state === 'none') return 'not requested';
   if (s.state === 'requesting') return 'being requested…';
   if (s.state === 'failed') return `failed: ${s.error ?? 'unknown error'}`;
+  if (s.state === 'skipped') return 'skipped';
   return `requested ${new Date(s.at ?? 0).toLocaleString()}`;
 }
 
@@ -558,7 +585,7 @@ async function renderSync() {
   const data = await loadNumber();
   el('sync-contacts').textContent = describe(data?.sync?.contacts);
   el('sync-history').textContent = describe(data?.sync?.history);
-  const both = SYNC_TYPES.every((t) => data?.sync?.[t]?.state === 'requested');
+  const both = SYNC_TYPES.every((t) => data?.sync?.[t]?.state === 'requested' || data?.sync?.[t]?.state === 'skipped');
   const anyFailed = SYNC_TYPES.some((t) => data?.sync?.[t]?.state === 'failed');
   el<HTMLButtonElement>('sync-btn').disabled = both;
   el('sync-btn').textContent = anyFailed ? 'Retry' : 'Start sync';
@@ -583,6 +610,19 @@ el('sync-btn').addEventListener('click', async () => {
     out.textContent = errorMessage(err);
   }
   await renderSync();
+});
+
+el('sync-skip-btn').addEventListener('click', async () => {
+  const sure = confirm(
+    "Meta sends the contacts and chat history only once, and only in the 24 hours after onboarding. If you skip it, it can't be requested later. Skip it?",
+  );
+  if (!sure) return;
+  try {
+    await withKey('skipSync', {});
+    await showStep('templates');
+  } catch (err) {
+    el('sync-status').textContent = errorMessage(err);
+  }
 });
 
 el('sync-done-btn').addEventListener('click', async () => {
@@ -683,7 +723,7 @@ function openWizard() {
   goStep(1);
   if (resumeId) return;
   status.textContent = '';
-  if (linkedCallback) takeLinkedChecks();
+  if (linkedChecks) takeLinkedChecks();
   initEmbeddedSignup();
 }
 
@@ -703,7 +743,7 @@ onAuthStateChanged(auth, async (user) => {
 
   // A fresh onboarding starts by choosing how. Picking a number up again, or coming from an AI tool's
   // link, goes straight to the window.
-  if (!resumeId && !linkedCallback) {
+  if (!resumeId && !linkedChecks) {
     el('chooser').classList.remove('hidden');
     el('chooser-here').addEventListener('click', () => {
       el('chooser').classList.add('hidden');

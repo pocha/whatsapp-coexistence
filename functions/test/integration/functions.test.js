@@ -243,6 +243,44 @@ test('a coexistence signup goes on to the sync step and is never registered; a p
   assert.equal((await numberDoc('224')).isOnBizApp, false);
 });
 
+test('onboarding with no callback URL subscribes without an override, skips the syncs, and still counts as set up', async () => {
+  const exchange = (id, event) => post('/exchangeCode', { code: 'c', wabaId: `9${id}`, phoneNumberId: id, apiKey: KEY, event }, asUser());
+
+  assert.equal((await exchange('2280', 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING')).status, 200);
+  const none = await post('/setWebhook', { phoneNumberId: '2280', apiKey: KEY, noCallback: true });
+  const body = await none.json();
+  assert.equal(none.status, 200, JSON.stringify(body));
+  assert.equal(body.step, 'templates', 'there is nowhere to send the syncs, so the sync step is passed');
+  const saved = await numberDoc('2280');
+  assert.equal(saved.callbackSkipped, true);
+  assert.equal(saved.overrideUrl, undefined);
+  assert.equal(saved.sync.contacts.state, 'skipped');
+  assert.equal(saved.sync.history.state, 'skipped');
+  const one = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '2280' })).json();
+  assert.equal(one.number.step, 'templates', 'not sent back to the callback step');
+  assert.equal((await post('/setOnboardingStep', { phoneNumberId: '2280', apiKey: KEY, step: 'done' })).status, 200);
+
+  assert.equal((await exchange('2281', 'FINISH')).status, 200);
+  const apiOnly = await (await post('/setWebhook', { phoneNumberId: '2281', apiKey: KEY, noCallback: true })).json();
+  assert.equal(apiOnly.step, 'not_on_app', 'an API-only number still chooses what to do');
+
+  assert.equal((await post('/setWebhook', { phoneNumberId: '2281', apiKey: KEY })).status, 400, 'a URL or noCallback is needed');
+});
+
+test('skipping the sync marks both as skipped, moves on, and cannot be done twice', async () => {
+  const done = await onboard('2283', 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING');
+  assert.equal(done.body.step, 'sync');
+  const skipped = await post('/skipSync', { phoneNumberId: '2283', apiKey: KEY });
+  assert.equal(skipped.status, 200);
+  assert.equal((await skipped.json()).step, 'templates');
+  const saved = await numberDoc('2283');
+  assert.equal(saved.sync.contacts.state, 'skipped');
+  assert.equal(saved.sync.history.state, 'skipped');
+  assert.equal(saved.overrideUrl, BUSINESS_ENDPOINT, 'the URL is kept');
+  assert.equal((await post('/skipSync', { phoneNumberId: '2283', apiKey: KEY })).status, 409);
+  assert.equal((await post('/skipSync', { phoneNumberId: '2283', apiKey: NEW_KEY })).status, 401);
+});
+
 test('register refuses a number on the Business app, moves a plain number on, and keeps the step when Meta refuses', async () => {
   const register = (id) => post('/registerNumber', { phoneNumberId: id, apiKey: KEY, pin: '123456' });
 

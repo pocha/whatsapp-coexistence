@@ -169,8 +169,13 @@ export async function saveNumberToken(args: {
 export const setDisplayPhoneNumber = (phoneNumberId: string, displayPhoneNumber: string) =>
   phoneNumberRef(phoneNumberId).update({ displayPhoneNumber });
 
-export const setCallback = (phoneNumberId: string, overrideUrl: string) =>
-  phoneNumberRef(phoneNumberId).update({ overrideUrl, activatedAt: Date.now() });
+/** Records where incoming events go: the user's URL, or (with none) that they chose to receive none. */
+export const setCallback = (phoneNumberId: string, overrideUrl?: string) =>
+  phoneNumberRef(phoneNumberId).update(
+    overrideUrl
+      ? { overrideUrl, callbackSkipped: FieldValue.delete(), activatedAt: Date.now() }
+      : { overrideUrl: FieldValue.delete(), callbackSkipped: true, activatedAt: Date.now() },
+  );
 
 /** The wizard state moved to a new step, with the previous failure cleared. */
 export function movedTo(current: OnboardingState, step: OnboardingStep): OnboardingState {
@@ -189,13 +194,14 @@ export async function noteOnboardingError(phoneNumberId: string, step: Onboardin
 /** What Meta said about the number once the callback URL was subscribed, and where the wizard goes next. */
 export async function recordOverrideResult(
   phoneNumberId: string,
-  result: { onboarding: OnboardingState; isOnBizApp: boolean; metaStatus?: string; platformType?: string; startSync: boolean },
+  result: { onboarding: OnboardingState; isOnBizApp: boolean; metaStatus?: string; platformType?: string; startSync: boolean; skipSync?: boolean },
 ): Promise<void> {
   await phoneNumberRef(phoneNumberId).update({
     isOnBizApp: result.isOnBizApp,
     ...(result.metaStatus ? { metaStatus: result.metaStatus } : {}),
     platformType: result.platformType ?? FieldValue.delete(),
     ...(result.startSync ? { sync: { contacts: { state: 'none' }, history: { state: 'none' } } } : {}),
+    ...(result.skipSync ? { sync: { contacts: { state: 'skipped', at: Date.now() }, history: { state: 'skipped', at: Date.now() } } } : {}),
     onboarding: result.onboarding,
   });
 }
@@ -249,6 +255,22 @@ export async function claimSync(
     if (current?.state === 'requesting' && Date.now() - (current.at ?? 0) < REQUESTING_STALE_MS) return 'in_flight' as const;
     if (type === 'history' && doc.sync?.contacts?.state !== 'requested') return 'contacts_first' as const;
     tx.update(ref, { [`sync.${type}`]: { state: 'requesting', at: Date.now() } });
+    return 'ok' as const;
+  });
+}
+
+/**
+ * The user chooses not to request the syncs. Whatever is not requested yet is marked skipped (Meta
+ * allows each once, so it can't be done later) and the wizard moves on. Refused outside the sync step.
+ */
+export async function skipSync(phoneNumberId: string): Promise<'ok' | 'not_at_step'> {
+  const ref = phoneNumberRef(phoneNumberId);
+  return db().runTransaction(async (tx) => {
+    const doc = numberOf(await tx.get(ref))!;
+    if (doc.onboarding.step !== 'sync') return 'not_at_step' as const;
+    const now = Date.now();
+    const skipped = (type: SyncType): SyncStatus => (doc.sync?.[type]?.state === 'requested' ? doc.sync[type]! : { state: 'skipped', at: now });
+    tx.update(ref, { sync: { contacts: skipped('contacts'), history: skipped('history') }, onboarding: movedTo(doc.onboarding, 'templates') });
     return 'ok' as const;
   });
 }
