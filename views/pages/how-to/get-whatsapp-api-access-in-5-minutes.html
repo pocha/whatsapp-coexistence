@@ -43,11 +43,20 @@
         </li>
         <li>
           An app (a chatbot, for example) hosted at a public HTTPS URL that
-          receives incoming messages. You'll give us this URL in step 3, and
-          use the same app to test sending through our endpoint. If you do not have an app yet,
-          you can <a class="text-primary font-bold hover:underline" href="https://github.com/pocha/whatsapp-coexistence/tree/main/test-chatbot" target="_blank">setup a test-chatbot</a>
+          receives what WhatsApp sends: incoming messages, the messages you type in the
+          WhatsApp Business app, and the contacts and chat history Meta syncs once when you
+          connect. Store them if you want that history. If you do not have an app yet,
+          you can <a class="text-primary font-bold hover:underline" href="https://github.com/pocha/whatsapp-coexistence/tree/main/test-chatbot" target="_blank">setup a test-chatbot</a>.
         </li>
       </ul>
+
+      <div class="card p-6">
+        <p class="text-on-surface-variant font-body-md">
+          <strong>Rather have your AI tool guide you?</strong> Claude, ChatGPT and Claude Code can do the
+          checks and walk you through the same steps:
+          <a class="text-primary font-bold hover:underline" href="/how-to/connect-watobot-to-ai-tool.html">connect your AI tool</a>.
+        </p>
+      </div>
 
       <h2 class="section-title text-on-surface mt-4">1. Sign in</h2>
       <p class="text-on-surface-variant font-body-md">
@@ -55,29 +64,29 @@
         with your WhatsApp number. We send you a one-time code on WhatsApp.
       </p>
 
-      <h2 class="section-title text-on-surface mt-4">2. Create your API key and connect your number</h2>
+      <h2 class="section-title text-on-surface mt-4">2. Create your API key</h2>
       <p class="text-on-surface-variant font-body-md">
-        Choose <strong>Onboard WABA</strong>. The first time, we create your
+        The first time, the dashboard sends you to the <strong>API key</strong> page. We create your
         <strong>Watobot API key</strong> in your browser and show it once. Copy it
         somewhere safe, such as your app's secrets. We keep only a hash of it, so we
         can't show it again or recover it. We then sign you out, and you'll need the
         key to sign in again.
       </p>
-      <p class="text-on-surface-variant font-body-md">
-        Sign in, choose <strong>Onboard WABA</strong> again and enter your key. A
-        Facebook popup then walks you through connecting the number, and you'll pick
-        your business portfolio there. This creates your WhatsApp Business Account
-        (WABA). We encrypt the access token Meta gives us for it with your API key, so
-        only you can unlock it.
-      </p>
 
-      <h2 class="section-title text-on-surface mt-4">3. Point incoming messages at your app</h2>
+      <h2 class="section-title text-on-surface mt-4">3. Onboard your number</h2>
       <p class="text-on-surface-variant font-body-md">
-        Open your number's page from the Dashboard and enter your app's
-        incoming-message webhook URL, along with your Watobot API key. We check
-        it responds correctly, then route your WhatsApp messages straight to
-        it.
+        Sign in again, choose <strong>Onboard WABA</strong> and then <strong>Onboard in the dashboard</strong>.
+        A window takes you through it:
       </p>
+      <ol class="flex flex-col gap-2 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li><strong>Your API key.</strong> Enter it. We encrypt the access token Meta gives us with it, so only you can unlock it.</li>
+        <li><strong>Your callback URL.</strong> Enter your app's incoming-message URL. We check it answers Meta's handshake, then send it a test message, an echo, contacts and history, each with a code. Type the four codes your app received, so you know it stores what Meta will send.</li>
+        <li><strong>The WhatsApp Business app.</strong> Confirm your number is on it.</li>
+        <li><strong>Your templates.</strong> Say where they are: none, in your previous Messaging account, or in an export from your provider.</li>
+        <li><strong>Meta's sign-up.</strong> A Facebook popup connects the number, and you pick your business portfolio there. We then point Meta at your URL, so messages go straight from WhatsApp to your app.</li>
+        <li><strong>Sync, or register.</strong> A coexistence number requests its contacts and chat history, which Meta allows once each, within 24 hours. A number that isn't on the app can carry on as API-only and is registered with a six-digit PIN.</li>
+        <li><strong>Templates.</strong> We copy them across, or import your export.</li>
+      </ol>
 
       <h2 class="section-title text-on-surface mt-4">4. Test both directions</h2>
       <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
