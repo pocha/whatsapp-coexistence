@@ -246,6 +246,8 @@ npm run test:unit         # fast, no emulator
 npm run test:integration  # real Firestore/Auth/Functions emulators
 ```
 
+The MCP server has its own tests: `cd mcp && npm test` (it builds first).
+
 Run the app, from the repo root:
 
 ```bash
@@ -268,6 +270,45 @@ Things to know:
 
 Check the app locally by signing in at `http://localhost:8765/dashboard/` with
 a number you own, entering the WhatsApp OTP you receive.
+
+**Try the MCP server locally.** [`mcp/`](mcp/) is launched by an AI tool, so you point the tool at the
+built file and give it your key. With `npm start` running, sign in at `http://localhost:8765/dashboard/`
+and create an API key on the **API key** page (the emulator database starts empty, so a key from the live
+site doesn't exist here). Then:
+
+```bash
+cd mcp && npm install && npm run build      # makes mcp/dist/index.js; rebuild after changes
+```
+
+Three environment variables point it at your local setup (without them it talks to production):
+
+| Variable | Value for local |
+|---|---|
+| `WATOBOT_API_KEY` | the key you just created |
+| `WATOBOT_API_URL` | `http://127.0.0.1:5001/wa-coexistence/us-central1` |
+| `WATOBOT_SITE_URL` | `http://localhost:8765` (the onboarding link then opens your local wizard) |
+
+- **MCP Inspector** (a web page with a button per tool, no AI involved; the best first try):
+  `WATOBOT_API_KEY=<key> WATOBOT_API_URL=… WATOBOT_SITE_URL=… npx @modelcontextprotocol/inspector node $PWD/mcp/dist/index.js`
+- **Claude Desktop**: add this to `~/Library/Application Support/Claude/claude_desktop_config.json`
+  (Windows: `%APPDATA%\Claude\claude_desktop_config.json`), then quit and reopen it:
+
+  ```json
+  { "mcpServers": { "watobot": {
+      "command": "node",
+      "args": ["<full path to>/mcp/dist/index.js"],
+      "env": { "WATOBOT_API_KEY": "<key>", "WATOBOT_API_URL": "http://127.0.0.1:5001/wa-coexistence/us-central1", "WATOBOT_SITE_URL": "http://localhost:8765" }
+  } } }
+  ```
+- **Claude Code**: `claude mcp add watobot -e WATOBOT_API_KEY=<key> -e WATOBOT_API_URL=… -e WATOBOT_SITE_URL=… -- node <full path to>/mcp/dist/index.js`
+
+A test onboarding then goes: the tool checks your callback URL and sends test events (the
+[test chatbot](test-chatbot/README.md) is a callback URL you can use), gives you the link, and you do
+Meta's sign-up in the browser (Facebook login, then the code or QR in the WhatsApp Business app). The
+emulated functions call the real Meta API, so `functions/.env` needs real `META_APP_ID` and
+`META_APP_SECRET`, and your callback URL must be reachable from the internet. Afterwards ask the tool for
+the number's state: it reports the step (`sync` or `register`, then `done`). The key sits in the tool's
+config file in plain text, so don't use a production key where it could be shared or screen-recorded.
 
 **Waitlist.** The dashboard (`/dashboard/` and its pages) is open to anyone, so Meta's reviewers can
 sign in and test the app. The landing page's **Join Waitlist** button reveals the Google Group link,
@@ -299,8 +340,31 @@ assume it is served from the root of its domain.
    ```bash
    firebase login
    firebase deploy --only firestore          # rules and indexes
-   cd functions && npm run deploy            # builds, then deploys the Functions
+   cd functions && npm run deploy            # builds, then deploys all the Functions
    ```
+
+   Redeploy the Functions whenever one changes: the dashboard and the MCP server call them by name, so a
+   page or an MCP release that uses a new function (for example `listNumbers` and `getNumber`) needs the
+   Functions deployed first. `META_APP_SECRET` must be in `functions/.env`: it is how `webhook` checks that
+   a request was signed by Meta, and anything else gets a 401.
+5. Read what the Functions did in Cloud Logging (or `firebase functions:log`). Each failed request, each
+   failed Meta call and each state change (number connected, registered, synced, disconnected) is a
+   structured entry: filter by `jsonPayload.fn="registerNumber"`, `jsonPayload.phoneNumberId="…"` or
+   `severity>=ERROR`. Keys, tokens, OTP codes and message bodies are never logged.
+
+**MCP server (npm).** Publish `mcp/` as `watobot-mcp` so people can run it with `npx`. Deploy the Functions
+first, then, from `mcp/`:
+
+```bash
+npm login                      # once; the package name must be free on npm
+npm version patch              # or minor/major
+npm publish                    # runs the build first (prepublishOnly)
+```
+
+Users add it with `claude mcp add watobot -e WATOBOT_API_KEY=<key> -- npx -y watobot-mcp` (the same line is on
+the dashboard's **API key** page). It talks to production unless `WATOBOT_API_URL` is set. For the
+[MCP registry](https://registry.modelcontextprotocol.io) and the directories that crawl npm, the
+`keywords` in `mcp/package.json` already include `mcp` and `mcp-server`.
 
 **Let `verifyOtp` sign login tokens (once per project).** Login mints a Firebase
 custom token, which the function must sign. In production it signs as its own
@@ -370,34 +434,32 @@ case lists. Do both from the page of the test number that came with your app. It
 needs an incoming-message URL; if you don't have an app, use the
 [test chatbot](test-chatbot/README.md) for one.
 
-Embedded Signup isn't available yet, so store the test number's token yourself
-with the seed script, the same way onboarding would:
+Everything is done with your **Watobot API key**. You never handle a Meta access token: Embedded Signup
+gives Watobot the token, which it stores encrypted under your key and opens only for the request you make.
 
-1. In **Use cases → Customize → Production setup → Send message**, click
-   **Generate token** and copy it. Find the test number's phone number ID there,
-   and its WABA ID in Business Settings → Accounts → WhatsApp accounts.
-2. Run the script from the repo root. It creates your account (if needed), makes a
-   Watobot API key and prints it once, and stores the token encrypted under that
-   key:
+1. Sign in at `https://watobot.com/dashboard/` (or `http://localhost:8765/dashboard/` locally, see step 3)
+   and create your API key on the **API key** page. Copy it: it is shown once.
+2. **Onboard a number**: click **Onboard WABA** and follow the wizard (or let an AI tool do the checks through
+   the MCP server, which hands you a link for Meta's sign-up). The number comes out of Meta's sign-up with its
+   own phone number ID, shown on its page in the dashboard (`/dashboard/waba/?id=<phone number ID>`).
+3. **Override incoming message URL**: in the wizard (or on the number's page), enter your Watobot API key and
+   your app's public HTTPS URL, then click **Verify & save**. This completes the test for
+   `whatsapp_business_management`.
+4. **Send a message**: copy the curl command on the number's page, put in your key and a recipient number,
+   and run it in a terminal:
 
    ```bash
-   META_ACCESS_TOKEN=<the token> node scripts/seed-test-waba.js \
-     --phone <your WhatsApp number, digits only> \
-     --phone-number-id <test phone number ID> --waba-id <test WABA ID>
+   curl -X POST https://us-central1-wa-coexistence.cloudfunctions.net/relayMessage/<phone number ID>/messages \
+     -H "Authorization: Bearer <your Watobot API key>" -H "Content-Type: application/json" \
+     -d '{"messaging_product":"whatsapp","to":"<recipient, digits only>","type":"text","text":{"body":"Hello from Watobot"}}'
    ```
 
-   (Run `cd functions && npm run build` once first. It writes to production using
-   your gcloud credentials, or to the emulator if `FIRESTORE_EMULATOR_HOST` is set.
-   To add another number to an account that already has a key, pass
-   `--api-key <that key>`.)
-3. Run the app (step 3) and open `http://localhost:8765/dashboard/waba/?id=<test phone number ID>`
-   after signing in.
-4. **Override incoming message URL**: enter your Watobot API key (at the top) and your app's
-   public HTTPS URL, then click **Verify & save**. This completes the test for
-   `whatsapp_business_management`.
-5. **Send a message**: copy the curl command on the page, put in your key and a
-   recipient number, and run it in a terminal. This completes the test for
-   `whatsapp_business_messaging`.
+   This completes the test for `whatsapp_business_messaging`. A free-form text reaches only people who wrote to
+   the number in the last 24 hours; otherwise send a template message (see
+   [Rate limits](#rate-limits)).
+
+To check the result without the dashboard, `GET /relayMessage/<phone number ID>/limits` with the same bearer key
+shows the number's send limits, and the MCP server's `get_number` and `get_limits` tools show the state.
 
 ![A WABA page with the incoming-message URL saved](public/assets/24.waba-page.png)
 
