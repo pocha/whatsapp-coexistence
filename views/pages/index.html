@@ -12,6 +12,10 @@
     .reveal-ready .reveal.d1 { transition-delay: .1s; }
     .reveal-ready .reveal.d2 { transition-delay: .2s; }
 
+    /* The typing cursor in the hero carousel. */
+    .caret { animation: blink 1s steps(1) infinite; color: #e9edef; }
+    @keyframes blink { 50% { opacity: 0; } }
+
     /* Little flow diagrams (Why Coexistence). */
     .node { width: 46px; height: 46px; border-radius: 9999px; display: grid; place-items: center; background: #e3f9ea; color: #006d2f; flex-shrink: 0; }
     .node.app { background: #e6f4fb; color: #006686; }
@@ -31,7 +35,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       .reveal-ready .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
-      .flow, .step-line, .pulse { animation: none !important; }
+      .flow, .step-line, .pulse, .caret { animation: none !important; }
       .lift { transition: none; }
     }
   </style>
@@ -61,7 +65,7 @@
             <span>Join Waitlist</span>
             <span id="join-count" class="hidden text-xs font-normal opacity-80"></span>
           </button>
-          <a href="/how-to/connect-watobot-to-ai-tool.html" class="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Connect your AI tool</a>
+          <a href="/how-to/get-whatsapp-api-for-free.html" class="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Get free WhatsApp API access</a>
         </div>
         <p class="text-on-surface-variant font-body-md text-sm">
           Already have WhatsApp API access? You can still enable coexistence
@@ -69,38 +73,59 @@
         </p>
       </div>
 
-      <!-- Hero carousel: what an AI tool does with Watobot. Plain text in the page, so it can be read as well as seen. -->
+      <!-- Hero carousel: what an AI tool does with Watobot, typed out like Claude Code. The text is in the page, so it can be read as well as watched. -->
       <div id="hero-carousel" class="md:w-7/12 w-full max-w-xl" role="region" aria-roledescription="carousel" aria-label="What your AI tool does with Watobot">
         <div class="rounded-2xl bg-[#0b141a] shadow-xl overflow-hidden">
           <div class="flex items-center gap-2 px-4 py-3 border-b border-white/10">
             <span class="h-3 w-3 rounded-full bg-[#ff5f56]"></span><span class="h-3 w-3 rounded-full bg-[#ffbd2e]"></span><span class="h-3 w-3 rounded-full bg-[#27c93f]"></span>
             <span id="hero-slide-title" class="ml-3 text-xs text-[#8696a0] font-mono"></span>
           </div>
-          <div class="p-4 font-mono text-[12.5px] leading-6 min-h-[330px] break-words">
-            <div data-slide data-title="Onboard WhatsApp Account" class="flex flex-col gap-1.5" aria-label="Onboard WhatsApp Account">
-              <p class="text-[#8696a0]">$ claude mcp add watobot -e WATOBOT_API_KEY=3f9a… -- npx -y watobot-mcp</p>
-              <p><span class="text-[#25d366]">&gt;</span> Onboard my WhatsApp number to the API with coexistence. My endpoint is https://shop.example.com/webhook</p>
-              <p class="text-[#8696a0]"><span class="text-[#53bdeb]">&#9210; watobot</span> &rsaquo; check_callback_url <span class="text-[#25d366]">&#10003;</span> answers Meta's handshake</p>
-              <p class="text-[#8696a0]"><span class="text-[#53bdeb]">&#9210; watobot</span> &rsaquo; send_test_events <span class="text-[#25d366]">&#10003;</span> message, echo, contacts, history</p>
-              <p class="text-[#e9edef]">&#9679; Open this link and complete Meta's sign-up, then come back.</p>
-              <p><span class="text-[#25d366]">&gt;</span> Done.</p>
-              <p class="text-[#8696a0]"><span class="text-[#53bdeb]">&#9210; watobot</span> &rsaquo; get_number &rarr; step: sync</p>
-              <p class="text-[#8696a0]"><span class="text-[#53bdeb]">&#9210; watobot</span> &rsaquo; start_sync <span class="text-[#25d366]">&#10003;</span> contacts and history requested</p>
-              <p class="text-[#e9edef]">&#9679; Your number is onboarded. Messages now reach your endpoint.</p>
+          <div class="p-4 font-mono text-[12.5px] leading-6 min-h-[360px] break-words">
+            <div data-slide data-title="Onboard WhatsApp Account" class="flex flex-col gap-2" aria-label="Onboard WhatsApp Account">
+              <p data-line="type" class="text-[#8696a0]">$ <span data-text>claude mcp add watobot -e WATOBOT_API_KEY=3f9a… -- npx -y watobot-mcp</span><span class="caret hidden">&#9611;</span></p>
+              <p data-line="type" class="text-[#e9edef] border border-white/20 rounded-md px-3 py-1.5"><span class="text-[#25d366]">&gt;</span> <span data-text>Onboard my WhatsApp number to the API with coexistence. My endpoint is https://shop.example.com/webhook</span><span class="caret hidden">&#9611;</span></p>
+              <div data-line="tool">
+                <p class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span class="text-[#53bdeb]">watobot</span> - check_callback_url (MCP)</p>
+                <p data-result class="pl-4 text-[#8696a0]">&#9166; <span class="text-[#25d366]">&#10003;</span> answers Meta&rsquo;s handshake</p>
+              </div>
+              <div data-line="tool">
+                <p class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span class="text-[#53bdeb]">watobot</span> - send_test_events (MCP)</p>
+                <p data-result class="pl-4 text-[#8696a0]">&#9166; <span class="text-[#25d366]">&#10003;</span> message, echo, contacts, history</p>
+              </div>
+              <p data-line="say" class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span data-text>Open this link, complete Meta&rsquo;s sign-up, then tell me when you are back.</span></p>
+              <p data-line="type" class="text-[#e9edef] border border-white/20 rounded-md px-3 py-1.5"><span class="text-[#25d366]">&gt;</span> <span data-text>Done.</span><span class="caret hidden">&#9611;</span></p>
+              <div data-line="tool">
+                <p class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span class="text-[#53bdeb]">watobot</span> - get_number (MCP)</p>
+                <p data-result class="pl-4 text-[#8696a0]">&#9166; <span class="text-[#25d366]">&#10003;</span> step: sync</p>
+              </div>
+              <div data-line="tool">
+                <p class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span class="text-[#53bdeb]">watobot</span> - start_sync (MCP)</p>
+                <p data-result class="pl-4 text-[#8696a0]">&#9166; <span class="text-[#25d366]">&#10003;</span> contacts and history requested</p>
+              </div>
+              <p data-line="say" class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span data-text>Your number is onboarded. Messages now reach your endpoint.</span></p>
             </div>
-            <div data-slide data-title="Run a campaign" class="hidden flex flex-col gap-1.5" aria-label="Run a campaign">
-              <p><span class="text-[#25d366]">&gt;</span> Send the spring_offer template to my 10 most active customers.</p>
-              <p class="text-[#e9edef]">&#9679; Reading your 10 most active customers from the database.</p>
-              <p class="text-[#8696a0]"><span class="text-[#53bdeb]">&#9210; watobot</span> &rsaquo; get_limits &rarr; 10 messages left today</p>
-              <p class="text-[#8696a0]"><span class="text-[#53bdeb]">&#9210; watobot</span> &rsaquo; send_message &times; 10 <span class="text-[#25d366]">&#10003;</span> spring_offer delivered</p>
-              <p class="text-[#e9edef]">&#9679; Sent to 10 customers. Replies will reach your endpoint as usual.</p>
+            <div data-slide data-title="Run a campaign" class="hidden flex flex-col gap-2" aria-label="Run a campaign">
+              <p data-line="type" class="text-[#e9edef] border border-white/20 rounded-md px-3 py-1.5"><span class="text-[#25d366]">&gt;</span> <span data-text>Send the spring_offer template to my 10 most active customers.</span><span class="caret hidden">&#9611;</span></p>
+              <p data-line="say" class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span data-text>Reading your 10 most active customers from the database.</span></p>
+              <div data-line="tool">
+                <p class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span class="text-[#53bdeb]">watobot</span> - get_limits (MCP)</p>
+                <p data-result class="pl-4 text-[#8696a0]">&#9166; <span class="text-[#25d366]">&#10003;</span> 10 messages left today</p>
+              </div>
+              <div data-line="tool">
+                <p class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span class="text-[#53bdeb]">watobot</span> - send_message &times; 10 (MCP)</p>
+                <p data-result class="pl-4 text-[#8696a0]">&#9166; <span class="text-[#25d366]">&#10003;</span> spring_offer delivered to 10 customers</p>
+              </div>
+              <p data-line="say" class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span data-text>Done. Replies will reach your endpoint as usual.</span></p>
             </div>
-            <div data-slide data-title="Build a chatbot" class="hidden flex flex-col gap-1.5" aria-label="Build a chatbot">
-              <p><span class="text-[#25d366]">&gt;</span> Build a support chatbot for this number and deploy it on Cloudflare.</p>
-              <p class="text-[#e9edef]">&#9679; Writing the worker: it answers Meta's handshake and replies through Watobot.</p>
-              <p class="text-[#8696a0]">$ wrangler deploy &rarr; https://shop-bot.example.workers.dev</p>
-              <p class="text-[#8696a0]"><span class="text-[#53bdeb]">&#9210; watobot</span> &rsaquo; set_webhook <span class="text-[#25d366]">&#10003;</span> incoming messages go to the worker</p>
-              <p class="text-[#e9edef]">&#9679; Live. Send a message to your number to try it.</p>
+            <div data-slide data-title="Build a chatbot" class="hidden flex flex-col gap-2" aria-label="Build a chatbot">
+              <p data-line="type" class="text-[#e9edef] border border-white/20 rounded-md px-3 py-1.5"><span class="text-[#25d366]">&gt;</span> <span data-text>Build a support chatbot for this number and deploy it on Cloudflare.</span><span class="caret hidden">&#9611;</span></p>
+              <p data-line="say" class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span data-text>Writing the worker: it answers Meta&rsquo;s handshake and replies through Watobot.</span></p>
+              <p data-line="type" class="text-[#8696a0]">$ <span data-text>wrangler deploy</span><span class="caret hidden">&#9611;</span></p>
+              <div data-line="tool">
+                <p class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span class="text-[#53bdeb]">watobot</span> - set_webhook (MCP)</p>
+                <p data-result class="pl-4 text-[#8696a0]">&#9166; <span class="text-[#25d366]">&#10003;</span> incoming messages go to your worker</p>
+              </div>
+              <p data-line="say" class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span data-text>Live. Send a message to your number to try it.</span></p>
             </div>
           </div>
         </div>
@@ -294,17 +319,22 @@
         You pay only for the messages your app sends through the API. Messages customers send you,
         and messages you type in the WhatsApp Business app, are never counted.
       </p>
-      <div class="reveal card max-w-4xl mx-auto">
-        <div class="grid grid-cols-1 md:grid-cols-2">
+      <div class="reveal card max-w-5xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-3">
           <div class="p-8 flex flex-col items-center justify-center text-center gap-2">
+            <p class="label-strong text-primary">FIRST 10 USERS</p>
+            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:44px;line-height:48px">Free</p>
+            <p class="text-on-surface-variant font-body-md">Completely free.</p>
+          </div>
+          <div class="p-8 flex flex-col items-center justify-center text-center gap-2 border-t md:border-t-0 md:border-l border-outline-variant">
             <p class="label-strong text-primary">FREE, FOREVER</p>
             <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:44px;line-height:48px">$0</p>
-            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:28px;line-height:36px">10 <span class="font-body-md text-on-surface-variant" style="font-size:14px">outgoing messages / day / number</span></p>
+            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:28px;line-height:36px">10 <span class="font-body-md text-on-surface-variant" style="font-size:14px">outgoing messages / day*</span></p>
           </div>
           <div class="p-8 flex flex-col items-center justify-center text-center gap-2 border-t md:border-t-0 md:border-l border-outline-variant">
             <p class="label-strong text-primary">GROWING</p>
-            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:44px;line-height:48px">$5 <span class="font-body-md text-on-surface-variant" style="font-size:14px">/ number / month</span></p>
-            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:28px;line-height:36px">100 <span class="font-body-md text-on-surface-variant" style="font-size:14px">outgoing messages / day, then $1 per 1,000</span></p>
+            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:44px;line-height:48px">$5 <span class="font-body-md text-on-surface-variant" style="font-size:14px">/ month</span></p>
+            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:28px;line-height:36px">100 <span class="font-body-md text-on-surface-variant" style="font-size:14px">outgoing messages / day*, then $1 per 1,000</span></p>
           </div>
         </div>
         <div class="border-t border-outline-variant p-5 md:p-6">
@@ -328,6 +358,7 @@
             </p>
           </div>
         </div>
+        <p class="px-6 pb-5 text-on-surface-variant font-body-md text-sm">* The quota is per number.</p>
       </div>
 
       <details class="reveal max-w-3xl mx-auto mt-10 bg-white border border-outline-variant rounded-xl shadow-sm p-5">

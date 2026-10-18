@@ -22,15 +22,20 @@ if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: re
   document.querySelectorAll('.reveal').forEach((node) => seen.observe(node));
 }
 
-// The hero carousel: one slide at a time, moving on every few seconds unless the visitor points at it
-// or has asked for less motion. The dots jump to a slide.
+// The hero carousel: each slide plays out like a Claude Code session, the prompt typed, the tool
+// calls appearing one after another, the reply streaming in. Then it moves to the next slide, unless
+// the visitor is pointing at it. The dots jump to a slide. With reduced motion, or without this
+// script, the whole text of the slide is simply shown.
 const carousel = document.getElementById('hero-carousel');
 if (carousel) {
   const slides = Array.from(carousel.querySelectorAll<HTMLElement>('[data-slide]'));
   const dots = Array.from(carousel.querySelectorAll<HTMLButtonElement>('[data-dot]'));
   const title = el('hero-slide-title');
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   let current = 0;
-  let timer: ReturnType<typeof setInterval> | undefined;
+  let run = 0; // a new run cancels the one before it
+  let hovered = false;
 
   const show = (index: number) => {
     current = (index + slides.length) % slides.length;
@@ -42,20 +47,64 @@ if (carousel) {
     });
     title.textContent = slides[current].dataset.title ?? '';
   };
-  const play = () => {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    stop();
-    timer = setInterval(() => show(current + 1), 7000);
-  };
-  const stop = () => clearInterval(timer);
 
-  dots.forEach((dot, i) => dot.addEventListener('click', () => (show(i), play())));
-  carousel.addEventListener('mouseenter', stop);
-  carousel.addEventListener('mouseleave', play);
-  carousel.addEventListener('focusin', stop);
-  carousel.addEventListener('focusout', play);
-  show(0);
-  play();
+  /** Types `node`'s text out, a few characters at a time (`step` of them, `ms` apart). */
+  async function type(node: HTMLElement, mine: number, ms: number, step: number, caret?: HTMLElement | null) {
+    const full = node.dataset.full ?? node.textContent ?? '';
+    node.dataset.full = full;
+    node.textContent = '';
+    caret?.classList.remove('hidden');
+    for (let i = step; i < full.length + step; i += step) {
+      if (run !== mine) return;
+      node.textContent = full.slice(0, i);
+      await sleep(ms + Math.random() * ms * 0.6);
+    }
+    caret?.classList.add('hidden');
+  }
+
+  async function play(index: number) {
+    const mine = ++run;
+    show(index);
+    const lines = Array.from(slides[current].querySelectorAll<HTMLElement>('[data-line]'));
+    const results = lines.flatMap((line) => Array.from(line.querySelectorAll<HTMLElement>('[data-result]')));
+    const carets = Array.from(slides[current].querySelectorAll<HTMLElement>('.caret'));
+    if (still) {
+      lines.forEach((line) => line.classList.remove('hidden'));
+      results.forEach((result) => result.classList.remove('hidden'));
+      return;
+    }
+    lines.forEach((line) => line.classList.add('hidden'));
+    results.forEach((result) => result.classList.add('hidden'));
+    carets.forEach((caret) => caret.classList.add('hidden'));
+
+    await sleep(500);
+    for (const line of lines) {
+      if (run !== mine) return;
+      line.classList.remove('hidden');
+      const text = line.querySelector<HTMLElement>('[data-text]');
+      if (line.dataset.line === 'type' && text) {
+        await type(text, mine, 28, 1, line.querySelector('.caret'));
+        await sleep(450);
+      } else if (line.dataset.line === 'say' && text) {
+        await type(text, mine, 45, 3);
+      } else if (line.dataset.line === 'tool') {
+        await sleep(700);
+        line.querySelectorAll<HTMLElement>('[data-result]').forEach((result) => result.classList.remove('hidden'));
+      }
+      await sleep(350);
+    }
+    // Hold the finished slide, then the next one, unless the visitor is looking at it.
+    await sleep(3500);
+    while (hovered && run === mine) await sleep(300);
+    if (run === mine) void play(current + 1);
+  }
+
+  dots.forEach((dot, i) => dot.addEventListener('click', () => void play(i)));
+  carousel.addEventListener('mouseenter', () => (hovered = true));
+  carousel.addEventListener('mouseleave', () => (hovered = false));
+  carousel.addEventListener('focusin', () => (hovered = true));
+  carousel.addEventListener('focusout', () => (hovered = false));
+  void play(0);
 }
 
 const btn = el<HTMLButtonElement>('join-btn');
