@@ -5,6 +5,7 @@ import { checkPublicUrl, verifyEndpointChallenge } from './helpers/endpointCheck
 import { claimSync, moveStep, movedTo, readNumber, readTestRun, recordOverrideResult, reserveTestSend, setSyncState, skipSync as skipSyncRecord } from './helpers/model';
 import { config } from './helpers/config';
 import { logEvent } from './helpers/log';
+import { refreshHealth } from './helpers/healthRefresh';
 import { post } from './helpers/http';
 import { newCodes, sendTestEvent, TEST_EVENT_TYPES } from './helpers/testEvents';
 import type {
@@ -46,6 +47,12 @@ export async function advanceAfterOverride(phoneNumberId: string, accessToken: s
     startSync: coexistence && !noSync,
     skipSync: noSync,
   });
+  // The first status is read now, while the token is in hand, so a number that starts out blocked or limited is guarded from its first send.
+  try {
+    await refreshHealth({ phoneNumberId, wabaId: doc.wabaId, accessToken });
+  } catch {
+    // Not needed to go on: the status is read again whenever the user refreshes.
+  }
   return { step, isOnBizApp: info.isOnBizApp };
 }
 

@@ -13,6 +13,8 @@ export function numberView(doc: PhoneNumberDoc): NumberView {
     displayPhoneNumber: doc.displayPhoneNumber,
     overrideUrl: doc.overrideUrl,
     callbackSkipped: doc.callbackSkipped,
+    health: doc.health,
+    displayName: doc.displayName,
     activatedAt: doc.activatedAt,
     lastRelayCall: doc.lastRelayCall,
     usage: doc.usage,

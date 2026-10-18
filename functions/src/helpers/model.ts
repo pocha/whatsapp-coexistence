@@ -1,8 +1,11 @@
 import { FieldValue, getFirestore, type DocumentSnapshot } from 'firebase-admin/firestore';
 import { effectiveConfig, reserve, type Verdict } from './rateLimiter';
 import type { RateLimitConfig } from './rateLimitConfig';
+import { LIMITED_DAILY_TEMPLATES } from './health';
 import type {
+  DisplayNameState,
   EncryptedToken,
+  NumberHealth,
   OnboardingState,
   OnboardingStep,
   PhoneNumberDoc,
@@ -174,6 +177,10 @@ export async function saveNumberToken(args: {
   });
 }
 
+/** Stores what the last read from Meta said about whether the number may send, and its display name. */
+export const setHealth = (phoneNumberId: string, health: NumberHealth, displayName?: DisplayNameState) =>
+  phoneNumberRef(phoneNumberId).update({ health, ...(displayName ? { displayName } : {}) });
+
 export const setDisplayPhoneNumber = (phoneNumberId: string, displayPhoneNumber: string) =>
   phoneNumberRef(phoneNumberId).update({ displayPhoneNumber });
 
@@ -295,12 +302,16 @@ export const setSyncState = (phoneNumberId: string, type: SyncType, status: Sync
  */
 export async function reserveTemplateSend(
   phoneNumberId: string,
-): Promise<{ verdict: Verdict | { allowed: true }; config: RateLimitConfig; now: number }> {
+): Promise<{ verdict: Verdict | { allowed: true } | { allowed: false; blocked: NumberHealth }; config: RateLimitConfig; now: number }> {
   const ref = phoneNumberRef(phoneNumberId);
   const now = Date.now();
   return db().runTransaction(async (tx) => {
     const data = numberOf(await tx.get(ref));
-    const config = effectiveConfig(data?.rateLimits);
+    // A blocked number sends no template (business-initiated) messages at all, and a limited one only a few
+    // a day. Both come from the status stored at the last read from Meta (see health.ts).
+    if (data?.health?.status === 'blocked') return { verdict: { allowed: false as const, blocked: data.health }, config: effectiveConfig(data.rateLimits), now };
+    const override = data?.health?.status === 'limited' ? { ...data.rateLimits, headroomSigmas: 0, day: { ...data.rateLimits?.day, floor: LIMITED_DAILY_TEMPLATES, growthPercent: 0 } } : data?.rateLimits;
+    const config = effectiveConfig(override);
     if (!config.enabled) return { verdict: { allowed: true as const }, config, now };
     const verdict = reserve(data?.rateState, config, now);
     tx.update(ref, { rateState: verdict.state });

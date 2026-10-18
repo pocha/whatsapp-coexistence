@@ -8,14 +8,18 @@ import {
   getDisplayPhoneNumber,
   getPhoneNumberInfo,
   graphApiBase,
+  graphGet,
   migrateTemplatesPage,
   registerPhoneNumber,
+  requestDisplayName,
   subscribeApp,
   unsubscribeApp,
   verifyWabaAccess,
 } from './helpers/graphApi';
 import { post } from './helpers/http';
 import { relayLimits } from './helpers/numberView';
+import { refreshHealth } from './helpers/healthRefresh';
+import { healthFromRefusal } from './helpers/health';
 import { parseTemplateExport } from './helpers/templateImport';
 import { limitsView, UNITS, type RateState } from './helpers/rateLimiter';
 import type { RateLimitConfig } from './helpers/rateLimitConfig';
@@ -30,6 +34,7 @@ import type {
   MigrateTemplatesResponse,
   OnboardingResponse,
   RegisterNumberRequest,
+  SetDisplayNameRequest,
   SetWebhookRequest,
 } from './helpers/types';
 import { authenticateKey } from './accounts';
@@ -45,6 +50,7 @@ import {
   reserveTemplateSend,
   setCallback,
   setDisplayPhoneNumber,
+  setHealth,
   setTemplateSource,
 } from './helpers/model';
 
@@ -127,6 +133,34 @@ export const setWebhook = onRequest((req, res) => {
       res.status(status).send({ ok: false, error: (err as Error).message });
     }
   });
+});
+
+// ---- setDisplayName ----
+
+// Asks Meta to review a new display name. Only one change may wait for review at a time: asking again
+// while one is pending (or while Meta's answer can't be read) is refused here, so nobody ends up
+// resubmitting while the first is in review. Needs the Watobot API key, like the other number calls.
+export const setDisplayName = post(async (req, res) => {
+  const { phoneNumberId, apiKey, displayName } = (req.body ?? {}) as Partial<SetDisplayNameRequest>;
+  const name = String(displayName ?? '').trim();
+  if (!phoneNumberId || !apiKey || name.length < 3) throw new HttpError(400, 'phoneNumberId, apiKey and a display name of at least 3 characters are required');
+  const { wabaId, accessToken } = await authenticateKey(String(phoneNumberId), apiKey);
+
+  let current: Record<string, unknown>;
+  try {
+    current = await graphGet(`/${encodeURIComponent(String(phoneNumberId))}?fields=new_display_name,new_name_status`, accessToken);
+  } catch (err) {
+    throw new HttpError(502, `Could not check whether a display name is already in review (${(err as Error).message.slice(0, 160)}), so nothing was submitted.`);
+  }
+  if (/PENDING/i.test(String(current.new_name_status ?? ''))) {
+    throw new HttpError(409, `A display name change ("${current.new_display_name ?? 'unknown'}") is already in review. Wait for Meta's decision before asking again.`);
+  }
+
+  await requestDisplayName(String(phoneNumberId), accessToken, name);
+  logEvent('display name requested', { phoneNumberId });
+  // The new request shows in the stored display name state straight away.
+  await refreshHealth({ phoneNumberId: String(phoneNumberId), wabaId, accessToken }).catch(() => undefined);
+  res.status(200).send({ ok: true });
 });
 
 // ---- registerNumber ----
@@ -290,6 +324,16 @@ relayApp.post('/:phoneNumberId/messages', async (req, res) => {
   // Only template messages are limited; free-form replies go straight through.
   if (req.body?.type === 'template') {
     const { verdict, config, now } = await reserveTemplateSend(phoneNumberId);
+    if ('blocked' in verdict) {
+      logEvent('template send blocked', { phoneNumberId });
+      res.status(403).send({
+        error: 'This number is blocked from sending template messages. Free-form replies still go through. Fix the reasons below, then refresh the number (the dashboard, or get_number) to lift this.',
+        status: 'blocked',
+        checkedAt: verdict.blocked.checkedAt,
+        reasons: verdict.blocked.reasons,
+      });
+      return;
+    }
     if ('state' in verdict) setRateHeaders(res, verdict.state, config, now);
     if (!verdict.allowed && 'unit' in verdict) {
       res.set('Retry-After', String(verdict.retryAfterSeconds));
@@ -323,7 +367,12 @@ relayApp.post('/:phoneNumberId/messages', async (req, res) => {
     usageKeys: { daily: dailyKey(now), weekly: isoWeekKey(now), monthly: monthlyKey(now) },
   });
 
-  if (!metaRes.ok) logEvent('Meta refused a send', { phoneNumberId, status: metaRes.status, metaError: body?.error });
+  if (!metaRes.ok) {
+    logEvent('Meta refused a send', { phoneNumberId, status: metaRes.status, metaError: body?.error });
+    // A refusal that says the account can't send is remembered, so the next sends are not even tried.
+    const refused = healthFromRefusal(body?.error, Date.now());
+    if (refused) await setHealth(phoneNumberId, refused).catch(() => undefined);
+  }
   res.status(metaRes.status).send(body);
 });
 

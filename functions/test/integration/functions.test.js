@@ -25,6 +25,7 @@ const post = (path, body, headers = {}) =>
   });
 
 const asUser = () => ({ Authorization: `Bearer ${idToken}` });
+const FieldValueDelete = () => require('firebase-admin').firestore.FieldValue.delete();
 
 async function seedNumber(phoneNumberId, wabaId, key = KEY) {
   await db.collection('phoneNumbers').doc(phoneNumberId).set({
@@ -516,6 +517,70 @@ test('getNumber adds what Meta says right now when the key is given, part by par
   const signedIn = await (await post('/getNumber', { phoneNumberId: '9801' }, asUser())).json();
   assert.equal(signedIn.meta, undefined, 'a sign-in alone cannot open the token, so there is no live part');
   assert.equal(signedIn.ok, true);
+});
+
+test('a blocked number sends no templates but can reply; refreshing stores the status and a Meta refusal sets it', async () => {
+  const relay = (id, body) =>
+    fetch(`${FUNCTIONS_BASE}/relayMessage/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` }, body: JSON.stringify(body) });
+  const template = { messaging_product: 'whatsapp', to: '15551234567', type: 'template', template: { name: 'hello', language: { code: 'en_US' } } };
+  const text = { messaging_product: 'whatsapp', to: '15551234567', type: 'text', text: { body: 'hi' } };
+
+  // 9801 sits in an account Meta says is blocked (a payment problem). Nothing is stored until it is read.
+  await seedNumber('9801', '9811');
+  await db.collection('phoneNumbers').doc('9801').update({ health: FieldValueDelete() });
+  assert.equal((await relay('9801', template)).status, 200, 'with no status yet, nothing is held back');
+
+  const refreshed = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9801' })).json();
+  assert.equal(refreshed.number.health.status, 'blocked');
+  assert.equal(refreshed.number.health.reasons[0].code, 141006);
+  assert.equal((await db.collection('phoneNumbers').doc('9801').get()).data().health.status, 'blocked', 'the status is stored');
+  assert.equal(refreshed.number.displayName.name, 'Stub Name');
+
+  const refused = await relay('9801', template);
+  assert.equal(refused.status, 403);
+  const refusal = await refused.json();
+  assert.equal(refusal.status, 'blocked');
+  assert.equal(refusal.reasons[0].fix, 'add one');
+  assert.equal((await relay('9801', text)).status, 200, 'a free-form reply still goes through');
+
+  // A send Meta itself refuses for a payment problem blocks the number from then on.
+  await seedNumber('9804', '9814');
+  assert.equal((await relay('9804', text)).status, 400);
+  assert.equal((await db.collection('phoneNumbers').doc('9804').get()).data().health.status, 'blocked');
+  assert.equal((await relay('9804', template)).status, 403);
+});
+
+test('a limited number may send only a few templates a day, and a business that is only unverified is not limited', async () => {
+  const template = { messaging_product: 'whatsapp', to: '15551234567', type: 'template', template: { name: 'hello', language: { code: 'en_US' } } };
+  const relay = (id) =>
+    fetch(`${FUNCTIONS_BASE}/relayMessage/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` }, body: JSON.stringify(template) });
+
+  await seedNumber('9802', '9812');
+  const read = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9802' })).json();
+  assert.equal(read.number.health.status, 'limited');
+  assert.ok(read.number.health.reasons.some((r) => r.scope === 'BUSINESS' && r.severity === 'info'), 'the unverified business is only information');
+  const statuses = [];
+  for (let i = 0; i < 7; i++) statuses.push((await relay('9802')).status);
+  assert.deepEqual(statuses, [200, 200, 200, 200, 200, 429, 429], 'five a day, then the limiter refuses');
+
+  await seedNumber('9805', '9815');
+  const fine = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9805' })).json();
+  assert.equal(fine.number.health.status, 'ok');
+});
+
+test('a display name change is refused while one is in review, and goes to Meta otherwise', async () => {
+  await seedNumber('9803', '9813');
+  const waiting = await post('/setDisplayName', { phoneNumberId: '9803', apiKey: KEY, displayName: 'New Shop Name' });
+  assert.equal(waiting.status, 409);
+  assert.match((await waiting.json()).error, /already in review/);
+
+  await seedNumber('9806', '9816');
+  const accepted = await post('/setDisplayName', { phoneNumberId: '9806', apiKey: KEY, displayName: 'New Shop Name' });
+  assert.equal(accepted.status, 200);
+  assert.ok((await metaCalls()).some((c) => c.startsWith('POST /9806?new_display_name=New%20Shop%20Name')), 'Meta was asked');
+
+  assert.equal((await post('/setDisplayName', { phoneNumberId: '9806', apiKey: KEY, displayName: 'No' })).status, 400);
+  assert.equal((await post('/setDisplayName', { phoneNumberId: '9806', apiKey: NEW_KEY, displayName: 'New Shop Name' })).status, 401);
 });
 
 test('login: a new phone number gets a user, sets a key, and then needs that key to log in', async () => {

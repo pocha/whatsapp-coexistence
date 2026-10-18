@@ -82,6 +82,9 @@ export interface PhoneNumberDoc {
   onboarding: OnboardingState;
   /** The user chose to onboard without a callback URL: nothing of theirs receives incoming messages. */
   callbackSkipped?: boolean;
+  /** Whether the number may send, as of the last read from Meta. See NumberHealth. */
+  health?: NumberHealth;
+  displayName?: DisplayNameState;
   /** From Meta, after onboarding: whether the number is also on the WhatsApp Business app. */
   isOnBizApp?: boolean;
   platformType?: string;
@@ -101,6 +104,8 @@ export interface NumberView {
   displayPhoneNumber?: string;
   overrideUrl?: string;
   callbackSkipped?: boolean;
+  health?: NumberHealth;
+  displayName?: DisplayNameState;
   activatedAt?: number;
   lastRelayCall?: number;
   usage?: Usage;
@@ -120,6 +125,41 @@ export interface NumberView {
 /** POST /listNumbers (a Firebase token or `apiKey` in the body). */
 export interface ListNumbersResponse extends ApiResponse {
   numbers: NumberView[];
+}
+
+/** Why a number can't send freely, in Meta's words. */
+export interface HealthReason {
+  /** Which part of the account it concerns (WABA, PHONE_NUMBER, BUSINESS), or MESSAGE for a refusal. */
+  scope: string;
+  message: string;
+  /** What Meta says to do about it. */
+  fix?: string;
+  code?: number;
+  /** blocked and limited change what we let through; info is shown only. */
+  severity: 'blocked' | 'limited' | 'info';
+}
+
+/**
+ * Whether a number may send, as of the last time it was read from Meta (the dashboard's refresh, or an
+ * AI tool's get_number, or a send Meta refused). It is not re-checked on its own: the user fixes the
+ * problem and refreshes.
+ *   ok       nothing in the way
+ *   limited  the number itself is limited (a display name not approved yet): few template messages a day
+ *   blocked  the account or number is blocked: only free-form replies go through
+ */
+export interface NumberHealth {
+  status: 'ok' | 'limited' | 'blocked';
+  reasons: HealthReason[];
+  checkedAt: number;
+  source: 'meta' | 'refusal';
+}
+
+/** The number's display name and any change waiting for Meta's review. */
+export interface DisplayNameState {
+  name?: string;
+  status?: string;
+  requestedName?: string;
+  requestedStatus?: string;
 }
 
 /** One live read from Meta: what it said, or why the read failed. Each part is separate so one failure hides nothing else. */
@@ -257,6 +297,12 @@ export interface SetWebhookRequest {
   overrideCallbackUrl?: string;
   /** Onboard without a callback URL: incoming messages go to Watobot, which discards them. */
   noCallback?: boolean;
+}
+
+export interface SetDisplayNameRequest {
+  phoneNumberId: string;
+  apiKey: string;
+  displayName: string;
 }
 
 export interface SkipSyncRequest {

@@ -215,6 +215,14 @@ export async function deregisterPhoneNumber(phoneNumberId: string, accessToken: 
   });
 }
 
+/** Asks Meta to review a new display name for the number (it is verified against the display name guidelines). */
+export async function requestDisplayName(phoneNumberId: string, accessToken: string, displayName: string): Promise<void> {
+  await graphFetch(`/${encodeURIComponent(phoneNumberId)}?new_display_name=${encodeURIComponent(displayName)}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
 /** Stops this app receiving the Messaging account's webhooks (and removes the callback URL override). */
 export async function unsubscribeApp(wabaId: string, accessToken: string): Promise<void> {
   await graphFetch(`/${encodeURIComponent(wabaId)}/subscribed_apps`, {

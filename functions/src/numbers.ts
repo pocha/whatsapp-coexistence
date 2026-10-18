@@ -3,7 +3,7 @@ import { authenticateKey, requireCaller } from './accounts';
 import { post } from './helpers/http';
 import { listNumbersForUser, readNumber } from './helpers/model';
 import { numberView, relayLimits } from './helpers/numberView';
-import { readMetaSnapshot } from './helpers/metaSnapshot';
+import { refreshHealth } from './helpers/healthRefresh';
 import type { GetNumberResponse, ListNumbersResponse } from './helpers/types';
 import { logEvent } from './helpers/log';
 
@@ -28,7 +28,9 @@ export const getNumber = post(async (req, res) => {
   if (req.body?.apiKey !== undefined) {
     try {
       const { accessToken } = await authenticateKey(phoneNumberId, req.body.apiKey);
-      body.meta = await readMetaSnapshot({ phoneNumberId, wabaId: doc.wabaId, accessToken });
+      const { meta, derived } = await refreshHealth({ phoneNumberId, wabaId: doc.wabaId, accessToken });
+      body.meta = meta;
+      if (derived) body.number = { ...body.number, health: derived.health, displayName: derived.displayName };
     } catch (err) {
       body.metaError = (err as Error).message;
       logEvent('live details unavailable', { phoneNumberId, error: body.metaError });

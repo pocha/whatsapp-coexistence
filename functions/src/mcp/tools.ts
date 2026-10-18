@@ -85,6 +85,12 @@ export function createServer(ctx: Context): McpServer {
     { phoneNumberId, overrideCallbackUrl: callbackUrl.optional(), noCallback: z.boolean().optional() },
     (a) => callFunction('setWebhook', a),
   );
+  tool(
+    'set_display_name',
+    'Asks Meta to review a new display name for the number. Only one change can be in review at a time, so it refuses while one is pending. Meta\'s decision takes a while: check get_number\'s displayName for the status, and do not ask again meanwhile.',
+    { phoneNumberId, displayName: z.string().min(3) },
+    (a) => callFunction('setDisplayName', a),
+  );
   tool('skip_sync', 'Coexistence only: skips the contacts and history sync for good (Meta allows each once, within 24 hours of onboarding). Ask the person first.', { phoneNumberId }, (a) => callFunction('skipSync', a), { destructive: true });
   tool('start_sync', 'Coexistence only: asks Meta to send the contacts, or the history, to the callback URL. Each can be requested once, contacts first, within 24 hours of onboarding.', { phoneNumberId, syncType: z.enum(['contacts', 'history']) }, (a) => callFunction('startSync', a));
   tool('register_number', 'API-only numbers: registers the number for the Cloud API with a six-digit PIN (two-step verification). Refused for a number on the WhatsApp Business app.', { phoneNumberId, pin: z.string().regex(/^\d{6}$/) }, (a) => callFunction('registerNumber', a));

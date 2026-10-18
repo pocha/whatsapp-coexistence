@@ -111,19 +111,54 @@ function startMetaStub(port) {
       return;
     }
 
-    // Live details for getNumber: any field read of a number or account, and the subscribed apps.
+    // Live details for getNumber. Phone 9801 sits in a blocked account, 9802 is limited (display name not
+    // approved), 9803 has a display name change in review, anything else is fine.
     if (req.method === 'GET' && req.url.match(/^\/\d+\/subscribed_apps$/)) {
       res.writeHead(200).end(JSON.stringify({ data: [{ id: '1323887826398640', name: 'stub-app', override_callback_uri: 'https://example.com/hook' }] }));
       return;
     }
-    if (req.method === 'GET' && req.url.match(/^\/\d+\?fields=[a-z_,]+$/) && !req.url.includes('ownership_type')) {
+    if (req.method === 'GET' && req.url.match(/^\/\d+\?metadata=1$/)) {
       res.writeHead(200).end(
-        JSON.stringify({ display_phone_number: '+1 555-000-0000', quality_rating: 'GREEN', status: 'CONNECTED', name: 'stub-account', whatsapp_business_manager_messaging_limit: 'TIER_250' }),
+        JSON.stringify({
+          metadata: {
+            fields: ['display_phone_number', 'verified_name', 'name_status', 'new_display_name', 'new_name_status', 'quality_rating', 'status', 'health_status', 'certificate'].map((name) => ({ name })),
+            connections: { phone_numbers: 'x' },
+          },
+        }),
+      );
+      return;
+    }
+    if (req.method === 'GET' && req.url.match(/^\/\d+\?fields=[a-z_,]+$/) && !req.url.includes('ownership_type')) {
+      const phone = req.url.match(/^\/(\d+)/)[1];
+      const entity = (entity_type, can_send_message, errors, additional_info) => ({ entity_type, can_send_message, ...(errors ? { errors } : {}), ...(additional_info ? { additional_info } : {}) });
+      const entities =
+        phone === '9801'
+          ? [entity('WABA', 'BLOCKED', [{ error_code: 141006, error_description: 'payment method', possible_solution: 'add one' }])]
+          : phone === '9802'
+            ? [entity('PHONE_NUMBER', 'LIMITED', undefined, ['Your display name has not been approved yet.']), entity('BUSINESS', 'LIMITED', [{ error_code: 141010, error_description: 'not verified' }])]
+            : [entity('PHONE_NUMBER', 'AVAILABLE')];
+      res.writeHead(200).end(
+        JSON.stringify({
+          display_phone_number: '+1 555-000-0000',
+          verified_name: 'Stub Name',
+          name_status: 'APPROVED',
+          new_name_status: phone === '9803' ? 'PENDING_REVIEW' : 'NONE',
+          new_display_name: phone === '9803' ? 'Pending Name' : undefined,
+          quality_rating: 'GREEN',
+          status: 'CONNECTED',
+          name: 'stub-account',
+          whatsapp_business_manager_messaging_limit: 'TIER_250',
+          health_status: { can_send_message: entities[0].can_send_message, entities },
+        }),
       );
       return;
     }
     if (req.method === 'GET' && req.url.match(/^\/\d+\?fields=ownership_type/)) {
       res.writeHead(400).end(JSON.stringify({ error: { message: 'meta-stub: ownership not readable' } }));
+      return;
+    }
+    if (req.method === 'POST' && req.url.match(/^\/\d+\?new_display_name=/)) {
+      res.writeHead(200).end(JSON.stringify({ success: true }));
       return;
     }
 
@@ -137,6 +172,10 @@ function startMetaStub(port) {
     const onMetaToken = req.headers.authorization === 'Bearer stub-access-token';
 
     if (req.method === 'POST' && req.url.endsWith('/messages')) {
+      if (req.url === '/9804/messages') {
+        res.writeHead(400).end(JSON.stringify({ error: { code: 131042, message: 'meta-stub: payment issue' } }));
+        return;
+      }
       if (!onMetaToken) {
         res.writeHead(401).end(JSON.stringify({ error: { message: 'meta-stub: wrong token' } }));
         return;

@@ -22,6 +22,37 @@
 
         <div id="onboarding-card" class="hidden card p-6"></div>
 
+        <div id="health-card" class="hidden card p-6 gap-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <p class="label-strong text-on-surface-variant">SENDING STATUS</p>
+            <span id="health-chip" class="rounded-full px-3 py-1 label-strong"></span>
+            <span id="health-checked" class="label-muted"></span>
+          </div>
+          <p id="health-effect" class="text-on-surface font-body-md text-sm"></p>
+          <ul id="health-reasons" class="flex flex-col gap-2 text-on-surface-variant font-body-md text-sm"></ul>
+          <p class="text-on-surface-variant font-body-md text-sm">
+            This is what Meta said when it was last asked. It does not update on its own: fix what it names, then refresh.
+            Refreshing needs your API key (the box further down).
+          </p>
+          <div class="flex flex-wrap items-center gap-3">
+            <button id="health-refresh" type="button" class="rounded-xl border border-outline-variant bg-white px-5 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all disabled:opacity-50">Refresh from Meta</button>
+            <span id="health-status" class="text-on-surface-variant font-body-md text-sm"></span>
+          </div>
+          <div class="border-t border-outline-variant pt-3 flex flex-col gap-2">
+            <p class="label-strong text-on-surface-variant">DISPLAY NAME</p>
+            <p id="display-name-state" class="text-on-surface font-body-md text-sm"></p>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input id="display-name-input" placeholder="New display name" class="flex-1 px-4 py-2 bg-white border border-outline-variant rounded-lg outline-none"/>
+              <button id="display-name-btn" type="button" class="rounded-xl bg-primary text-on-primary px-5 py-2 font-label-md text-label-md font-bold hover:opacity-90 transition-all disabled:opacity-50">Request change</button>
+            </div>
+            <p id="display-name-note" class="text-on-surface-variant font-body-md text-sm">
+              Meta reviews a new name against its
+              <a class="text-primary font-bold hover:underline" href="https://developers.facebook.com/documentation/business-messaging/whatsapp/display-names" target="_blank" rel="noopener">display name guidelines</a>.
+              Only one change can wait for review at a time, so ask once and wait for the decision.
+            </p>
+          </div>
+        </div>
+
         <div id="stats" class="hidden flex flex-col gap-4">
           <div class="card p-6">
             <p class="label-strong text-on-surface-variant mb-3">MESSAGES SENT <span class="label-muted">all messages · UTC</span></p>

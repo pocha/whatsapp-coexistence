@@ -8,6 +8,7 @@ import { el, errorMessage } from '/assets/dom.js';
 import type { NumberView, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
 import { effectiveConfig, view } from '../../../functions/src/helpers/rateLimiter';
 import { fetchNumber } from '/assets/account.js';
+import { LIMITED_DAILY_TEMPLATES } from '../../../functions/src/helpers/health';
 
 // The page for one number, identified by ?id= in the URL (its phone number ID). Signed-in
 // only: signed-out visitors are sent to the Dashboard's sign-in. What it does to the number
@@ -254,9 +255,111 @@ async function loadRecord(): Promise<boolean> {
     return true;
   }
   renderSyncCard(data);
+  renderHealth(data);
   renderStats(data);
   return true;
 }
+
+// --- Sending status and display name ------------------------------------------------
+
+const HEALTH_CHIP = {
+  ok: ['Can send', 'bg-primary/10 text-primary'],
+  limited: ['Limited', 'bg-amber-100 text-amber-900'],
+  blocked: ['Blocked', 'bg-error/10 text-error'],
+} as const;
+const HEALTH_EFFECT = {
+  ok: 'Nothing is in the way of sending.',
+  limited: `Template messages are limited to ${LIMITED_DAILY_TEMPLATES} a day until this clears. Replies in a chat are not limited.`,
+  blocked: 'Template messages are refused. Free-form replies in a chat still go through.',
+} as const;
+
+/** Shows the stored status and display name. Nothing here asks Meta: the refresh button does. */
+function renderHealth(data: NumberView) {
+  el('health-card').classList.remove('hidden');
+  const health = data.health;
+  const chip = el('health-chip');
+  const [label, classes] = health ? HEALTH_CHIP[health.status] : (['Not checked yet', 'bg-surface-container text-on-surface-variant'] as const);
+  chip.textContent = label;
+  chip.className = `rounded-full px-3 py-1 label-strong ${classes}`;
+  el('health-checked').textContent = health
+    ? `${health.source === 'refusal' ? 'Learned from a send Meta refused' : 'Checked'} ${new Date(health.checkedAt).toLocaleString()}`
+    : '';
+  el('health-effect').textContent = health ? HEALTH_EFFECT[health.status] : 'Refresh to ask Meta whether this number can send.';
+
+  const list = el('health-reasons');
+  list.replaceChildren();
+  for (const reason of health?.reasons ?? []) {
+    const item = document.createElement('li');
+    item.className = reason.severity === 'info' ? 'opacity-80' : '';
+    const text = document.createElement('span');
+    text.textContent = `${reason.message}${reason.fix ? ` ${reason.fix}` : ''}`;
+    const tag = document.createElement('span');
+    tag.className = 'label-muted mr-2';
+    tag.textContent = `${reason.scope.replace('_', ' ')}${reason.code ? ` ${reason.code}` : ''}${reason.severity === 'info' ? ' · for information' : ''}`;
+    item.append(tag, text);
+    list.append(item);
+  }
+
+  const name = data.displayName;
+  const pending = /PENDING/i.test(name?.requestedStatus ?? '');
+  el('display-name-state').textContent = name?.name
+    ? `${name.name} (${name.status ?? 'status unknown'})${name.requestedName && name.requestedStatus && name.requestedStatus !== 'NONE' ? `. Requested: ${name.requestedName} (${name.requestedStatus}).` : ''}`
+    : 'Not read yet. Refresh to see it.';
+  el<HTMLButtonElement>('display-name-btn').disabled = pending;
+  el('display-name-note').classList.toggle('opacity-60', pending);
+}
+
+/** Asks Meta again, with the key (it opens the stored token), and shows what came back. */
+async function postWithKey(path: string, body: object) {
+  const res = await fetch(`${functionsBase()}/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phoneNumberId, apiKey: apiKeyInput.value.trim(), ...body }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; number?: NumberView; metaError?: string };
+  if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+async function refreshHealth() {
+  const status = el('health-status');
+  if (!isValidApiKey(apiKeyInput.value.trim())) {
+    status.textContent = 'Enter your API key first (the box further down).';
+    return;
+  }
+  el<HTMLButtonElement>('health-refresh').disabled = true;
+  status.textContent = 'Asking Meta…';
+  try {
+    const result = await postWithKey('getNumber', {});
+    if (result.metaError) throw new Error(result.metaError);
+    renderHealth(result.number!);
+    status.textContent = 'Updated.';
+  } catch (err) {
+    status.textContent = `Could not refresh: ${errorMessage(err)}`;
+  } finally {
+    el<HTMLButtonElement>('health-refresh').disabled = false;
+  }
+}
+el('health-refresh').addEventListener('click', refreshHealth);
+
+el('display-name-btn').addEventListener('click', async () => {
+  const status = el('health-status');
+  const displayName = el<HTMLInputElement>('display-name-input').value.trim();
+  if (!isValidApiKey(apiKeyInput.value.trim()) || displayName.length < 3) {
+    status.textContent = 'Enter your API key (further down) and a name of at least 3 characters.';
+    return;
+  }
+  el<HTMLButtonElement>('display-name-btn').disabled = true;
+  status.textContent = 'Sending the request to Meta…';
+  try {
+    await postWithKey('setDisplayName', { displayName });
+    status.textContent = 'Sent. Meta now reviews it; refresh later to see the decision.';
+    await refreshHealth();
+  } catch (err) {
+    status.textContent = `Not sent: ${errorMessage(err)}`;
+    el<HTMLButtonElement>('display-name-btn').disabled = false;
+  }
+});
 
 // --- Override incoming message URL ------------------------------------------
 el('chatbot-env').textContent =

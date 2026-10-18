@@ -4,7 +4,7 @@ import { initializeApp } from 'firebase-admin/app';
 initializeApp();
 
 export { exchangeCode, rotateKey } from './accounts';
-export { setWebhook, registerNumber, deregisterNumber, disconnectNumber, relayMessage, templates } from './wabaManager';
+export { setDisplayName, setWebhook, registerNumber, deregisterNumber, disconnectNumber, relayMessage, templates } from './wabaManager';
 export { sendOtp, verifyOtp } from './otp';
 export { webhook } from './webhook';
 export {
