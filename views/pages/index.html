@@ -258,26 +258,31 @@
           <p class="text-on-surface-variant font-body-md">Your WhatsApp access token is encrypted with your Watobot API key. We keep only a hash that can't open it, so even we can't read your token, and a leaked database gives an attacker nothing.</p>
         </div>
         <div class="reveal d2 card p-6 gap-3 lift">
+          <div class="tile"><span class="material-symbols-outlined">visibility_off</span></div>
+          <p class="section-title text-on-surface">Complete privacy</p>
+          <p class="text-on-surface-variant font-body-md">Incoming messages go straight from WhatsApp to your app. We never store a copy of the messages you send: we only count them, for your limits and usage.</p>
+        </div>
+        <div class="reveal card p-6 gap-3 lift">
           <div class="tile"><span class="material-symbols-outlined">speed</span></div>
           <p class="section-title text-on-surface">Rate limits that protect your number</p>
           <p class="text-on-surface-variant font-body-md">WhatsApp flags numbers that suddenly send far more than before. We limit template messages per minute, hour and day, and let each window grow only a little over the last. A blocked message gets a clear <code>429</code> and can always be retried. We don't queue messages yet.</p>
         </div>
-        <div class="reveal card p-6 gap-3 lift">
+        <div class="reveal d1 card p-6 gap-3 lift">
           <div class="tile"><span class="material-symbols-outlined">content_copy</span></div>
           <p class="section-title text-on-surface">Template migration Support</p>
           <p class="text-on-surface-variant font-body-md">Moving over? We copy your approved templates from your previous Messaging account, or import an export from your provider.</p>
         </div>
-        <div class="reveal d1 card p-6 gap-3 lift">
+        <div class="reveal d2 card p-6 gap-3 lift">
           <div class="tile"><span class="material-symbols-outlined">exit_to_app</span></div>
           <p class="section-title text-on-surface">Moving out Support</p>
           <p class="text-on-surface-variant font-body-md">We help you move out of your existing provider, with guides on what to export, how to de-register and what to expect. If you ever want to leave us, we support that too: de-register or disconnect your number with an API call. <a class="text-primary font-bold hover:underline" href="/how-to/move-whatsapp-api-between-providers.html">Read the guide</a></p>
         </div>
-        <div class="reveal d2 card p-6 gap-3 lift">
+        <div class="reveal card p-6 gap-3 lift">
           <div class="tile"><span class="material-symbols-outlined">fact_check</span></div>
           <p class="section-title text-on-surface">Coexistence best practices, enforced</p>
           <p class="text-on-surface-variant font-body-md">Meta lets each history and contacts sync run once. Before onboarding we check that your callback URL answers Meta and receives those events, so you don't lose the history you want to store.</p>
         </div>
-        <div class="reveal card p-6 gap-3 lift opacity-80">
+        <div class="reveal d1 card p-6 gap-3 lift opacity-80">
           <div class="tile"><span class="material-symbols-outlined">monitor_heart</span></div>
           <p class="section-title text-on-surface">Sending stops when quality drops <span class="label-muted">(upcoming)</span></p>
           <p class="text-on-surface-variant font-body-md">Numbers often get blocked because the provider never tracks the quality of the number or its templates. We do, and we stop sends while it is degraded. The API response says why.</p>
