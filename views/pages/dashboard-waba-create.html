@@ -9,9 +9,20 @@
     <section class="flex-1 min-w-0 px-gutter md:px-10 py-12">
       <div class="max-w-4xl mx-auto flex flex-col gap-4 w-full">
         <h1 class="font-headline-lg text-headline-lg text-on-surface">Onboard a number</h1>
-        <p class="text-on-surface-variant font-body-md">
-          Onboarding runs in seven steps. If you closed the window, you can open it again.
-        </p>
+        <div id="chooser" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="card p-6 gap-3">
+            <div class="tile"><span class="material-symbols-outlined">web</span></div>
+            <p class="section-title text-on-surface">Onboard in the dashboard</p>
+            <p class="text-on-surface-variant font-body-md">A few short steps in a window on this page.</p>
+            <button id="chooser-here" type="button" class="mt-auto self-start rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Start here</button>
+          </div>
+          <div class="card p-6 gap-3">
+            <div class="tile"><span class="material-symbols-outlined">smart_toy</span></div>
+            <p class="section-title text-on-surface">Onboard with your AI tool</p>
+            <p class="text-on-surface-variant font-body-md">Add Watobot to Claude, ChatGPT or Claude Code and let it guide you.</p>
+            <a href="/how-to/connect-watobot-to-ai-tool.html" class="mt-auto self-start rounded-xl border border-outline-variant bg-white px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Connect your AI tool</a>
+          </div>
+        </div>
         <button id="reopen-btn" class="hidden self-start rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Open onboarding</button>
       </div>
     </section>

@@ -677,6 +677,16 @@ el('tpl-finish').addEventListener('click', async () => {
 
 // --- Boot ------------------------------------------------------------------------------------
 
+/** Opens the window at the first step, for a new number. A number picked up again carries on below. */
+function openWizard() {
+  wizard.classList.remove('hidden');
+  goStep(1);
+  if (resumeId) return;
+  status.textContent = '';
+  if (linkedCallback) takeLinkedChecks();
+  initEmbeddedSignup();
+}
+
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     location.href = '/dashboard/';
@@ -691,15 +701,18 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  wizard.classList.remove('hidden');
-  goStep(1);
-
-  if (!resumeId) {
-    status.textContent = '';
-    if (linkedCallback) takeLinkedChecks();
-    initEmbeddedSignup();
+  // A fresh onboarding starts by choosing how. Picking a number up again, or coming from an AI tool's
+  // link, goes straight to the window.
+  if (!resumeId && !linkedCallback) {
+    el('chooser').classList.remove('hidden');
+    el('chooser-here').addEventListener('click', () => {
+      el('chooser').classList.add('hidden');
+      openWizard();
+    });
     return;
   }
+  openWizard();
+  if (!resumeId) return;
 
   // Picking up a number that is part-way through.
   const data = await loadNumber().catch(() => undefined);

@@ -22,6 +22,42 @@ if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: re
   document.querySelectorAll('.reveal').forEach((node) => seen.observe(node));
 }
 
+// The hero carousel: one slide at a time, moving on every few seconds unless the visitor points at it
+// or has asked for less motion. The dots jump to a slide.
+const carousel = document.getElementById('hero-carousel');
+if (carousel) {
+  const slides = Array.from(carousel.querySelectorAll<HTMLElement>('[data-slide]'));
+  const dots = Array.from(carousel.querySelectorAll<HTMLButtonElement>('[data-dot]'));
+  const title = el('hero-slide-title');
+  let current = 0;
+  let timer: ReturnType<typeof setInterval> | undefined;
+
+  const show = (index: number) => {
+    current = (index + slides.length) % slides.length;
+    slides.forEach((slide, i) => slide.classList.toggle('hidden', i !== current));
+    dots.forEach((dot, i) => {
+      dot.classList.toggle('bg-primary', i === current);
+      dot.classList.toggle('bg-outline-variant', i !== current);
+      dot.setAttribute('aria-current', String(i === current));
+    });
+    title.textContent = slides[current].dataset.title ?? '';
+  };
+  const play = () => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    stop();
+    timer = setInterval(() => show(current + 1), 7000);
+  };
+  const stop = () => clearInterval(timer);
+
+  dots.forEach((dot, i) => dot.addEventListener('click', () => (show(i), play())));
+  carousel.addEventListener('mouseenter', stop);
+  carousel.addEventListener('mouseleave', play);
+  carousel.addEventListener('focusin', stop);
+  carousel.addEventListener('focusout', play);
+  show(0);
+  play();
+}
+
 const btn = el<HTMLButtonElement>('join-btn');
 const countEl = el('join-count');
 const dialog = el<HTMLDialogElement>('join-dialog');
