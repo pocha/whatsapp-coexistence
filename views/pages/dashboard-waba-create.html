@@ -184,6 +184,17 @@
 
         <!-- Step 6: sync (coexistence) or register (API only) -->
         <div id="step-6" class="hidden flex flex-col gap-4">
+          <!-- The wizard was opened from an AI tool's link: the tool carries on from here -->
+          <div id="view-handback" class="hidden flex flex-col gap-2">
+            <p class="section-title text-on-surface">Your number is connected. Go back to your AI tool.</p>
+            <p class="text-on-surface-variant font-body-md text-sm">
+              Meta's sign-up is done and your callback URL is set. Ask your AI tool to check the number
+              and carry on: it sees which step is next (the contacts and history sync, or registering the
+              number). You can close this window.
+            </p>
+            <button id="handback-continue-btn" class="self-start text-primary font-body-md text-sm hover:underline">Carry on here instead</button>
+          </div>
+
           <div id="view-override" class="hidden flex flex-col gap-2">
             <p class="section-title text-on-surface">Connect your callback URL</p>
             <p class="text-on-surface-variant font-body-md text-sm">Your number is connected. The last step here is pointing Meta's deliveries at your URL.</p>

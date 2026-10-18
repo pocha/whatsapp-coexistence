@@ -41,8 +41,9 @@ const keyInput = el<HTMLInputElement>('key-input');
 const status = el('onboarding-status');
 const lastError = el('last-error');
 // The sub-views of steps 6 and 7. Steps 1 to 5 are plain panels.
-const VIEWS = ['view-override', 'view-not-on-app', 'view-register', 'view-sync', 'view-templates'];
+const VIEWS = ['view-handback', 'view-override', 'view-not-on-app', 'view-register', 'view-sync', 'view-templates'];
 const STEP_OF: Record<string, number> = {
+  'view-handback': 6,
   'view-override': 6,
   'view-not-on-app': 6,
   'view-register': 6,
@@ -103,6 +104,7 @@ function show(view: string | null) {
   goStep(STEP_OF[view]);
   // Step 6 is one of four things, depending on the number.
   const title: Record<string, string> = {
+    'view-handback': 'Back to your AI tool',
     'view-override': 'Connect your callback URL',
     'view-not-on-app': 'Choose how to continue',
     'view-register': 'Register the number',
@@ -432,6 +434,13 @@ async function maybeFinish() {
 
 // --- The callback URL ------------------------------------------------------------------------
 
+let carryOnHere = false;
+let handedBackAt: OnboardingStep = 'done';
+el('handback-continue-btn').addEventListener('click', async () => {
+  carryOnHere = true;
+  await showStep(handedBackAt);
+});
+
 /** Subscribes the user's URL (and, for a number in the wizard, finds the next step). */
 async function connectOverride(url: string) {
   busy('Pointing Meta at your URL…');
@@ -439,7 +448,14 @@ async function connectOverride(url: string) {
   try {
     const res = await withKey<OnboardingResponse>('setWebhook', { overrideCallbackUrl: url } satisfies Partial<SetWebhookRequest>);
     status.textContent = '';
-    await showStep(res.step ?? 'done');
+    const next = res.step ?? 'done';
+    // Opened from an AI tool's link: it carries on from here, unless the user chooses to stay.
+    if (linkedCallback && !carryOnHere && next !== 'done') {
+      handedBackAt = next;
+      show('view-handback');
+    } else {
+      await showStep(next);
+    }
   } catch (err) {
     status.textContent = '';
     fail(`Could not connect your URL: ${errorMessage(err)}`);
