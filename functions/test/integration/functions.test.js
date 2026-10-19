@@ -348,6 +348,12 @@ test('register refuses a number on the Business app, moves a plain number on, an
   assert.equal(ok.status, 200);
   assert.equal((await ok.json()).step, 'templates');
 
+  // Registering straight from the "not on the app" choice screen moves on as well.
+  await seedNumber('238', '9238');
+  await db.collection('phoneNumbers').doc('238').update({ onboarding: { step: 'not_on_app', event: 'FINISH', updatedAt: 1 } });
+  assert.equal((await (await register('238')).json()).step, 'templates');
+  assert.equal((await numberDoc('238')).onboarding.step, 'templates');
+
   await seedNumber('229', '9229');
   await db.collection('phoneNumbers').doc('229').update({ onboarding: { step: 'register', event: 'FINISH', updatedAt: 1 } });
   const refused = await register('229');

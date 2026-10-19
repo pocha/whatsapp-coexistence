@@ -188,9 +188,11 @@ export const registerNumber: Handler = async (req, res) => {
     }
     await rememberDisplayNumber(String(phoneNumberId), accessToken);
 
-    // The API-only path of the wizard continues with templates once the number is registered.
+    // The API-only path of the wizard continues with templates once the number is registered, whether
+    // the user chose API-only first (register) or the call came straight from the choice screen.
     const doc = (await readNumber(String(phoneNumberId)))!;
-    await markRegistered(String(phoneNumberId), doc.onboarding.step === 'register' ? movedTo(doc.onboarding, 'templates') : undefined);
+    const atRegister = doc.onboarding.step === 'register' || doc.onboarding.step === 'not_on_app';
+    await markRegistered(String(phoneNumberId), atRegister ? movedTo(doc.onboarding, 'templates') : undefined);
     logEvent('number registered', { phoneNumberId });
     const body: OnboardingResponse = { ok: true, step: effectiveStep((await readNumber(String(phoneNumberId)))!) };
     res.status(200).send(body);
