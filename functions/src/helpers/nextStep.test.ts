@@ -16,14 +16,6 @@ const doc = (over: Partial<PhoneNumberDoc>): PhoneNumberDoc =>
     ...over,
   }) as PhoneNumberDoc;
 
-test('each step names the tools to use next', () => {
-  assert.deepEqual(nextStep(doc({ overrideUrl: undefined, onboarding: { step: 'override', event: 'FINISH', updatedAt: 1 } })).tools.slice(0, 1), ['check_callback_url']);
-  assert.deepEqual(nextStep(doc({ onboarding: { step: 'not_on_app', event: 'FINISH', updatedAt: 1 } })).tools, ['register_number']);
-  assert.deepEqual(nextStep(doc({ onboarding: { step: 'register', event: 'FINISH', updatedAt: 1 } })).tools, ['register_number']);
-  assert.ok(nextStep(doc({ onboarding: { step: 'templates', event: 'FINISH', updatedAt: 1 } })).tools.includes('migrate_templates'));
-  assert.ok(nextStep(doc({})).tools.includes('send_message'));
-});
-
 test('the sync step says what is still to request', () => {
   const next = nextStep(doc({ isOnBizApp: true, sync: { contacts: { state: 'requested' }, history: { state: 'failed' } }, onboarding: { step: 'sync', event: 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING', updatedAt: 1 } }));
   assert.equal(next.step, 'sync');

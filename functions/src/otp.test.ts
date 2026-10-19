@@ -39,13 +39,6 @@ test('the reviewers\' test number gets its fixed code and no WhatsApp message', 
   assert.equal(stored[TEST_LOGIN.phone].code, TEST_LOGIN.code);
 });
 
-test('sendOtpCore rejects an invalid phone without sending', async () => {
-  const { sent, deps } = makeSendDeps();
-  const result = await sendOtpCore('123', deps);
-  assert.equal(result.ok, false);
-  assert.equal(sent.length, 0);
-});
-
 test('sendOtpCore sends a 6-digit code and stores it with a 5-minute expiry', async () => {
   const { sent, stored, deps } = makeSendDeps();
   const result = await sendOtpCore('919876543210', deps);

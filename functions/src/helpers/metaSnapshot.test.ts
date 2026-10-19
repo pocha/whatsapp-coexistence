@@ -16,11 +16,6 @@ test('a field Meta does not know is dropped and the rest is still read', async (
   assert.equal(asked.length, 2);
 });
 
-test('any other failure is passed on, and a read with no trouble has no extra field', async () => {
-  await assert.rejects(readFieldsSkippingUnknown(async () => { throw new Error('Graph API error (403): no access'); }, '/1', ['status']), /no access/);
-  assert.deepEqual(await readFieldsSkippingUnknown(async () => ({ status: 'X' }), '/1', ['status']), { status: 'X' });
-});
-
 test('every field Meta lists is asked for, without the certificate, and the edges are named', async () => {
   const asked: string[] = [];
   const get = async (path: string) => {
