@@ -172,6 +172,10 @@ function startMetaStub(port) {
     const onMetaToken = req.headers.authorization === 'Bearer stub-access-token';
 
     if (req.method === 'POST' && req.url.endsWith('/messages')) {
+      if (req.url === '/9908/messages') {
+        res.writeHead(400).end(JSON.stringify({ error: { code: 131048, message: 'meta-stub: spam rate limit hit' } }));
+        return;
+      }
       if (req.url === '/9804/messages') {
         res.writeHead(400).end(JSON.stringify({ error: { code: 131042, message: 'meta-stub: payment issue' } }));
         return;

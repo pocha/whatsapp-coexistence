@@ -1,10 +1,11 @@
-import { FieldValue, getFirestore, type DocumentSnapshot } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore, Timestamp, type DocumentSnapshot } from 'firebase-admin/firestore';
 import { reserve, type Verdict } from './rateLimiter';
 import type { RateLimitConfig } from './rateLimitConfig';
 import { effectiveConfigFor } from './health';
 import type {
   DisplayNameState,
   EncryptedToken,
+  NotificationDoc,
   NumberHealth,
   OnboardingState,
   OnboardingStep,
@@ -183,6 +184,52 @@ export const setHealth = (phoneNumberId: string, health: NumberHealth, displayNa
   // `fetchedAt` is only given for a real read of Meta: a refused send changes the status but not that time.
   phoneNumberRef(phoneNumberId).update(JSON.parse(JSON.stringify({ health, ...(displayName ? { displayName } : {}), ...(fetchedAt ? { metaFetchedAt: fetchedAt } : {}) })));
 
+/** The numbers an account (WABA) holds. Normally one. */
+export async function numbersForWaba(wabaId: string): Promise<PhoneNumberDoc[]> {
+  return (await phoneNumbers().where('wabaId', '==', wabaId).get()).docs.map((snap) => numberOf(snap)!);
+}
+
+/**
+ * Changes the gates (health, display name, templates) of a number in one transaction: `compute` is given the
+ * record and answers with the new values, or null to change nothing. Returns whether anything was written.
+ */
+export async function updateGates(
+  phoneNumberId: string,
+  compute: (doc: PhoneNumberDoc) => Pick<PhoneNumberDoc, 'health' | 'displayName' | 'templates'> | null,
+): Promise<boolean> {
+  const ref = phoneNumberRef(phoneNumberId);
+  return db().runTransaction(async (tx) => {
+    const doc = numberOf(await tx.get(ref));
+    const patch = doc ? compute(doc) : null;
+    if (!patch) return false;
+    tx.update(ref, JSON.parse(JSON.stringify(patch)));
+    return true;
+  });
+}
+
+// ---- what Meta told us, for the dashboard ----
+
+/** How long a notification is kept. A Firestore TTL policy on `expireAt` does the deleting (see the README). */
+const NOTIFICATION_DAYS = 30;
+
+const notificationsOf = (phoneNumberId: string) => phoneNumberRef(phoneNumberId).collection('notifications');
+
+/** Stores one notification. The same event delivered twice (Meta retries) has the same id and so is stored once. */
+export async function addNotification(phoneNumberId: string, id: string, n: NotificationDoc): Promise<void> {
+  const expireAt = Timestamp.fromMillis(n.receivedAt + NOTIFICATION_DAYS * 86_400_000);
+  // Copied through JSON so fields Meta left out (undefined) are dropped, which Firestore would refuse.
+  await notificationsOf(phoneNumberId).doc(id).set({ ...JSON.parse(JSON.stringify(n)), expireAt });
+}
+
+/** A number's notifications, newest first: `limit` of them older than `before` (an epoch ms), and where the next page starts. */
+export async function listNotifications(phoneNumberId: string, before: number | undefined, limit: number): Promise<{ notifications: (NotificationDoc & { id: string })[]; nextBefore?: number }> {
+  let query = notificationsOf(phoneNumberId).orderBy('eventAt', 'desc').limit(limit + 1);
+  if (before !== undefined) query = query.where('eventAt', '<', before);
+  const docs = (await query.get()).docs;
+  const page = docs.slice(0, limit).map((snap) => ({ id: snap.id, ...(snap.data() as NotificationDoc) }));
+  return { notifications: page, ...(docs.length > limit ? { nextBefore: page[page.length - 1].eventAt } : {}) };
+}
+
 export const setDisplayPhoneNumber = (phoneNumberId: string, displayPhoneNumber: string) =>
   phoneNumberRef(phoneNumberId).update({ displayPhoneNumber });
 
@@ -304,16 +351,14 @@ export const setSyncState = (phoneNumberId: string, type: SyncType, status: Sync
  */
 export async function reserveTemplateSend(
   phoneNumberId: string,
-): Promise<{ verdict: Verdict | { allowed: true } | { allowed: false; blocked: NumberHealth }; config: RateLimitConfig; now: number }> {
+): Promise<{ verdict: Verdict | { allowed: true }; config: RateLimitConfig; now: number }> {
   const ref = phoneNumberRef(phoneNumberId);
   const now = Date.now();
   return db().runTransaction(async (tx) => {
     const data = numberOf(await tx.get(ref));
-    // A blocked number sends no template (business-initiated) messages at all, and a limited one or one under a
-    // low messaging limit tier only up to its daily cap (see effectiveConfigFor). Both come from the status stored
-    // at the last read from Meta.
-    if (data?.health?.status === 'blocked') return { verdict: { allowed: false as const, blocked: data.health }, config: effectiveConfigFor(data), now };
-    const config = effectiveConfigFor(data ?? {});
+    // Whether the number may send templates at all was decided before this (sendDecision). Here a limited number,
+    // or one under a low messaging limit tier, only gets its daily cap (see effectiveConfigFor).
+    const config = effectiveConfigFor(data ?? {}, now);
     if (!config.enabled) return { verdict: { allowed: true as const }, config, now };
     const verdict = reserve(data?.rateState, config, now);
     tx.update(ref, { rateState: verdict.state });

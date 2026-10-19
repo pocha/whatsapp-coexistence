@@ -39,6 +39,7 @@ Three kinds of credential:
 | `GET /numbers` | The account's numbers: where each is in onboarding (`step`), whether it is on the Business app, the syncs, usage, the sending status and the display name. Never the stored token (`hasToken` only). | |
 | `POST /numbers` | Sign-up: exchanges the Embedded Signup code for the Meta token, checks with Meta that the WABA and phone number really are the signing-up user's (and that no other Watobot account holds the number), stores the token encrypted under the key, and starts the wizard for the number. Signed in, with the key in the body. | `code`, `wabaId`, `phoneNumberId`, `apiKey`, `event` |
 | `GET /numbers/<id>` | One number as above, plus its template-send limits, the stored sending status and `nextRefreshAt`. It answers from what is stored and never asks Meta, so it is safe to repeat. With `?refresh=true` (the key, not a sign-in) it asks Meta right now: the number's status and display name approval, quality rating, messaging limit tier, account review and ownership, the apps subscribed with their callback URL override, the token's scopes and expiry, and Meta's own `health_status` (returned as `meta`), and stores the sending status (below). Meta is asked at most once in ten minutes: a refresh before then is `429` with `Retry-After` and the stored data. Each part of `meta` is a separate read, and a part Meta refuses says why. Never the token. 404 for a number that is not the caller's. | |
+| `GET /numbers/<id>/notifications` | What Meta has told us about the number, newest first, kept for a month: a ban or restriction, a display name decision, a messaging limit change, a template paused or reinstated, and what a refresh found different. `?limit=` (up to 50) and `?before=` (the `nextBefore` of the last page) page back through them. Never a message. | |
 | `PUT /numbers/<id>/webhook` | Checks the URL answers Meta's handshake, subscribes to it, and records it. During onboarding it also moves the wizard on. With `noCallback` instead of a URL it subscribes with no override: incoming events go to Watobot's own webhook, which discards them, and a coexistence number's contacts and history sync is skipped (Meta allows it once, to a URL). | `overrideCallbackUrl` or `noCallback` |
 | `PUT /numbers/<id>/display-name` | Asks Meta to review a new display name. Refused while an earlier change is still in review, so nobody resubmits while waiting. | `displayName` |
 | `POST /numbers/<id>/register` | Registers an API-only number. Refused for a number on the WhatsApp Business app. Waits up to 45 s for Meta. | `pin` (6 digits) |
@@ -69,17 +70,21 @@ Three kinds of credential:
 | `POST /onboarding/<id>/sync` | Key | Requests the contacts, then the history sync (each once). | `syncType` |
 | `POST /onboarding/<id>/sync/skip` | Key | Skips the contacts and history sync for good (Meta allows each once). Only at the sync step. | |
 
-**Sending status.** Each number keeps one status, from the last time Meta was asked about it: on a refresh (`GET /numbers/<id>?refresh=true`, which is the dashboard's refresh button and an AI tool's `get_number` with `refresh`), at the end of onboarding, and when Meta refuses a send because the account can't send. It does not update on its own: the user fixes what it names and refreshes, and Meta is asked at most once in ten minutes (`metaFetchedAt` is when it last was, and a refused send does not move it). The relay uses it, and the rules are fixed in [`health.ts`](functions/src/helpers/health.ts):
+**Sending status.** What decides whether a send goes out is kept on the number as a list of reasons, each with the cause that raised it (a ban, the account review, a disconnection, a restriction, the payment method, the display name, quality, a pause after Meta's spam-rate-limit refusal), and a status worked out from them. The status is `ok` (shown as Healthy), `limited`, `blocked` or `disabled`. It comes from two places:
+
+- **Meta's notifications to our webhook** (below), applied as they arrive. An event sets or clears only its own cause: a lifted ban leaves a payment problem where it is, and an event older than what is stored for its cause is ignored.
+- **A refresh** (`GET /numbers/<id>?refresh=true`, which is the dashboard's refresh button and an AI tool's `get_number` with `refresh`), at the end of onboarding, and a send Meta refuses. A refresh reads Meta's whole picture and replaces what the notifications set, apart from anything that arrived while it ran. If it disagrees with what was stored, a line says so in the notifications. Meta is asked at most once in ten minutes (`metaFetchedAt`; a refused send does not move it). Nothing is re-checked on its own, and some things never arrive as a notification (the payment method is one), so the user fixes them and refreshes.
 
 | Status | When | What the relay does |
 | --- | --- | --- |
-| `blocked` | Meta says the account (WABA) or the number is blocked, for example a payment method problem | Template messages get `403` with the reasons and what to do. Free-form messages still go through. |
-| `limited` | The number itself is limited, which for a new number means its display name is not approved yet | At most 5 template messages a day (our own cautious figure; Meta's documentation gives none). Beyond that the usual 429. |
-| `ok` (shown as Healthy) | Anything else. A business that is limited only because it is not verified is shown on its own chip and changes nothing | Normal limits. |
+| `disabled` | The account is banned or scheduled to be disabled, deleted, rejected in review, or the number is disconnected | Refuses every send with `403`, free-form messages too |
+| `blocked` | Meta says the account or number is blocked (for example a payment method problem), a restriction on business-initiated messaging, or Meta's spam rate limit (a pause of an hour) | Template messages get `403`, or `429` with `Retry-After` when the block ends by itself. Free-form messages still go through. |
+| `limited` | The number itself is limited (a display name not approved yet), or Meta flags its quality | At most 5 template messages a day (our own cautious figure; Meta's documentation gives none). Beyond that the usual 429. |
+| `ok` | Anything else. A business that is limited only because it is not verified is shown on its own chip and changes nothing | Normal limits. |
 
-Whatever the status, the daily template limit never goes above Meta's messaging limit tier read at the same time (250 while the business is unverified). Meta counts customers and we count template messages, so this is an approximation.
+Whatever the status, the daily template limit never goes above Meta's messaging limit tier (250 while the business is unverified), which is updated by the same notifications. Meta counts customers and we count template messages, so this is an approximation. A template Meta pauses, disables, rejects or deletes (from its notifications, or a refused send naming it) is refused by name and language; other templates are not affected.
 
-Each reason has a `title`, what is wrong (`message`), `action` and, where we know one, a `link`, written for the cases we know and in Meta's words for any other. The number's page shows them as chips beside the number (Healthy, Limited or Blocked; Business unverified; Display name needs attention). A click opens a popup with the reasons, when Meta was last asked, the refresh button (it needs the key) and, for the display name, the form to request a new name.
+Each reason has a `title`, what is wrong (`message`), `action` and, where we know one, a `link`, written for the cases we know and in Meta's words for any other. The number's page shows them as chips beside the number (Healthy, Limited or Blocked; Business unverified; Display name needs attention). A click opens a popup with the reasons, when Meta was last asked, the refresh button (it needs the key) and, for the display name, the form to request a new name. Below are the notifications themselves.
 
 <!-- docs:omit -->
 ### The account and the rest
@@ -97,7 +102,7 @@ Each reason has a `title`, what is wrong (`message`), `action` and, where we kno
 | Method and path | What it does |
 | --- | --- |
 | `GET /webhook` | Answers Meta's verification handshake. |
-| `POST /webhook` | Receives the webhooks that can't be overridden (template and account-level updates). Checks Meta's `X-Hub-Signature-256` (an HMAC of the body with the app secret), refuses anything else with 401, and acknowledges the rest. Nothing is done with them yet: Meta emails the account's admins about the ones that matter. |
+| `POST /webhook` | Receives the webhooks that can't be overridden. Checks Meta's `X-Hub-Signature-256` (an HMAC of the body with the app secret) and refuses anything else with 401. The account-level ones (`account_update`, `account_review_update`, `account_alerts`, `phone_number_name_update`, `phone_number_quality_update`, `business_capability_update`, `security`, and the template status and quality updates) are matched to the number by WABA ID, stored as its notifications under a stable id (so a retry is stored once), and applied to its sending status. Messages, syncs and echoes are never read or kept. |
 
 The request bodies are typed in `functions/src/helpers/types.ts`, and each function's routes are listed at the top of `numbersApi.ts`, `onboardingApi.ts` and `wabaManager.ts` (templates).
 <!-- /docs:omit -->
@@ -411,6 +416,16 @@ assume it is served from the root of its domain.
    structured entry: filter by `jsonPayload.fn="numbers"`, `jsonPayload.phoneNumberId="…"` or
    `severity>=ERROR`. Keys, tokens, OTP codes and message bodies are never logged.
 
+**Expire the notifications (once per project).** A number's notifications are kept for a month. Each one carries
+an `expireAt`, and a Firestore TTL policy on that field does the deleting:
+
+```bash
+gcloud firestore fields ttls update expireAt --collection-group=notifications --enable-ttl --project <project-id>
+```
+
+Deleting the TTL policy keeps them forever, and the emulator doesn't run it. (Deleting an account removes them at
+once.)
+
 **MCP server, hosted.** It is the `mcp` Function, deployed with the others. Its address is
 `https://us-central1-wa-coexistence.cloudfunctions.net/mcp`. Because the connector address carries the user's
 API key, keep that function's requests out of Cloud Logging, which records the full address of every request.
@@ -489,9 +504,20 @@ Business Account".
    | `smb_message_echoes` | Messages typed in the Business app, so a bot doesn't reply on top of a human. |
    | `smb_app_state_sync` | Contact and state sync for coexistence. |
    | `history` | Chat history sync for coexistence. |
-   | `message_template_status_update` | Tells a business when a template is approved or rejected. |
+   | `account_update` | Bans, restrictions, disconnections and the other account events that decide whether a number may send. |
+   | `account_review_update` | The account's policy review. |
+   | `account_alerts` | Limit increases denied, extra verification needed. |
+   | `phone_number_name_update` | A display name approved or declined. |
+   | `phone_number_quality_update` | A number's messaging limit or quality changing. |
+   | `business_capability_update` | The business's messaging limit tier (it changes when the business is verified). |
+   | `security` | Changes to a number's security settings. |
+   | `message_template_status_update` | Tells a business when a template is approved, rejected, paused or disabled. |
+   | `message_template_quality_update` | A template's quality changing. |
 
-   ![Webhook fields list](public/assets/8(3).dashboard-webhook-fields.png)
+   Those from `account_update` down arrive at our own webhook only: they can't be sent to a customer's URL. See
+   the number's **Notifications** on the dashboard for what they look like.
+
+![Webhook fields list](public/assets/8(3).dashboard-webhook-fields.png)
 
    (That screenshot shows Meta's default selection, which is longer than the
    list above.)

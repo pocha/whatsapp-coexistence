@@ -14,6 +14,7 @@ Onboarding a number, in order:
 4. Templates: migrate_templates (from the previous Messaging account) or import_templates (from an export).
 
 Sending: send_message through Watobot; template sends are limited per minute, hour and day. Call get_limits to see how much room is left and wait when remaining is 0.
+A send Watobot refuses (403, or 429 with Retry-After) comes with reasons: what is wrong, what the person has to do and where. Tell them, do not retry in a loop, and call get_number with refresh only after they say it is fixed. get_notifications shows what Meta has reported about the number.
 
 deregister_number, disconnect_number, delete_template and skip_sync cannot be undone. Ask the person before calling them.`;
 
@@ -60,7 +61,7 @@ export function createServer(ctx: Context): McpServer {
   tool('list_numbers', 'Lists your numbers and where each is in onboarding (the "step"), whether it is also on the WhatsApp Business app, and when the syncs were requested.', {}, () => callWithBearer('GET', 'numbers'), { readOnly: true });
   tool(
     'get_number',
-    'One number\'s state, its template-send limits and its sending status (healthy, limited or blocked, with the reasons, what to do about each and where). That is what was stored the last time Meta was asked. With refresh=true it asks Meta again (messaging limit tier, quality rating, display name, account review, ownership, the callback URL override, the token\'s scopes) and updates the status, but only once in ten minutes: ask again only after the person has fixed what the status names.',
+    'One number\'s state, its template-send limits and its sending status (healthy, limited or blocked, with the reasons, what to do about each and where; a disabled number, such as a banned or disconnected one, sends nothing). That is what was stored the last time Meta was asked. With refresh=true it asks Meta again (messaging limit tier, quality rating, display name, account review, ownership, the callback URL override, the token\'s scopes) and updates the status, but only once in ten minutes: ask again only after the person has fixed what the status names.',
     { phoneNumberId, refresh: z.boolean().optional() },
     (a) => callWithBearer('GET', `numbers/${a.phoneNumberId}${a.refresh ? '?refresh=true' : ''}`),
     { readOnly: true },
@@ -104,6 +105,13 @@ export function createServer(ctx: Context): McpServer {
 
   // ---- sending ----
   tool('send_message', 'Sends a message through Watobot to Meta. The body is Meta\'s messages body (messaging_product, to, type, ...). Template sends are limited; free-form replies are not.', { phoneNumberId, message: z.record(z.string(), z.unknown()).describe('Meta\'s /messages request body') }, (a) => callWithBearer('POST', `numbers/${a.phoneNumberId}/messages`, a.message));
+  tool(
+    'get_notifications',
+    'What Meta has told Watobot about the number, newest first, kept for a month: a ban or restriction, a display name decision, a messaging limit change, a template paused or reinstated, a refresh that found something different. Pass `before` (the nextBefore of the last page) for older ones.',
+    { phoneNumberId, limit: z.number().int().min(1).max(50).optional(), before: z.number().optional() },
+    (a) => callWithBearer('GET', `numbers/${a.phoneNumberId}/notifications?limit=${a.limit ?? 20}${a.before ? `&before=${a.before}` : ''}`),
+    { readOnly: true },
+  );
   tool('get_limits', 'Where the number stands against its template-send limits per minute, hour and day: how many went through, how many are left, when each window resets.', { phoneNumberId }, (a) => callWithBearer('GET', `numbers/${a.phoneNumberId}/limits`), { readOnly: true });
 
   // ---- templates ----

@@ -7,7 +7,7 @@ import { wireTestEvents } from '/assets/test-events.js';
 import { el, errorMessage } from '/assets/dom.js';
 import type { HealthReason, NumberView, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
 import { view } from '../../../functions/src/helpers/rateLimiter';
-import { fetchNumber } from '/assets/account.js';
+import { fetchNotifications, fetchNumber } from '/assets/account.js';
 import { effectiveConfigFor, LIMITED_DAILY_TEMPLATES, REFRESH_MIN_INTERVAL_MS, tierLimit } from '../../../functions/src/helpers/health';
 
 // The page for one number, identified by ?id= in the URL (its phone number ID). Signed-in
@@ -265,6 +265,7 @@ async function loadRecord(): Promise<boolean> {
   }
   renderSyncCard(data);
   renderChips(data);
+  void renderNotifications();
   renderStats(data);
   return true;
 }
@@ -275,6 +276,8 @@ const STATUS_CHIP = {
   ok: ['Healthy', 'bg-primary/10 text-primary'],
   limited: ['Limited', 'bg-amber-100 text-amber-900'],
   blocked: ['Blocked', 'bg-error/10 text-error'],
+  // Nothing at all is sent; it reads as Blocked, and the popup says why.
+  disabled: ['Blocked', 'bg-error/10 text-error'],
 } as const;
 const NEUTRAL = 'bg-surface-container text-on-surface-variant';
 const AMBER = 'bg-amber-100 text-amber-900';
@@ -420,6 +423,38 @@ el('hd-name-btn').addEventListener('click', async () => {
     el<HTMLButtonElement>('hd-name-btn').disabled = false;
   }
 });
+
+// --- Notifications: what Meta told us, newest first ---------------------------------
+
+const SEVERITY_DOT = { critical: 'bg-error', warning: 'bg-amber-500', info: 'bg-outline-variant' } as const;
+let nextBefore: number | undefined;
+
+async function renderNotifications(more = false) {
+  el('notifications-card').classList.remove('hidden');
+  const list = el('notifications-list');
+  try {
+    const page = await fetchNotifications(phoneNumberId, more ? nextBefore : undefined);
+    if (!more) list.replaceChildren();
+    for (const n of page.notifications) {
+      const item = document.createElement('li');
+      item.className = 'py-3 flex gap-3 items-start';
+      const dot = document.createElement('span');
+      dot.className = `mt-1.5 h-2.5 w-2.5 rounded-full flex-shrink-0 ${SEVERITY_DOT[n.severity]}`;
+      const text = document.createElement('div');
+      text.className = 'flex flex-col gap-0.5 min-w-0';
+      text.append(paragraph(n.title, 'text-on-surface font-bold'), paragraph(n.message, 'text-on-surface-variant font-body-md text-sm'), paragraph(new Date(n.eventAt).toLocaleString(), 'label-muted'));
+      item.append(dot, text);
+      list.append(item);
+    }
+    nextBefore = page.nextBefore;
+    el('notifications-more').classList.toggle('hidden', !page.nextBefore);
+    el('notifications-empty').classList.toggle('hidden', list.children.length > 0);
+  } catch {
+    el('notifications-empty').textContent = 'Could not load the notifications.';
+    el('notifications-empty').classList.remove('hidden');
+  }
+}
+el('notifications-more').addEventListener('click', () => void renderNotifications(true));
 
 // --- Override incoming message URL ------------------------------------------
 el('chatbot-env').textContent =

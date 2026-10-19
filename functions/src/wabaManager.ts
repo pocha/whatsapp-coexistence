@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { onRequest } from 'firebase-functions/v2/https';
 import express from 'express';
 import { config } from './helpers/config';
@@ -18,7 +19,9 @@ import {
 import { newApp, type Handler } from './helpers/http';
 import { relayLimits } from './helpers/numberView';
 import { refreshHealth } from './helpers/healthRefresh';
-import { healthFromRefusal } from './helpers/health';
+import { reasonsFromRefusal, templateGateFromRefusal } from './helpers/health';
+import { sendDecision, templateKey } from './helpers/gates';
+import { applyEffects, type Effect } from './helpers/gateEvents';
 import { parseTemplateExport } from './helpers/templateImport';
 import { limitsView, UNITS, type RateState } from './helpers/rateLimiter';
 import type { RateLimitConfig } from './helpers/rateLimitConfig';
@@ -32,6 +35,7 @@ import type {
   ImportTemplatesResponse,
   MigrateTemplatesResponse,
   OnboardingResponse,
+  PhoneNumberDoc,
   RegisterNumberRequest,
   SetDisplayNameRequest,
   SetWebhookRequest,
@@ -49,7 +53,8 @@ import {
   reserveTemplateSend,
   setCallback,
   setDisplayPhoneNumber,
-  setHealth,
+  updateGates,
+  addNotification,
   setTemplateSource,
 } from './helpers/model';
 
@@ -301,25 +306,27 @@ numbersApp.post('/:phoneNumberId/messages', async (req, res) => {
   }
 
   let accessToken: string;
+  let number: PhoneNumberDoc;
   try {
-    ({ accessToken } = await authenticateKey(phoneNumberId, key));
+    ({ accessToken, number } = await authenticateKey(phoneNumberId, key));
   } catch (err) {
     res.status(failedRequest(req, err)).send({ error: (err as Error).message });
+    return;
+  }
+
+  // What is stored about the number decides first: a disabled number sends nothing, a blocked one no template
+  // messages, and a template Meta paused or disabled is not sent. Then the rate limits.
+  const decision = sendDecision(number, req.body, Date.now());
+  if (!decision.allow) {
+    logEvent('send refused', { phoneNumberId, status: decision.status });
+    if (decision.retryAfterSeconds) res.set('Retry-After', String(decision.retryAfterSeconds));
+    res.status(decision.httpStatus).send({ error: decision.error, status: decision.status, reasons: decision.reasons, retryAfterSeconds: decision.retryAfterSeconds });
     return;
   }
 
   // Only template messages are limited; free-form replies go straight through.
   if (req.body?.type === 'template') {
     const { verdict, config, now } = await reserveTemplateSend(phoneNumberId);
-    if ('blocked' in verdict) {
-      logEvent('template send blocked', { phoneNumberId });
-      res.status(403).send({
-        error: 'This number is blocked from sending template messages. Free-form replies still go through. Fix the reasons below, then refresh the number (the dashboard, or get_number) to lift this.',
-        status: 'blocked',
-        reasons: verdict.blocked.reasons,
-      });
-      return;
-    }
     if ('state' in verdict) setRateHeaders(res, verdict.state, config, now);
     if (!verdict.allowed && 'unit' in verdict) {
       res.set('Retry-After', String(verdict.retryAfterSeconds));
@@ -355,15 +362,34 @@ numbersApp.post('/:phoneNumberId/messages', async (req, res) => {
 
   if (!metaRes.ok) {
     logEvent('Meta refused a send', { phoneNumberId, status: metaRes.status, metaError: body?.error });
-    // A refusal that says the account can't send is remembered, so the next sends are not even tried.
-    const refused = healthFromRefusal(body?.error);
-    if (refused) await setHealth(phoneNumberId, refused).catch(() => undefined);
+    // A refusal that says the account can't send, or that a template is paused, is remembered, so the next sends are not even tried.
+    await rememberRefusal(phoneNumberId, body?.error, templateKey(req.body)).catch(() => undefined);
   }
   res.status(metaRes.status).send(body);
 });
 
 // Where the number stands against its template-send limits, so a sender (or an AI tool) can pace
 // itself: per window what went through, what is left and when it resets.
+/** What a refused send tells us about the number or the template, as gates, and a line in the notifications. */
+async function rememberRefusal(phoneNumberId: string, error: { code?: number; message?: string } | undefined, key: string | undefined): Promise<void> {
+  const at = Date.now();
+  const reasons = reasonsFromRefusal(error, at);
+  const template = templateGateFromRefusal(error, key, at);
+  const effects: Effect[] = [...reasons.map((reason) => ({ kind: 'raise' as const, reason })), ...(template ? [{ kind: 'template' as const, key: template.key, gate: template.gate }] : [])];
+  if (!effects.length) return;
+  await updateGates(phoneNumberId, (doc) => applyEffects(doc, effects, at, at));
+  const id = createHash('sha1').update(`send|${phoneNumberId}|${error?.code}|${Math.floor(at / 60000)}`).digest('hex');
+  await addNotification(phoneNumberId, id, {
+    eventAt: at,
+    receivedAt: at,
+    field: 'send',
+    event: String(error?.code),
+    title: reasons[0]?.title ?? `Template ${template?.gate.status.toLowerCase()}`,
+    message: reasons[0]?.message ?? `Meta refused a send of "${key}": ${error?.message ?? 'the template is not available'}.`,
+    severity: 'warning',
+  });
+}
+
 numbersApp.get('/:phoneNumberId/limits', async (req, res) => {
   const key = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : undefined;
   if (!key) {

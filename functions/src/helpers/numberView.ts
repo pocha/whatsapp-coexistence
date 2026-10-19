@@ -1,7 +1,14 @@
 import { effectiveStep } from './onboardingSteps';
 import { limitsView, UNITS } from './rateLimiter';
-import { effectiveConfigFor, nextRefreshAt } from './health';
+import { effectiveConfigFor } from './health';
+import { counts, statusOf } from './gates';
 import type { NumberView, PhoneNumberDoc, RelayLimitsResponse } from './types';
+
+/** The status as it stands now: a reason with an end time that has passed no longer counts. */
+export function presentHealth(health: NonNullable<PhoneNumberDoc['health']>, now: number) {
+  const reasons = health.reasons.filter((r) => counts(r, now));
+  return { ...health, reasons, status: statusOf(reasons, now) };
+}
 
 /**
  * What a caller may see of a number: listed field by field, so a field added to the record later
@@ -14,8 +21,9 @@ export function numberView(doc: PhoneNumberDoc): NumberView {
     displayPhoneNumber: doc.displayPhoneNumber,
     overrideUrl: doc.overrideUrl,
     callbackSkipped: doc.callbackSkipped,
-    health: doc.health,
+    health: doc.health && presentHealth(doc.health, Date.now()),
     displayName: doc.displayName,
+    templates: doc.templates,
     metaFetchedAt: doc.metaFetchedAt,
     activatedAt: doc.activatedAt,
     lastRelayCall: doc.lastRelayCall,

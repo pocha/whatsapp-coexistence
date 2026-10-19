@@ -22,6 +22,15 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['overrideUrl', 'activatedAt', 'encAccessToken']);
     }
 
+    // What Meta told us about a number, kept for a month (a TTL policy on `expireAt` does the clean-up).
+    // Written only by Functions. The owner can read and delete them: deleting an account removes them
+    // first, because deleting a number does not delete what is under it. The check looks the number up,
+    // so they must go before it does.
+    match /phoneNumbers/{phoneNumberId}/notifications/{notificationId} {
+      allow read, delete: if request.auth != null
+                          && get(/databases/$(database)/documents/phoneNumbers/$(phoneNumberId)).data.userId == request.auth.uid;
+    }
+
     // The user record is created by Functions at first sign-in. The owner can read it
     // (the page compares a typed API key with apiKeyHash for instant feedback; the hash
     // can't decrypt anything) and delete it, and can set or clear apiKeyHash.

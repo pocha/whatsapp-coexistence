@@ -85,6 +85,8 @@ export interface PhoneNumberDoc {
   /** Whether the number may send, as of the last read from Meta. See NumberHealth. */
   health?: NumberHealth;
   displayName?: DisplayNameState;
+  /** Templates Meta paused, disabled, rejected or deleted, keyed `name|language`. */
+  templates?: Record<string, TemplateGate>;
   /** When Meta was last really asked (a refresh is refused within ten minutes of it). Not set by a refused send. */
   metaFetchedAt?: number;
   /** From Meta, after onboarding: whether the number is also on the WhatsApp Business app. */
@@ -108,6 +110,7 @@ export interface NumberView {
   callbackSkipped?: boolean;
   health?: NumberHealth;
   displayName?: DisplayNameState;
+  templates?: Record<string, TemplateGate>;
   metaFetchedAt?: number;
   activatedAt?: number;
   lastRelayCall?: number;
@@ -148,27 +151,74 @@ export interface HealthReason {
   /** Which part of the account Meta raised it on (WABA, PHONE_NUMBER, BUSINESS), or MESSAGE for a refusal. */
   scope: string;
   code?: number;
-  /** blocked and limited change what we let through; info is shown only. */
-  severity: 'blocked' | 'limited' | 'info';
+  /**
+   * disabled refuses every send, blocked refuses template (business-initiated) sends, limited caps them at a few
+   * a day, and info is shown only.
+   */
+  severity: 'disabled' | 'blocked' | 'limited' | 'info';
+  /** What raised it. A notification may clear only the cause it is about, so a lifted ban leaves a payment problem. */
+  cause: GateCause;
+  /** When this was learned (epoch ms): an older notification never overrides a newer one. */
+  at: number;
+  /** For a restriction or pause with a known end (epoch ms): it stops counting by itself after that. */
+  until?: number;
 }
+
+export type GateCause = 'ban' | 'review' | 'connection' | 'restriction' | 'payment' | 'name' | 'quality' | 'cooldown' | 'limited' | 'business' | 'meta';
 
 /**
  * Whether a number may send, as of the last time it was read from Meta (the dashboard's refresh, or an
  * AI tool's get_number, or a send Meta refused). It is not re-checked on its own: the user fixes the
  * problem and refreshes.
- *   ok       nothing in the way
- *   limited  the number itself is limited (a display name not approved yet): few template messages a day
- *   blocked  the account or number is blocked: only free-form replies go through
+ *   ok        nothing in the way
+ *   limited   the number itself is limited (a display name not approved yet): few template messages a day
+ *   blocked   the account or number is blocked: only free-form replies go through
+ *   disabled  the account is banned, rejected or disconnected: nothing goes through
+ * `status` is worked out from `reasons` (see gates.ts) every time they change.
  */
 export interface NumberHealth {
-  status: 'ok' | 'limited' | 'blocked';
+  status: 'ok' | 'limited' | 'blocked' | 'disabled';
   reasons: HealthReason[];
-  /** Meta's messaging limit tier when it was read, e.g. TIER_250. Our daily limit never goes above it. */
+  /** Meta's messaging limit tier, e.g. TIER_250, when it was last read or announced. Our daily limit never goes above it. */
   tier?: string;
+  /** Whether Meta has verified the business. Only explains the tier; it gates nothing itself. */
+  businessVerified?: boolean;
+}
+
+/** A template Meta paused, disabled, rejected or deleted: sends of it are refused. Templates in good standing are not stored. */
+export interface TemplateGate {
+  status: string;
+  reason?: string;
+  at: number;
+}
+
+/** One thing Meta told us (a webhook), or that a refresh found different, kept for the dashboard's Notifications. */
+export interface NotificationDoc {
+  eventAt: number;
+  receivedAt: number;
+  /** Meta's webhook field, or `refresh` for what a refresh found. */
+  field: string;
+  event?: string;
+  title: string;
+  message: string;
+  severity: 'critical' | 'warning' | 'info';
+  /** Meta's payload for the event: account-level facts only, never a message. */
+  value?: unknown;
+}
+
+/** What GET /numbers/<id>/notifications returns for one. */
+export type NotificationView = Omit<NotificationDoc, 'value'> & { id: string; value?: unknown };
+
+export interface NotificationsResponse extends ApiResponse {
+  notifications: NotificationView[];
+  /** Pass as `before` to get the next, older page. Absent when there are no more. */
+  nextBefore?: number;
 }
 
 /** The number's display name and any change waiting for Meta's review. */
 export interface DisplayNameState {
+  /** When this was learned (epoch ms). */
+  at?: number;
   name?: string;
   status?: string;
   requestedName?: string;

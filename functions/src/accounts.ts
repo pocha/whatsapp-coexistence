@@ -2,7 +2,7 @@ import { onRequest, type Request } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { config } from './helpers/config';
 import { exchangeCodeForToken, getDisplayPhoneNumber, getGrantedWabaIds, getPhoneNumberInfo, wabaHasPhoneNumber } from './helpers/graphApi';
-import type { ExchangeCodeRequest, OnboardingResponse, RotateKeyRequest, SignupEvent } from './helpers/types';
+import type { PhoneNumberDoc, ExchangeCodeRequest, OnboardingResponse, RotateKeyRequest, SignupEvent } from './helpers/types';
 import { HttpError, requireAuth } from './helpers/auth';
 import { failedRequest, logEvent } from './helpers/log';
 import type { Handler } from './helpers/http';
@@ -54,7 +54,7 @@ export async function requireUserKey(userId: string, apiKey: unknown): Promise<U
 export async function authenticateKey(
   phoneNumberId: string,
   apiKey: unknown,
-): Promise<{ userId: string; wabaId: string; accessToken: string }> {
+): Promise<{ userId: string; wabaId: string; accessToken: string; number: PhoneNumberDoc }> {
   const waba = await readNumber(phoneNumberId);
   if (!waba) throw new HttpError(404, 'Unknown phone number ID.');
 
@@ -63,7 +63,7 @@ export async function authenticateKey(
   if (!enc) throw new HttpError(409, 'This number has no stored access token. Onboard it again.');
 
   try {
-    return { userId: user.userId, wabaId: waba.wabaId, accessToken: decryptToken(enc, apiKey as string) };
+    return { userId: user.userId, wabaId: waba.wabaId, accessToken: decryptToken(enc, apiKey as string), number: waba };
   } catch {
     throw new HttpError(500, 'Could not decrypt the stored access token.');
   }

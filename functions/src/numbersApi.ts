@@ -1,7 +1,7 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import { handle, numberRoute } from './helpers/http';
 import { exchangeCode } from './accounts';
-import { getNumber, listNumbers } from './numbers';
+import { getNotifications, getNumber, listNumbers } from './numbers';
 import { deregisterNumber, disconnectNumber, numbersApp, registerNumber, setDisplayName, setWebhook } from './wabaManager';
 
 // /numbers: the API for a customer's numbers, with the phone number ID in the path. Every call takes the
@@ -10,7 +10,8 @@ import { deregisterNumber, disconnectNumber, numbersApp, registerNumber, setDisp
 //
 //   GET    /numbers                       the account's numbers
 //   POST   /numbers                       a number from Embedded Signup's code (sign-in, and the key in the body)
-//   GET    /numbers/<id>                  one number (with the key: live from Meta too)
+//   GET    /numbers/<id>                  one number (with ?refresh=true and the key: live from Meta too)
+//   GET    /numbers/<id>/notifications    what Meta has told us about it, newest first
 //   PUT    /numbers/<id>/webhook          where incoming events go (or none)
 //   PUT    /numbers/<id>/display-name     ask Meta to review a new name
 //   POST   /numbers/<id>/register         register an API-only number (PIN)
@@ -25,6 +26,7 @@ const keyOrSignIn = { keyRequired: false };
 numbersApp.get('/', numberRoute(listNumbers, keyOrSignIn));
 numbersApp.post('/', handle(exchangeCode));
 numbersApp.get('/:phoneNumberId', numberRoute(getNumber, keyOrSignIn));
+numbersApp.get('/:phoneNumberId/notifications', numberRoute(getNotifications, keyOrSignIn));
 numbersApp.put('/:phoneNumberId/webhook', numberRoute(setWebhook, withKey));
 numbersApp.put('/:phoneNumberId/display-name', numberRoute(setDisplayName, withKey));
 numbersApp.post('/:phoneNumberId/register', numberRoute(registerNumber, withKey));

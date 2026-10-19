@@ -1,11 +1,11 @@
 import { HttpError } from './helpers/auth';
 import { authenticateKey, requireCaller } from './accounts';
 import { post, type Handler } from './helpers/http';
-import { listNumbersForUser, readNumber } from './helpers/model';
+import { listNotifications, listNumbersForUser, readNumber } from './helpers/model';
 import { numberView, relayLimits } from './helpers/numberView';
 import { refreshHealth } from './helpers/healthRefresh';
 import { nextRefreshAt, REFRESH_MIN_INTERVAL_MS } from './helpers/health';
-import type { GetNumberResponse, ListNumbersResponse } from './helpers/types';
+import type { GetNumberResponse, ListNumbersResponse, NotificationsResponse } from './helpers/types';
 import { logEvent } from './helpers/log';
 
 // Reads for the dashboard and the MCP: what numbers an account has and where each stands. They
@@ -49,5 +49,18 @@ export const getNumber: Handler = async (req, res) => {
       logEvent('live details unavailable', { phoneNumberId, error: body.metaError });
     }
   }
+  res.status(200).send(body);
+};
+
+/** A number's notifications, newest first: `?limit=` (up to 50) and `?before=` (an epoch ms) page back through them. */
+export const getNotifications: Handler = async (req, res) => {
+  const userId = await requireCaller(req);
+  const phoneNumberId = String(req.body?.phoneNumberId ?? '');
+  const doc = phoneNumberId ? await readNumber(phoneNumberId) : undefined;
+  if (!doc || doc.userId !== userId) throw new HttpError(404, 'Unknown phone number ID.');
+  const limit = Math.min(50, Math.max(1, Number(req.query?.limit) || 20));
+  const before = Number(req.query?.before) || undefined;
+  const { notifications, nextBefore } = await listNotifications(phoneNumberId, before, limit);
+  const body: NotificationsResponse = { ok: true, notifications, ...(nextBefore ? { nextBefore } : {}) };
   res.status(200).send(body);
 };

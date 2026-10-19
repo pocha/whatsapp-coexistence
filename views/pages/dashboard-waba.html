@@ -23,6 +23,13 @@
 
         <div id="onboarding-card" class="hidden card p-6"></div>
 
+        <div id="notifications-card" class="hidden card p-6 gap-3">
+          <p class="label-strong text-on-surface-variant">NOTIFICATIONS <span class="label-muted">what Meta told us about this number, kept for a month</span></p>
+          <ul id="notifications-list" class="flex flex-col divide-y divide-outline-variant"></ul>
+          <p id="notifications-empty" class="hidden text-on-surface-variant font-body-md text-sm">Nothing yet. Changes Meta reports about this account show up here.</p>
+          <button id="notifications-more" type="button" class="hidden self-start rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Show older</button>
+        </div>
+
         <div id="stats" class="hidden flex flex-col gap-4">
           <div class="card p-6">
             <p class="label-strong text-on-surface-variant mb-3">MESSAGES SENT <span class="label-muted">all messages · UTC</span></p>
