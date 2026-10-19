@@ -8,6 +8,11 @@ Firebase Functions, Firestore and Firebase Auth.
 
 ## API
 
+<!-- docs:only
+Everything Watobot does for a number is available three ways: in the dashboard, as a call that takes your Watobot API key as `Authorization: Bearer <key>`, and as a tool in the MCP server (below). This page lists what is supported, so you can check it before you start, and the number's page in the dashboard shows each call with its address filled in. Answers are JSON with `ok` (and `error` when `ok` is false), except sends and the template list, create, edit and delete, which return Meta's response unchanged.
+-->
+
+<!-- docs:omit -->
 Everything is a Firebase HTTPS function under `https://us-central1-wa-coexistence.cloudfunctions.net`, and a function is an Express app that routes by the rest of the path. They are grouped by what they work on, each with the phone number ID in the path where there is a number:
 
 | Function | Path | Timeout |
@@ -23,6 +28,7 @@ Three kinds of credential:
 - **Key**: the Watobot API key, as `Authorization: Bearer <key>`. It is checked against the account, then used to open the stored Meta token for that one request. (The wizard's three checks take it as `apiKey` in the body instead, since they may also come from a signed-in browser.)
 - **Signed in**: a Firebase ID token, `Authorization: Bearer <id token>`. Used by the dashboard, for the two reads of a number.
 - **None**: anyone, or Meta.
+<!-- /docs:omit -->
 
 ### Numbers: `/numbers`
 
@@ -63,7 +69,7 @@ Three kinds of credential:
 | `POST /onboarding/<id>/sync` | Key | Requests the contacts, then the history sync (each once). | `syncType` |
 | `POST /onboarding/<id>/sync/skip` | Key | Skips the contacts and history sync for good (Meta allows each once). Only at the sync step. | |
 
-**Sending status.** Each number keeps one status, from the last time Meta was asked about it: on a refresh (`GET /numbers/<id>?refresh=true`, which is the dashboard's refresh button and an AI tool's `get_number` with `refresh`), at the end of onboarding, and when Meta refuses a send because the account can't send. It does not update on its own: the user fixes what it names and refreshes, and Meta is asked at most once in ten minutes (`metaFetchedAt` is when it last was, and a refused send does not move it). The relay uses it, and the rules are fixed in `functions/src/helpers/health.ts`:
+**Sending status.** Each number keeps one status, from the last time Meta was asked about it: on a refresh (`GET /numbers/<id>?refresh=true`, which is the dashboard's refresh button and an AI tool's `get_number` with `refresh`), at the end of onboarding, and when Meta refuses a send because the account can't send. It does not update on its own: the user fixes what it names and refreshes, and Meta is asked at most once in ten minutes (`metaFetchedAt` is when it last was, and a refused send does not move it). The relay uses it, and the rules are fixed in [`health.ts`](functions/src/helpers/health.ts):
 
 | Status | When | What the relay does |
 | --- | --- | --- |
@@ -75,6 +81,7 @@ Whatever the status, the daily template limit never goes above Meta's messaging 
 
 Each reason has a `title`, what is wrong (`message`), `action` and, where we know one, a `link`, written for the cases we know and in Meta's words for any other. The number's page shows them as chips beside the number (Healthy, Limited or Blocked; Business unverified; Display name needs attention). A click opens a popup with the reasons, when Meta was last asked, the refresh button (it needs the key) and, for the display name, the form to request a new name.
 
+<!-- docs:omit -->
 ### The account and the rest
 
 | Method and path | Credential | What it does | Body |
@@ -93,21 +100,32 @@ Each reason has a `title`, what is wrong (`message`), `action` and, where we kno
 | `POST /webhook` | Receives the webhooks that can't be overridden (template and account-level updates). Checks Meta's `X-Hub-Signature-256` (an HMAC of the body with the app secret), refuses anything else with 401, and acknowledges the rest. Nothing is done with them yet: Meta emails the account's admins about the ones that matter. |
 
 The request bodies are typed in `functions/src/helpers/types.ts`, and each function's routes are listed at the top of `numbersApi.ts`, `onboardingApi.ts` and `wabaManager.ts` (templates).
+<!-- /docs:omit -->
+
+<!-- docs:only
+### What Watobot does not do
+
+- It does not keep your messages, contacts or chat history. Incoming messages, and the one-time contacts and history sync, go straight from WhatsApp to your callback URL. Outgoing messages are counted, never stored.
+- It does not do Meta's sign-up for you: the Facebook login and the code or QR in the WhatsApp Business app are always done by you, in the browser.
+- It does not queue messages yet: a send over a limit is refused (429) and can be retried.
+-->
 
 ## MCP server
 
-An AI tool can use the functions above through MCP: check a callback URL, send test events, get the link for Meta's sign-up, read a number's state, sync, register, send messages, manage templates, de-register and disconnect. `deregister_number`, `disconnect_number` and `delete_template` are marked destructive. The tools are one piece of code, [`functions/src/mcp/tools.ts`](functions/src/mcp/tools.ts), offered two ways:
+An AI tool can use the calls above through MCP: check a callback URL, send test events, get the link for Meta's sign-up, read a number's state, sync, register, send messages, manage templates, de-register and disconnect. `deregister_number`, `disconnect_number` and `delete_template` are marked destructive. The tools are one piece of code, [`functions/src/mcp/tools.ts`](functions/src/mcp/tools.ts), offered two ways:
 
 | | Hosted | Local |
 | --- | --- | --- |
 | For | claude.ai, ChatGPT, and Claude Code or Cursor over http | Claude Code, Claude Desktop, Cursor and others that launch a program |
-| Where it runs | the `mcp` Function: `POST /mcp` | on the user's computer: the `watobot-mcp` package in [`mcp/`](mcp/), over stdio |
+| Where it runs | our servers: `POST /mcp` | on the user's computer: the `watobot-mcp` package in [`mcp/`](mcp/), over stdio |
 | The key | `Authorization: Bearer <key>`, or in the address (`/mcp/<key>`) for tools that only take an address | the `WATOBOT_API_KEY` environment variable |
 | Setup | the dashboard's **API key** page builds the address and commands from the key you paste | `claude mcp add watobot -e WATOBOT_API_KEY=<key> -- npx -y watobot-mcp` |
 
 There is no OAuth: the Watobot API key is the credential, as everywhere else. The hosted server is stateless (each request is a new server, nothing about the caller is kept), checks the key against the account before answering anything (401 otherwise), and never logs it. A new user signs up on the site and creates the key there (it is made in the browser and shown once, so no tool can make it). Meta's sign-up (Facebook login, the code or QR in the WhatsApp Business app) is always done by the person: the `start_onboarding_link` tool gives a link that opens the dashboard wizard at that step, with the checks already done, and after the sign-up the wizard tells them to go back to their AI tool, which reads the result with `get_number`.
 
+<!-- docs:omit -->
 Develop it with `cd functions && npm run test:unit` (the tools) and `cd mcp && npm test` (the local package builds, starts and lists its tools).
+<!-- /docs:omit -->
 
 ## Roadmap
 

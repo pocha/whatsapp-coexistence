@@ -4,6 +4,10 @@
 
 Prerequisites: a phone number registered on the WhatsApp Business app, and an app (such as a chatbot) hosted at a public HTTPS URL that receives incoming messages. Your Meta access token is stored encrypted with a Watobot API key that only you hold, and incoming messages go straight from WhatsApp to your app.
 
+## Capabilities
+
+- [Capabilities: what Watobot supports](https://watobot.com/capabilities.html): Every call Watobot supports for a number (onboarding with coexistence or API only, sending and its limits, sending status and display name, message templates and their migration, de-registering and disconnecting) and the MCP server's tools, so you can check a capability exists before relying on it.
+
 ## Guides
 
 - [How to Connect Watobot to Claude, ChatGPT or Another AI Tool](https://watobot.com/how-to/connect-watobot-to-ai-tool.html): Add the Watobot MCP server to claude.ai, ChatGPT, Claude Code, Claude Desktop or Cursor, and let your AI tool guide you through getting WhatsApp API access with coexistence: what it does for you, what you still do yourself (the API key and Meta's sign-up), and how to keep your key safe.

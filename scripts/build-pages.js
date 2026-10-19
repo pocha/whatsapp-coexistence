@@ -34,6 +34,7 @@ const SRC_DIR = path.join(ROOT_DIR, 'src');
 
 const PAGE_MAP = {
   'index.html': 'index.html',
+  'capabilities.html': 'capabilities.html',
   'privacy.html': 'privacy.html',
   'tos.html': 'tos.html',
   'data-deletion.html': 'data-deletion.html',
