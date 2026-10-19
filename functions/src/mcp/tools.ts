@@ -58,7 +58,13 @@ export function createServer(ctx: Context): McpServer {
 
   // ---- what the account has ----
   tool('list_numbers', 'Lists your numbers and where each is in onboarding (the "step"), whether it is also on the WhatsApp Business app, and when the syncs were requested.', {}, () => callWithBearer('GET', 'numbers'), { readOnly: true });
-  tool('get_number', 'One number\'s state and its template-send limits, plus what Meta says about it right now: messaging limit tier, quality rating, display name status, account review, ownership, the callback URL override and the stored token\'s scopes. Each part of Meta\'s answer is separate, so a part that failed says why.', { phoneNumberId }, (a) => callWithBearer('GET', `numbers/${a.phoneNumberId}`), { readOnly: true });
+  tool(
+    'get_number',
+    'One number\'s state, its template-send limits and its sending status (healthy, limited or blocked, with the reasons, what to do about each and where). That is what was stored the last time Meta was asked. With refresh=true it asks Meta again (messaging limit tier, quality rating, display name, account review, ownership, the callback URL override, the token\'s scopes) and updates the status, but only once in ten minutes: ask again only after the person has fixed what the status names.',
+    { phoneNumberId, refresh: z.boolean().optional() },
+    (a) => callWithBearer('GET', `numbers/${a.phoneNumberId}${a.refresh ? '?refresh=true' : ''}`),
+    { readOnly: true },
+  );
 
   // ---- before the number exists ----
   tool('check_callback_url', 'Does Meta\'s handshake against your callback URL, to see it answers before onboarding.', { overrideCallbackUrl: callbackUrl }, (a) => callFunction('onboarding/callback-check', a), { readOnly: true });

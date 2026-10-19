@@ -316,7 +316,6 @@ numbersApp.post('/:phoneNumberId/messages', async (req, res) => {
       res.status(403).send({
         error: 'This number is blocked from sending template messages. Free-form replies still go through. Fix the reasons below, then refresh the number (the dashboard, or get_number) to lift this.',
         status: 'blocked',
-        checkedAt: verdict.blocked.checkedAt,
         reasons: verdict.blocked.reasons,
       });
       return;
@@ -357,7 +356,7 @@ numbersApp.post('/:phoneNumberId/messages', async (req, res) => {
   if (!metaRes.ok) {
     logEvent('Meta refused a send', { phoneNumberId, status: metaRes.status, metaError: body?.error });
     // A refusal that says the account can't send is remembered, so the next sends are not even tried.
-    const refused = healthFromRefusal(body?.error, Date.now());
+    const refused = healthFromRefusal(body?.error);
     if (refused) await setHealth(phoneNumberId, refused).catch(() => undefined);
   }
   res.status(metaRes.status).send(body);

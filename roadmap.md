@@ -44,7 +44,7 @@ A step-by-step wizard: `checks → Meta onboarding → callback override → (co
 - [x] Fallback: create templates in the template manager, or skip for now.
 
 - [x] **The API is grouped by resource,** with the key as the bearer token: `/numbers/<id>/...`, `/templates/<id>/...`, `/templatesBulk/<id>/...` (the 300 s one), `/onboarding/...`. The old one-function-per-call names are gone.
-- [x] **Sending status:** Meta's `health_status` is read when the key is used to read a number, stored as one status with its reasons (`blocked`, `limited`, `ok`), and used by the relay: a blocked number sends no template messages, a limited one five a day. Shown on the number page with a refresh. Not re-checked on its own; a Meta refusal that says the account cannot send also sets it.
+- [x] **Sending status:** Meta's `health_status` is read on a refresh (`GET /numbers/<id>?refresh=true`, at most once in ten minutes) and at the end of onboarding, and stored as one status (`ok`, `limited`, `blocked`) with reasons written for the cases we know (what, what to do, where). The relay uses it: a blocked number sends no template messages, a limited one five a day, and the daily limit never goes above Meta's tier. Shown as chips beside the number, each opening a popup with the refresh and the display name form. Not re-checked on its own; a Meta refusal that says the account cannot send also sets it.
 - [x] **Display name requests** (`PUT /numbers/<id>/display-name`): one change at a time, refused while one is in review.
 
 ### P1: moving in and out

@@ -18,6 +18,8 @@ export interface WindowConfig {
   growthPercent: number;
   /** The count that is always allowed, whatever the previous window held. */
   floor: number;
+  /** A ceiling the limit never goes above, however much the window has grown (set from Meta's messaging limit tier). */
+  max?: number;
 }
 
 export interface RateLimitConfig {

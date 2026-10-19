@@ -72,7 +72,8 @@ export function windowEnd(unit: Unit, now: number): number {
 }
 
 export function limitFor(previous: number, window: WindowConfig, headroomSigmas: number): number {
-  return Math.floor(Math.max(window.floor, previous * (1 + window.growthPercent / 100) + headroomSigmas * Math.sqrt(previous)));
+  const grown = Math.floor(Math.max(window.floor, previous * (1 + window.growthPercent / 100) + headroomSigmas * Math.sqrt(previous)));
+  return window.max === undefined ? grown : Math.min(grown, window.max);
 }
 
 export type Verdict =

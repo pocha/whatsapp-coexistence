@@ -5,10 +5,10 @@ import { isValidApiKey } from '/assets/api-key.js';
 import '/assets/nav-auth.js';
 import { wireTestEvents } from '/assets/test-events.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { NumberView, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
-import { effectiveConfig, view } from '../../../functions/src/helpers/rateLimiter';
+import type { HealthReason, NumberView, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
+import { view } from '../../../functions/src/helpers/rateLimiter';
 import { fetchNumber } from '/assets/account.js';
-import { LIMITED_DAILY_TEMPLATES } from '../../../functions/src/helpers/health';
+import { effectiveConfigFor, LIMITED_DAILY_TEMPLATES, REFRESH_MIN_INTERVAL_MS, tierLimit } from '../../../functions/src/helpers/health';
 
 // The page for one number, identified by ?id= in the URL (its phone number ID). Signed-in
 // only: signed-out visitors are sent to the Dashboard's sign-in. What it does to the number
@@ -106,7 +106,7 @@ function infoIcon(text: string, align: 'left' | 'right'): HTMLElement {
 }
 
 function renderLimitTable(data: NumberView, nowMs: number) {
-  const config = effectiveConfig(data.rateLimits);
+  const config = effectiveConfigFor(data);
   const windows = view(data.rateState, config, nowMs);
   const units = [
     ['minute', 'Minute'],
@@ -116,8 +116,17 @@ function renderLimitTable(data: NumberView, nowMs: number) {
 
   // The allowance is what a sender runs into; how it is worked out sits in a note behind an "i",
   // so the table stays at three rows.
-  const allowanceNote = (u: (typeof units)[number][0]) =>
-    `Grows with usage: up to ${config[u].growthPercent}% over the previous ${u}, and never below ${config[u].floor}.`;
+  const unverified = data.health?.reasons.some((r) => r.chip === 'business');
+  const tier = tierLimit(data.health?.tier);
+  const allowanceNote = (u: (typeof units)[number][0]) => {
+    const grows = `Grows with usage: up to ${config[u].growthPercent}% over the previous ${u}, and never below ${config[u].floor}.`;
+    if (u !== 'day' || config.day.max === undefined) return grows;
+    const why =
+      data.health?.status === 'limited'
+        ? `${LIMITED_DAILY_TEMPLATES} a day while the display name is not approved`
+        : `${tier} a day, Meta's messaging limit${unverified ? ', which stays at 250 while your business is unverified' : ''}`;
+    return `${grows} It will not go above ${why}.`;
+  };
 
   const rows: [string, (u: (typeof units)[number][0]) => Node | string, string?][] = [
     ['This window', (u) => pair(windows[u].current, windows[u].currentAttempts)],
@@ -255,109 +264,160 @@ async function loadRecord(): Promise<boolean> {
     return true;
   }
   renderSyncCard(data);
-  renderHealth(data);
+  renderChips(data);
   renderStats(data);
   return true;
 }
 
-// --- Sending status and display name ------------------------------------------------
+// --- Sending status chips and their popup ------------------------------------------
 
-const HEALTH_CHIP = {
-  ok: ['Can send', 'bg-primary/10 text-primary'],
+const STATUS_CHIP = {
+  ok: ['Healthy', 'bg-primary/10 text-primary'],
   limited: ['Limited', 'bg-amber-100 text-amber-900'],
   blocked: ['Blocked', 'bg-error/10 text-error'],
 } as const;
-const HEALTH_EFFECT = {
-  ok: 'Nothing is in the way of sending.',
-  limited: `Template messages are limited to ${LIMITED_DAILY_TEMPLATES} a day until this clears. Replies in a chat are not limited.`,
-  blocked: 'Template messages are refused. Free-form replies in a chat still go through.',
-} as const;
+const NEUTRAL = 'bg-surface-container text-on-surface-variant';
+const AMBER = 'bg-amber-100 text-amber-900';
 
-/** Shows the stored status and display name. Nothing here asks Meta: the refresh button does. */
-function renderHealth(data: NumberView) {
-  el('health-card').classList.remove('hidden');
+const dialog = el<HTMLDialogElement>('health-dialog');
+let shown: NumberView | undefined;
+let openChip: HealthReason['chip'] = 'status';
+
+/** The chips beside the number: its sending status, and the two things that may need the user. */
+function renderChips(data: NumberView) {
+  shown = data;
+  const box = el('chips');
+  box.replaceChildren();
+  const add = (chip: HealthReason['chip'], text: string, classes: string) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `rounded-full px-3 py-1 label-strong inline-flex items-center gap-1 ${classes}`;
+    button.setAttribute('aria-haspopup', 'dialog');
+    button.append(text);
+    const icon = document.createElement('span');
+    icon.className = 'material-symbols-outlined text-[16px]';
+    icon.textContent = 'info';
+    button.append(icon);
+    button.addEventListener('click', () => openDialog(chip));
+    box.append(button);
+  };
   const health = data.health;
-  const chip = el('health-chip');
-  const [label, classes] = health ? HEALTH_CHIP[health.status] : (['Not checked yet', 'bg-surface-container text-on-surface-variant'] as const);
-  chip.textContent = label;
-  chip.className = `rounded-full px-3 py-1 label-strong ${classes}`;
-  el('health-checked').textContent = health
-    ? `${health.source === 'refusal' ? 'Learned from a send Meta refused' : 'Checked'} ${new Date(health.checkedAt).toLocaleString()}`
-    : '';
-  el('health-effect').textContent = health ? HEALTH_EFFECT[health.status] : 'Refresh to ask Meta whether this number can send.';
-
-  const list = el('health-reasons');
-  list.replaceChildren();
-  for (const reason of health?.reasons ?? []) {
-    const item = document.createElement('li');
-    item.className = reason.severity === 'info' ? 'opacity-80' : '';
-    const text = document.createElement('span');
-    text.textContent = `${reason.message}${reason.fix ? ` ${reason.fix}` : ''}`;
-    const tag = document.createElement('span');
-    tag.className = 'label-muted mr-2';
-    tag.textContent = `${reason.scope.replace('_', ' ')}${reason.code ? ` ${reason.code}` : ''}${reason.severity === 'info' ? ' · for information' : ''}`;
-    item.append(tag, text);
-    list.append(item);
-  }
-
-  const name = data.displayName;
-  const pending = /PENDING/i.test(name?.requestedStatus ?? '');
-  el('display-name-state').textContent = name?.name
-    ? `${name.name} (${name.status ?? 'status unknown'})${name.requestedName && name.requestedStatus && name.requestedStatus !== 'NONE' ? `. Requested: ${name.requestedName} (${name.requestedStatus}).` : ''}`
-    : 'Not read yet. Refresh to see it.';
-  el<HTMLButtonElement>('display-name-btn').disabled = pending;
-  el('display-name-note').classList.toggle('opacity-60', pending);
+  const [label, classes] = health ? STATUS_CHIP[health.status] : (['Not checked', NEUTRAL] as const);
+  add('status', label, classes);
+  const reasons = health?.reasons ?? [];
+  if (reasons.some((r) => r.chip === 'business')) add('business', 'Business unverified', AMBER);
+  if (reasons.some((r) => r.chip === 'name')) add('name', 'Display name needs attention', AMBER);
 }
 
-/** Asks Meta again, with the key (it opens the stored token), and shows what came back. */
+function paragraph(text: string, className = ''): HTMLParagraphElement {
+  const p = document.createElement('p');
+  p.className = className;
+  p.textContent = text;
+  return p;
+}
+
+function openDialog(chip: HealthReason['chip']) {
+  if (!shown) return;
+  openChip = chip;
+  const health = shown.health;
+  const titles = { status: `Sending status: ${health ? STATUS_CHIP[health.status][0] : 'not checked'}`, business: 'Business unverified', name: 'Display name' } as const;
+  el('hd-title').textContent = titles[chip];
+
+  const body = el('hd-body');
+  body.replaceChildren();
+  const reasons = (health?.reasons ?? []).filter((r) => r.chip === chip);
+  if (!health) {
+    body.append(paragraph("Meta hasn't been asked about this number yet. Enter your API key and refresh."));
+  } else if (!reasons.length) {
+    body.append(paragraph(chip === 'status' ? 'Nothing needs your attention. Template messages and replies can go out.' : 'Nothing needs your attention.'));
+  }
+  for (const reason of reasons) {
+    const item = document.createElement('div');
+    item.className = 'flex flex-col gap-1';
+    item.append(paragraph(reason.title, 'text-on-surface font-bold'), paragraph(reason.message), paragraph(`What to do: ${reason.action}`, 'text-on-surface'));
+    if (reason.link) {
+      const link = document.createElement('a');
+      link.href = reason.link;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.className = 'text-primary font-bold hover:underline w-fit';
+      link.textContent = 'Open it →';
+      item.append(link);
+    }
+    body.append(item);
+  }
+  if (chip === 'name' && shown.displayName?.name) {
+    body.append(paragraph(`Current display name: ${shown.displayName.name} (${shown.displayName.status ?? 'status unknown'}).`));
+  }
+  // A new name can be requested unless one is already waiting for Meta's decision.
+  const pending = /PENDING/i.test(shown.displayName?.requestedStatus ?? '');
+  el('hd-name').classList.toggle('hidden', chip !== 'name' || pending);
+
+  const fetchedAt = shown.metaFetchedAt;
+  el('hd-checked').textContent = fetchedAt ? `Last checked ${new Date(fetchedAt).toLocaleString()}` : 'Never checked';
+  const next = fetchedAt ? fetchedAt + REFRESH_MIN_INTERVAL_MS : 0;
+  const wait = next > Date.now();
+  el<HTMLButtonElement>('hd-refresh').disabled = wait;
+  el('hd-status').textContent = wait
+    ? `Meta can be asked again at ${new Date(next).toLocaleTimeString()}. Fix what is named above first, then refresh.`
+    : 'Fix what is named above, then refresh. Meta is asked at most once in ten minutes.';
+  const typed = apiKeyInput.value.trim();
+  const key = el<HTMLInputElement>('hd-key');
+  if (!key.value && typed) key.value = typed;
+  dialog.showModal();
+}
+
+el('hd-close').addEventListener('click', () => dialog.close());
+dialog.addEventListener('click', (event) => {
+  if (event.target === dialog) dialog.close();
+});
+
+/** Calls /numbers/<this number> with the key from the popup, which opens the stored token. */
 async function callWithKey(method: 'GET' | 'PUT', path: string, body?: object) {
   const res = await fetch(`${functionsBase()}/numbers/${encodeURIComponent(phoneNumberId)}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKeyInput.value.trim()}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${el<HTMLInputElement>('hd-key').value.trim()}` },
     body: body ? JSON.stringify(body) : undefined,
   });
-  const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; number?: NumberView; metaError?: string };
+  const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; metaError?: string };
   if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
 }
 
-async function refreshHealth() {
-  const status = el('health-status');
-  if (!isValidApiKey(apiKeyInput.value.trim())) {
-    status.textContent = 'Enter your API key first (the box further down).';
+const hasKey = () => isValidApiKey(el<HTMLInputElement>('hd-key').value.trim());
+
+el('hd-refresh').addEventListener('click', async () => {
+  const status = el('hd-status');
+  if (!hasKey()) {
+    status.textContent = 'Enter your API key first.';
     return;
   }
-  el<HTMLButtonElement>('health-refresh').disabled = true;
+  el<HTMLButtonElement>('hd-refresh').disabled = true;
   status.textContent = 'Asking Meta…';
   try {
-    const result = await callWithKey('GET', '');
+    const result = await callWithKey('GET', '?refresh=true');
     if (result.metaError) throw new Error(result.metaError);
-    renderHealth(result.number!);
-    status.textContent = 'Updated.';
+    location.reload();
   } catch (err) {
-    status.textContent = `Could not refresh: ${errorMessage(err)}`;
-  } finally {
-    el<HTMLButtonElement>('health-refresh').disabled = false;
+    status.textContent = errorMessage(err);
   }
-}
-el('health-refresh').addEventListener('click', refreshHealth);
+});
 
-el('display-name-btn').addEventListener('click', async () => {
-  const status = el('health-status');
-  const displayName = el<HTMLInputElement>('display-name-input').value.trim();
-  if (!isValidApiKey(apiKeyInput.value.trim()) || displayName.length < 3) {
-    status.textContent = 'Enter your API key (further down) and a name of at least 3 characters.';
+el('hd-name-btn').addEventListener('click', async () => {
+  const status = el('hd-status');
+  const displayName = el<HTMLInputElement>('hd-name-input').value.trim();
+  if (!hasKey() || displayName.length < 3) {
+    status.textContent = 'Enter your API key and a name of at least 3 characters.';
     return;
   }
-  el<HTMLButtonElement>('display-name-btn').disabled = true;
+  el<HTMLButtonElement>('hd-name-btn').disabled = true;
   status.textContent = 'Sending the request to Meta…';
   try {
     await callWithKey('PUT', '/display-name', { displayName });
-    status.textContent = 'Sent. Meta now reviews it; refresh later to see the decision.';
-    await refreshHealth();
+    location.reload();
   } catch (err) {
     status.textContent = `Not sent: ${errorMessage(err)}`;
-    el<HTMLButtonElement>('display-name-btn').disabled = false;
+    el<HTMLButtonElement>('hd-name-btn').disabled = false;
   }
 });
 

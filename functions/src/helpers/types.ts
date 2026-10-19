@@ -85,6 +85,8 @@ export interface PhoneNumberDoc {
   /** Whether the number may send, as of the last read from Meta. See NumberHealth. */
   health?: NumberHealth;
   displayName?: DisplayNameState;
+  /** When Meta was last really asked (a refresh is refused within ten minutes of it). Not set by a refused send. */
+  metaFetchedAt?: number;
   /** From Meta, after onboarding: whether the number is also on the WhatsApp Business app. */
   isOnBizApp?: boolean;
   platformType?: string;
@@ -106,6 +108,7 @@ export interface NumberView {
   callbackSkipped?: boolean;
   health?: NumberHealth;
   displayName?: DisplayNameState;
+  metaFetchedAt?: number;
   activatedAt?: number;
   lastRelayCall?: number;
   usage?: Usage;
@@ -127,13 +130,23 @@ export interface ListNumbersResponse extends ApiResponse {
   numbers: NumberView[];
 }
 
-/** Why a number can't send freely, in Meta's words. */
+/**
+ * Something about a number that needs the user's attention, for a chip on the dashboard and for an AI tool.
+ * Written by us for the cases we know, in Meta's words for any other.
+ */
 export interface HealthReason {
-  /** Which part of the account it concerns (WABA, PHONE_NUMBER, BUSINESS), or MESSAGE for a refusal. */
-  scope: string;
+  /** Which chip it belongs to: the status, the business (not verified), or the display name. */
+  chip: 'status' | 'business' | 'name';
+  /** A few words, for the top of the popup. */
+  title: string;
+  /** What is wrong and what it means for sending. */
   message: string;
-  /** What Meta says to do about it. */
-  fix?: string;
+  /** What to do about it. */
+  action: string;
+  /** Where to do it, when we know a place. */
+  link?: string;
+  /** Which part of the account Meta raised it on (WABA, PHONE_NUMBER, BUSINESS), or MESSAGE for a refusal. */
+  scope: string;
   code?: number;
   /** blocked and limited change what we let through; info is shown only. */
   severity: 'blocked' | 'limited' | 'info';
@@ -150,8 +163,8 @@ export interface HealthReason {
 export interface NumberHealth {
   status: 'ok' | 'limited' | 'blocked';
   reasons: HealthReason[];
-  checkedAt: number;
-  source: 'meta' | 'refusal';
+  /** Meta's messaging limit tier when it was read, e.g. TIER_250. Our daily limit never goes above it. */
+  tier?: string;
 }
 
 /** The number's display name and any change waiting for Meta's review. */
@@ -187,8 +200,10 @@ export interface MetaSnapshot {
 export interface GetNumberResponse extends ApiResponse {
   number: NumberView;
   limits: RelayLimitsResponse;
-  /** Live details from Meta. Only with the API key, which opens the stored token to read them. */
+  /** Live details from Meta. Only on a refresh (`?refresh=true`, with the key, which opens the stored token). */
   meta?: MetaSnapshot;
+  /** When Meta may be asked again, an epoch time in ms. */
+  nextRefreshAt?: number;
   /** Why `meta` is missing, when a key was given. */
   metaError?: string;
 }

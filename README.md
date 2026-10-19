@@ -32,7 +32,7 @@ Three kinds of credential:
 | --- | --- | --- |
 | `GET /numbers` | The account's numbers: where each is in onboarding (`step`), whether it is on the Business app, the syncs, usage, the sending status and the display name. Never the stored token (`hasToken` only). | |
 | `POST /numbers` | Sign-up: exchanges the Embedded Signup code for the Meta token, checks with Meta that the WABA and phone number really are the signing-up user's (and that no other Watobot account holds the number), stores the token encrypted under the key, and starts the wizard for the number. Signed in, with the key in the body. | `code`, `wabaId`, `phoneNumberId`, `apiKey`, `event` |
-| `GET /numbers/<id>` | One number as above, plus its template-send limits. With the key it also asks Meta right now (`meta`): the number's status and display name approval, quality rating, messaging limit tier, account review and ownership, the apps subscribed with their callback URL override, the token's scopes and expiry, and Meta's own `health_status`. Each part is a separate read, and a part Meta refuses says why. It also stores the sending status (below). Never the token. 404 for a number that is not the caller's. | |
+| `GET /numbers/<id>` | One number as above, plus its template-send limits, the stored sending status and `nextRefreshAt`. It answers from what is stored and never asks Meta, so it is safe to repeat. With `?refresh=true` (the key, not a sign-in) it asks Meta right now: the number's status and display name approval, quality rating, messaging limit tier, account review and ownership, the apps subscribed with their callback URL override, the token's scopes and expiry, and Meta's own `health_status` (returned as `meta`), and stores the sending status (below). Meta is asked at most once in ten minutes: a refresh before then is `429` with `Retry-After` and the stored data. Each part of `meta` is a separate read, and a part Meta refuses says why. Never the token. 404 for a number that is not the caller's. | |
 | `PUT /numbers/<id>/webhook` | Checks the URL answers Meta's handshake, subscribes to it, and records it. During onboarding it also moves the wizard on. With `noCallback` instead of a URL it subscribes with no override: incoming events go to Watobot's own webhook, which discards them, and a coexistence number's contacts and history sync is skipped (Meta allows it once, to a URL). | `overrideCallbackUrl` or `noCallback` |
 | `PUT /numbers/<id>/display-name` | Asks Meta to review a new display name. Refused while an earlier change is still in review, so nobody resubmits while waiting. | `displayName` |
 | `POST /numbers/<id>/register` | Registers an API-only number. Refused for a number on the WhatsApp Business app. Waits up to 45 s for Meta. | `pin` (6 digits) |
@@ -63,15 +63,17 @@ Three kinds of credential:
 | `POST /onboarding/<id>/sync` | Key | Requests the contacts, then the history sync (each once). | `syncType` |
 | `POST /onboarding/<id>/sync/skip` | Key | Skips the contacts and history sync for good (Meta allows each once). Only at the sync step. | |
 
-**Sending status.** Each number keeps one status from the last time Meta was asked about it: when the key was used to read the number (`GET /numbers/<id>`, which is the dashboard's refresh and an AI tool's `get_number`), at the end of onboarding, and when Meta refuses a send because the account can't send. It does not update on its own: the user fixes what it names and refreshes. The relay uses it, and the rules are fixed in `functions/src/helpers/health.ts`:
+**Sending status.** Each number keeps one status, from the last time Meta was asked about it: on a refresh (`GET /numbers/<id>?refresh=true`, which is the dashboard's refresh button and an AI tool's `get_number` with `refresh`), at the end of onboarding, and when Meta refuses a send because the account can't send. It does not update on its own: the user fixes what it names and refreshes, and Meta is asked at most once in ten minutes (`metaFetchedAt` is when it last was, and a refused send does not move it). The relay uses it, and the rules are fixed in `functions/src/helpers/health.ts`:
 
 | Status | When | What the relay does |
 | --- | --- | --- |
-| `blocked` | Meta says the account (WABA) or the number is blocked, for example a payment method problem | Template messages get `403` with Meta's reasons and fixes. Free-form messages still go through. |
+| `blocked` | Meta says the account (WABA) or the number is blocked, for example a payment method problem | Template messages get `403` with the reasons and what to do. Free-form messages still go through. |
 | `limited` | The number itself is limited, which for a new number means its display name is not approved yet | At most 5 template messages a day (our own cautious figure; Meta's documentation gives none). Beyond that the usual 429. |
-| `ok` | Anything else. A business that is limited only because it is not verified is shown as information and changes nothing | Normal limits. |
+| `ok` (shown as Healthy) | Anything else. A business that is limited only because it is not verified is shown on its own chip and changes nothing | Normal limits. |
 
-The status is shown on the number's page in the dashboard, with the reasons and a refresh button that needs the key.
+Whatever the status, the daily template limit never goes above Meta's messaging limit tier read at the same time (250 while the business is unverified). Meta counts customers and we count template messages, so this is an approximation.
+
+Each reason has a `title`, what is wrong (`message`), `action` and, where we know one, a `link`, written for the cases we know and in Meta's words for any other. The number's page shows them as chips beside the number (Healthy, Limited or Blocked; Business unverified; Display name needs attention). A click opens a popup with the reasons, when Meta was last asked, the refresh button (it needs the key) and, for the display name, the form to request a new name.
 
 ### The account and the rest
 

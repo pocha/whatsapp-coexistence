@@ -45,9 +45,9 @@ const post = (path, body, headers = {}) => {
   if (!route) {
     return fetch(`${FUNCTIONS_BASE}${PLAIN_ROUTES[path.slice(1)] ?? path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
   }
-  const { phoneNumberId, apiKey, ...rest } = body ?? {};
+  const { phoneNumberId, apiKey, refresh, ...rest } = body ?? {};
   const [method, urlFor] = route;
-  return fetch(`${FUNCTIONS_BASE}${urlFor(phoneNumberId)}`, {
+  return fetch(`${FUNCTIONS_BASE}${urlFor(phoneNumberId)}${refresh ? '?refresh=true' : ''}`, {
     method,
     headers: { 'Content-Type': 'application/json', ...(apiKey !== undefined ? { Authorization: `Bearer ${apiKey}` } : {}), ...headers },
     body: method === 'GET' ? undefined : JSON.stringify(rest),
@@ -532,7 +532,7 @@ test('the hosted MCP server takes the key as a bearer token or in the path, refu
 
 test('getNumber adds what Meta says right now when the key is given, part by part, and never the token', async () => {
   await seedNumber('9801', '9811');
-  const withKey = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9801' })).json();
+  const withKey = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9801', refresh: true })).json();
   assert.ok(withKey.meta, JSON.stringify(withKey));
   assert.equal(withKey.meta.phone.ok, true);
   assert.equal(withKey.meta.phone.data.quality_rating, 'GREEN');
@@ -545,8 +545,29 @@ test('getNumber adds what Meta says right now when the key is given, part by par
   assert.equal(text.includes(META_TOKEN) || text.includes('ciphertext') || text.includes('encAccessToken'), false, 'no token anywhere in the answer');
 
   const signedIn = await (await post('/getNumber', { phoneNumberId: '9801' }, asUser())).json();
-  assert.equal(signedIn.meta, undefined, 'a sign-in alone cannot open the token, so there is no live part');
+  assert.equal(signedIn.meta, undefined, 'a plain read never asks Meta');
   assert.equal(signedIn.ok, true);
+  assert.ok(signedIn.nextRefreshAt > Date.now(), 'and says when Meta may be asked again');
+  assert.equal((await post('/getNumber', { phoneNumberId: '9801', refresh: true }, asUser())).status, 401, 'a refresh needs the key, not a sign-in');
+
+  // Meta is not asked twice within ten minutes: the second refresh is refused, with the stored status.
+  const again = await post('/getNumber', { apiKey: KEY, phoneNumberId: '9801', refresh: true });
+  assert.equal(again.status, 429);
+  assert.ok(Number(again.headers.get('retry-after')) > 0);
+  const refusedBody = await again.json();
+  assert.match(refusedBody.error, /can be asked again/);
+  assert.ok(refusedBody.number.hasToken !== undefined, 'the stored data comes with it');
+  const plain = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9801' })).json();
+  assert.equal(plain.meta, undefined, 'a read without refresh is always allowed');
+});
+
+test('the daily limit never goes above Meta\'s tier', async () => {
+  await seedNumber('9807', '9817');
+  const day = { current: 0, previous: 1000, currentAttempts: 0, previousAttempts: 1000 };
+  const empty = { current: 0, previous: 0, currentAttempts: 0, previousAttempts: 0 };
+  await db.collection('phoneNumbers').doc('9807').update({ health: { status: 'ok', reasons: [], tier: 'TIER_250' }, rateState: { lastAt: Date.now(), minute: empty, hour: empty, day } });
+  const limits = await (await fetch(`${FUNCTIONS_BASE}/numbers/9807/limits`, { headers: { Authorization: `Bearer ${KEY}` } })).json();
+  assert.equal(limits.windows.day.limit, 250, 'the day would have grown past 1,000 without the tier');
 });
 
 test('a blocked number sends no templates but can reply; refreshing stores the status and a Meta refusal sets it', async () => {
@@ -560,7 +581,7 @@ test('a blocked number sends no templates but can reply; refreshing stores the s
   await db.collection('phoneNumbers').doc('9801').update({ health: FieldValueDelete() });
   assert.equal((await relay('9801', template)).status, 200, 'with no status yet, nothing is held back');
 
-  const refreshed = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9801' })).json();
+  const refreshed = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9801', refresh: true })).json();
   assert.equal(refreshed.number.health.status, 'blocked');
   assert.equal(refreshed.number.health.reasons[0].code, 141006);
   assert.equal((await db.collection('phoneNumbers').doc('9801').get()).data().health.status, 'blocked', 'the status is stored');
@@ -570,7 +591,8 @@ test('a blocked number sends no templates but can reply; refreshing stores the s
   assert.equal(refused.status, 403);
   const refusal = await refused.json();
   assert.equal(refusal.status, 'blocked');
-  assert.equal(refusal.reasons[0].fix, 'add one');
+  assert.equal(refusal.reasons[0].title, 'Payment method problem');
+  assert.match(refusal.reasons[0].action, /payment method/);
   assert.equal((await relay('9801', text)).status, 200, 'a free-form reply still goes through');
 
   // A send Meta itself refuses for a payment problem blocks the number from then on.
@@ -586,7 +608,7 @@ test('a limited number may send only a few templates a day, and a business that 
     fetch(`${FUNCTIONS_BASE}/numbers/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` }, body: JSON.stringify(template) });
 
   await seedNumber('9802', '9812');
-  const read = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9802' })).json();
+  const read = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9802', refresh: true })).json();
   assert.equal(read.number.health.status, 'limited');
   assert.ok(read.number.health.reasons.some((r) => r.scope === 'BUSINESS' && r.severity === 'info'), 'the unverified business is only information');
   const statuses = [];
@@ -594,7 +616,7 @@ test('a limited number may send only a few templates a day, and a business that 
   assert.deepEqual(statuses, [200, 200, 200, 200, 200, 429, 429], 'five a day, then the limiter refuses');
 
   await seedNumber('9805', '9815');
-  const fine = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9805' })).json();
+  const fine = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9805', refresh: true })).json();
   assert.equal(fine.number.health.status, 'ok');
 });
 

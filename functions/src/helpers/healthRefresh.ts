@@ -10,7 +10,8 @@ import type { MetaSnapshot } from './types';
  */
 export async function refreshHealth(args: { phoneNumberId: string; wabaId: string; accessToken: string }): Promise<{ meta: MetaSnapshot; derived: DerivedHealth | null }> {
   const meta = await readMetaSnapshot(args);
-  const derived = deriveHealth(meta, Date.now());
-  if (derived) await setHealth(args.phoneNumberId, derived.health, derived.displayName);
+  const derived = deriveHealth(meta);
+  const now = Date.now();
+  if (derived) await setHealth(args.phoneNumberId, derived.health, derived.displayName, now);
   return { meta, derived };
 }

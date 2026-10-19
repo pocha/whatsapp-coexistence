@@ -1,7 +1,7 @@
 import { FieldValue, getFirestore, type DocumentSnapshot } from 'firebase-admin/firestore';
-import { effectiveConfig, reserve, type Verdict } from './rateLimiter';
+import { reserve, type Verdict } from './rateLimiter';
 import type { RateLimitConfig } from './rateLimitConfig';
-import { LIMITED_DAILY_TEMPLATES } from './health';
+import { effectiveConfigFor } from './health';
 import type {
   DisplayNameState,
   EncryptedToken,
@@ -178,9 +178,10 @@ export async function saveNumberToken(args: {
 }
 
 /** Stores what the last read from Meta said about whether the number may send, and its display name. */
-export const setHealth = (phoneNumberId: string, health: NumberHealth, displayName?: DisplayNameState) =>
-  // Firestore refuses `undefined` (Meta leaves fields out), so both are copied through JSON, which drops them.
-  phoneNumberRef(phoneNumberId).update(JSON.parse(JSON.stringify({ health, ...(displayName ? { displayName } : {}) })));
+export const setHealth = (phoneNumberId: string, health: NumberHealth, displayName?: DisplayNameState, fetchedAt?: number) =>
+  // Firestore refuses `undefined` (Meta leaves fields out), so it is copied through JSON, which drops them.
+  // `fetchedAt` is only given for a real read of Meta: a refused send changes the status but not that time.
+  phoneNumberRef(phoneNumberId).update(JSON.parse(JSON.stringify({ health, ...(displayName ? { displayName } : {}), ...(fetchedAt ? { metaFetchedAt: fetchedAt } : {}) })));
 
 export const setDisplayPhoneNumber = (phoneNumberId: string, displayPhoneNumber: string) =>
   phoneNumberRef(phoneNumberId).update({ displayPhoneNumber });
@@ -308,11 +309,11 @@ export async function reserveTemplateSend(
   const now = Date.now();
   return db().runTransaction(async (tx) => {
     const data = numberOf(await tx.get(ref));
-    // A blocked number sends no template (business-initiated) messages at all, and a limited one only a few
-    // a day. Both come from the status stored at the last read from Meta (see health.ts).
-    if (data?.health?.status === 'blocked') return { verdict: { allowed: false as const, blocked: data.health }, config: effectiveConfig(data.rateLimits), now };
-    const override = data?.health?.status === 'limited' ? { ...data.rateLimits, headroomSigmas: 0, day: { ...data.rateLimits?.day, floor: LIMITED_DAILY_TEMPLATES, growthPercent: 0 } } : data?.rateLimits;
-    const config = effectiveConfig(override);
+    // A blocked number sends no template (business-initiated) messages at all, and a limited one or one under a
+    // low messaging limit tier only up to its daily cap (see effectiveConfigFor). Both come from the status stored
+    // at the last read from Meta.
+    if (data?.health?.status === 'blocked') return { verdict: { allowed: false as const, blocked: data.health }, config: effectiveConfigFor(data), now };
+    const config = effectiveConfigFor(data ?? {});
     if (!config.enabled) return { verdict: { allowed: true as const }, config, now };
     const verdict = reserve(data?.rateState, config, now);
     tx.update(ref, { rateState: verdict.state });

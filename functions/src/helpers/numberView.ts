@@ -1,5 +1,6 @@
 import { effectiveStep } from './onboardingSteps';
-import { effectiveConfig, limitsView, UNITS } from './rateLimiter';
+import { limitsView, UNITS } from './rateLimiter';
+import { effectiveConfigFor, nextRefreshAt } from './health';
 import type { NumberView, PhoneNumberDoc, RelayLimitsResponse } from './types';
 
 /**
@@ -15,6 +16,7 @@ export function numberView(doc: PhoneNumberDoc): NumberView {
     callbackSkipped: doc.callbackSkipped,
     health: doc.health,
     displayName: doc.displayName,
+    metaFetchedAt: doc.metaFetchedAt,
     activatedAt: doc.activatedAt,
     lastRelayCall: doc.lastRelayCall,
     usage: doc.usage,
@@ -32,7 +34,7 @@ export function numberView(doc: PhoneNumberDoc): NumberView {
 
 /** Where the number stands against its template-send limits: per window, what went through and when it resets. */
 export function relayLimits(doc: PhoneNumberDoc, now: number): RelayLimitsResponse {
-  const config = effectiveConfig(doc.rateLimits);
+  const config = effectiveConfigFor(doc);
   const windows = limitsView(doc.rateState, config, now);
   return {
     ok: true,
