@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizePhone, sendOtpCore, verifyOtpCore } from './otp';
 import { TEST_LOGIN } from './helpers/testLogin';
+import { OTP_FACTS, otpMessage, pickOtpFact } from './helpers/otpFacts';
 import { hashApiKey } from './helpers/apiKey';
 
 test('normalizePhone strips non-digits and rejects out-of-range lengths', () => {
@@ -58,6 +59,19 @@ test('sendOtpCore sends a 6-digit code and stores it with a 5-minute expiry', as
   assert.match(doc.code, /^\d{6}$/);
   assert.equal(doc.attempts, 0);
   assert.ok(doc.expiresAt - doc.lastSentAt === 5 * 60_000);
+});
+
+test('the login message has the code, the expiry, one fun fact and no link; facts are short and unique', () => {
+  assert.equal(new Set(OTP_FACTS).size, OTP_FACTS.length);
+  for (const fact of OTP_FACTS) assert.ok(fact.length <= 120, fact);
+
+  const message = otpMessage('123456', pickOtpFact(() => 0));
+  assert.match(message, /123456/);
+  assert.match(message, /expires in 5 minutes/);
+  assert.ok(message.includes(OTP_FACTS[0]));
+  assert.doesNotMatch(message, /https?:|www\./);
+
+  assert.notEqual(pickOtpFact(() => 0), pickOtpFact(() => 0.999));
 });
 
 test('sendOtpCore refuses a resend within the 60s cooldown', async () => {

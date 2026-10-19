@@ -5,6 +5,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { config } from './helpers/config';
 import { sendWhatsappMessage } from './helpers/watobotApi';
 import { TEST_LOGIN } from './helpers/testLogin';
+import { otpMessage, pickOtpFact } from './helpers/otpFacts';
 import { apiKeyMatchesHash, isValidApiKey } from './helpers/apiKey';
 import { countOtpAttempt, deleteOtp, getOrCreateUserByPhone, readOtp, resetApiKey, saveOtp, type UserRecord } from './helpers/model';
 
@@ -59,7 +60,7 @@ export async function sendOtpCore(
 
   const code = isTestLogin ? TEST_LOGIN.code : generateCode();
   if (!isTestLogin) {
-    await deps.sendMessage(normalized, `Your WA Coexistence login code is ${code}. It expires in 5 minutes.`);
+    await deps.sendMessage(normalized, otpMessage(code, pickOtpFact()));
   }
   await deps.setOtpDoc(normalized, { code, expiresAt: now + OTP_TTL_MS, attempts: 0, lastSentAt: now });
   return { ok: true };
