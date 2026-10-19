@@ -1,6 +1,6 @@
 # Test chatbot
 
-A tiny chatbot for trying WA Coexistence when you don't have an app of your own
+A tiny chatbot for trying Watobot when you don't have an app of your own
 that uses the WhatsApp API. It answers Meta's verification handshake and logs
 every incoming message, with any Watobot test code (from the "Send test data" button) shown on one line. Add your Watobot API key and it also replies "You said:
 ..." to text messages through our relay. It has no dependencies.

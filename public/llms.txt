@@ -1,4 +1,4 @@
-# WA Coexistence (Watobot)
+# Watobot
 
 > Get WhatsApp API access on a phone number you already use with the WhatsApp Business app, without a verified business. Coexistence lets you keep using the app normally while also building a chatbot on the API, through a WhatsApp Business Account (WABA). We are a Meta Tech Provider (approval pending), so you don't need to create your own Meta app. You can set it up from an AI tool (Claude, ChatGPT, Claude Code, Cursor) by adding the Watobot MCP server (address https://us-central1-wa-coexistence.cloudfunctions.net/mcp, with your Watobot API key as a Bearer token; steps in the first guide below). Completely free for the first 10 users. After that, free for up to 10 outgoing messages a day, then $5 a month for 100 a day and $1 per 1,000 beyond that (quotas are per number).
 

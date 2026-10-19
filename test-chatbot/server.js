@@ -1,4 +1,4 @@
-// Minimal test chatbot for trying WA Coexistence end to end. No dependencies.
+// Minimal test chatbot for trying Watobot end to end. No dependencies.
 //   GET  /webhook  answers Meta's verification handshake (what the wizard's
 //                  "Test endpoint" step calls)
 //   POST /webhook  logs every incoming event, and replies "You said: ..." to
