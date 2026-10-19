@@ -2,6 +2,7 @@ import { HttpError } from './helpers/auth';
 import { authenticateKey, requireCaller } from './accounts';
 import { getPhoneNumberInfo, requestSmbAppData } from './helpers/graphApi';
 import { checkPublicUrl, verifyEndpointChallenge } from './helpers/endpointCheck';
+import { progressOf } from './helpers/nextStep';
 import { claimSync, moveStep, movedTo, readNumber, readTestRun, recordOverrideResult, reserveTestSend, setSyncState, skipSync as skipSyncRecord } from './helpers/model';
 import { config } from './helpers/config';
 import { logEvent } from './helpers/log';
@@ -106,7 +107,7 @@ export const startSync: Handler = async (req, res) => {
   }
   await setSyncState(String(phoneNumberId), type, { state: 'requested', at: Date.now() });
   logEvent('sync requested', { phoneNumberId, syncType: type });
-  res.status(200).send({ ok: true });
+  res.status(200).send({ ok: true, ...progressOf((await readNumber(String(phoneNumberId)))!) } satisfies OnboardingResponse);
 };
 
 // ---- moving through the wizard ----
@@ -118,7 +119,7 @@ export const skipSync: Handler = async (req, res) => {
   await authenticateKey(String(phoneNumberId), apiKey);
   if ((await skipSyncRecord(String(phoneNumberId))) === 'not_at_step') throw new HttpError(409, 'This number is not at the sync step.');
   logEvent('sync skipped', { phoneNumberId });
-  res.status(200).send({ ok: true, step: 'templates' } satisfies OnboardingResponse);
+  res.status(200).send({ ok: true, ...progressOf((await readNumber(String(phoneNumberId)))!) } satisfies OnboardingResponse);
 };
 
 /** The steps the user moves between by choice or confirmation. The others are set by the step's own function. */
@@ -137,7 +138,7 @@ export const setOnboardingStep: Handler = async (req, res) => {
     return allowed ? step : null;
   });
   if (!next) throw new HttpError(409, `This number can't go from ${current ?? 'no step'} to ${step}.`);
-  res.status(200).send({ ok: true, step: next });
+  res.status(200).send({ ok: true, ...progressOf((await readNumber(String(phoneNumberId)))!) } satisfies OnboardingResponse);
 };
 
 // ---- test data for the user's own endpoint ----

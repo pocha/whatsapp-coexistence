@@ -42,7 +42,7 @@ import type {
 } from './helpers/types';
 import { authenticateKey } from './accounts';
 import { advanceAfterOverride } from './onboarding';
-import { effectiveStep } from './helpers/onboardingSteps';
+import { progressOf } from './helpers/nextStep';
 import {
   markDeregistered,
   markRegistered,
@@ -114,8 +114,8 @@ export const setWebhook: Handler = async (req, res) => {
       // A number in the onboarding wizard moves on from here; a finished one just gets its new URL.
       const doc = (await readNumber(String(phoneNumberId)))!;
       if (doc.onboarding.step === 'override') {
-        const next = await advanceAfterOverride(String(phoneNumberId), accessToken);
-        const body: OnboardingResponse = { ok: true, ...next };
+        const moved = await advanceAfterOverride(String(phoneNumberId), accessToken);
+        const body: OnboardingResponse = { ok: true, ...moved, ...progressOf((await readNumber(String(phoneNumberId)))!) };
         res.status(200).send(body);
         return;
       }
@@ -194,7 +194,7 @@ export const registerNumber: Handler = async (req, res) => {
     const atRegister = doc.onboarding.step === 'register' || doc.onboarding.step === 'not_on_app';
     await markRegistered(String(phoneNumberId), atRegister ? movedTo(doc.onboarding, 'templates') : undefined);
     logEvent('number registered', { phoneNumberId });
-    const body: OnboardingResponse = { ok: true, step: effectiveStep((await readNumber(String(phoneNumberId)))!) };
+    const body: OnboardingResponse = { ok: true, ...progressOf((await readNumber(String(phoneNumberId)))!) };
     res.status(200).send(body);
   } catch (err) {
     const status = failedRequest(req, err);

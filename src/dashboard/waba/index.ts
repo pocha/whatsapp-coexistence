@@ -286,11 +286,9 @@ const dialog = el<HTMLDialogElement>('health-dialog');
 let shown: NumberView | undefined;
 let openChip: HealthReason['chip'] = 'status';
 
-/** The chips beside the number: its sending status, and the two things that may need the user. */
+/** The three chips in the Status section: the sending status, the business and the display name. */
 function renderChips(data: NumberView) {
   shown = data;
-  const box = el('chips');
-  box.replaceChildren();
   const add = (chip: HealthReason['chip'], text: string, classes: string) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -302,14 +300,30 @@ function renderChips(data: NumberView) {
     icon.textContent = 'info';
     button.append(icon);
     button.addEventListener('click', () => openDialog(chip));
-    box.append(button);
+    el(`chip-${chip}`).replaceChildren(button);
   };
   const health = data.health;
   const [label, classes] = health ? STATUS_CHIP[health.status] : (['Not checked', NEUTRAL] as const);
   add('status', label, classes);
   const reasons = health?.reasons ?? [];
-  if (reasons.some((r) => r.chip === 'business')) add('business', 'Business unverified', AMBER);
-  if (reasons.some((r) => r.chip === 'name')) add('name', 'Display name needs attention', AMBER);
+  if (reasons.some((r) => r.chip === 'business')) add('business', 'Unverified', AMBER);
+  else add('business', health ? 'No issue' : 'Not checked', health ? 'bg-primary/10 text-primary' : NEUTRAL);
+  if (reasons.some((r) => r.chip === 'name')) add('name', 'Needs attention', AMBER);
+  else if (data.displayName?.name) add('name', 'No issue', 'bg-primary/10 text-primary');
+  else add('name', 'Not checked', NEUTRAL);
+  renderRefresh(data);
+}
+
+/** When Meta was last asked, and whether the refresh can be used yet. */
+function renderRefresh(data: NumberView) {
+  const fetchedAt = data.metaFetchedAt;
+  el('hd-checked').textContent = fetchedAt ? `Last checked ${new Date(fetchedAt).toLocaleString()}` : 'Never checked';
+  const next = fetchedAt ? fetchedAt + REFRESH_MIN_INTERVAL_MS : 0;
+  const wait = next > Date.now();
+  el<HTMLButtonElement>('refresh-btn').disabled = wait;
+  el('refresh-status').textContent = wait
+    ? `Meta can be asked again at ${new Date(next).toLocaleTimeString()}.`
+    : 'Meta is asked at most once in ten minutes.';
 }
 
 function paragraph(text: string, className = ''): HTMLParagraphElement {
@@ -356,17 +370,7 @@ function openDialog(chip: HealthReason['chip']) {
   const pending = /PENDING/i.test(shown.displayName?.requestedStatus ?? '');
   el('hd-name').classList.toggle('hidden', chip !== 'name' || pending);
 
-  const fetchedAt = shown.metaFetchedAt;
-  el('hd-checked').textContent = fetchedAt ? `Last checked ${new Date(fetchedAt).toLocaleString()}` : 'Never checked';
-  const next = fetchedAt ? fetchedAt + REFRESH_MIN_INTERVAL_MS : 0;
-  const wait = next > Date.now();
-  el<HTMLButtonElement>('hd-refresh').disabled = wait;
-  el('hd-status').textContent = wait
-    ? `Meta can be asked again at ${new Date(next).toLocaleTimeString()}. Fix what is named above first, then refresh.`
-    : 'Fix what is named above, then refresh. Meta is asked at most once in ten minutes.';
-  const typed = apiKeyInput.value.trim();
-  const key = el<HTMLInputElement>('hd-key');
-  if (!key.value && typed) key.value = typed;
+  el('hd-status').textContent = '';
   dialog.showModal();
 }
 
@@ -379,7 +383,7 @@ dialog.addEventListener('click', (event) => {
 async function callWithKey(method: 'GET' | 'PUT', path: string, body?: object) {
   const res = await fetch(`${functionsBase()}/numbers/${encodeURIComponent(phoneNumberId)}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${el<HTMLInputElement>('hd-key').value.trim()}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKeyInput.value.trim()}` },
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; metaError?: string };
@@ -387,15 +391,15 @@ async function callWithKey(method: 'GET' | 'PUT', path: string, body?: object) {
   return data;
 }
 
-const hasKey = () => isValidApiKey(el<HTMLInputElement>('hd-key').value.trim());
+const hasKey = () => isValidApiKey(apiKeyInput.value.trim());
 
-el('hd-refresh').addEventListener('click', async () => {
-  const status = el('hd-status');
+el('refresh-btn').addEventListener('click', async () => {
+  const status = el('refresh-status');
   if (!hasKey()) {
     status.textContent = 'Enter your API key first.';
     return;
   }
-  el<HTMLButtonElement>('hd-refresh').disabled = true;
+  el<HTMLButtonElement>('refresh-btn').disabled = true;
   status.textContent = 'Asking Meta…';
   try {
     const result = await callWithKey('GET', '?refresh=true');
@@ -403,6 +407,7 @@ el('hd-refresh').addEventListener('click', async () => {
     location.reload();
   } catch (err) {
     status.textContent = errorMessage(err);
+    el<HTMLButtonElement>('refresh-btn').disabled = false;
   }
 });
 

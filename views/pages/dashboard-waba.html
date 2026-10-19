@@ -12,7 +12,6 @@
           <div class="flex flex-wrap items-center gap-3">
             <h1 id="page-title" class="font-headline-lg text-headline-lg text-on-surface break-all">WhatsApp number</h1>
             <span id="type-chip" class="hidden rounded-full px-3 py-1 label-strong"></span>
-            <span id="chips" class="contents"></span>
           </div>
           <div id="ids-line" class="text-on-surface-variant font-body-md text-sm mt-1 break-all flex flex-col gap-0.5"></div>
           <p id="not-found" class="hidden text-on-surface-variant font-body-md text-sm mt-1">
@@ -23,11 +22,26 @@
 
         <div id="onboarding-card" class="hidden card p-6"></div>
 
-        <div id="notifications-card" class="hidden card p-6 gap-3">
-          <p class="label-strong text-on-surface-variant">NOTIFICATIONS <span class="label-muted">what Meta told us about this number, kept for a month</span></p>
-          <ul id="notifications-list" class="flex flex-col divide-y divide-outline-variant"></ul>
-          <p id="notifications-empty" class="hidden text-on-surface-variant font-body-md text-sm">Nothing yet. Changes Meta reports about this account show up here.</p>
-          <button id="notifications-more" type="button" class="hidden self-start rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Show older</button>
+        <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_22rem] gap-6 items-stretch">
+          <div class="flex flex-col gap-6 min-w-0">
+        <div id="key-card" class="hidden card p-6">
+          <p class="section-title text-on-surface">Status</p>
+          <label class="label-strong text-on-surface-variant block mt-3" for="api-key">Your Watobot API key</label>
+          <p class="text-on-surface-variant font-body-md text-sm mt-1 mb-2">
+            Used by every section below, and filled into the commands as you type. It stays
+            in this page and is never saved.
+          </p>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input id="api-key" type="password" autocomplete="off" placeholder="your 64-character API key" class="flex-1 min-w-0 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-xs"/>
+            <button id="refresh-btn" type="button" class="rounded-xl border border-outline-variant bg-white px-5 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all disabled:opacity-50 disabled:cursor-not-allowed">Refresh from Meta</button>
+          </div>
+          <p id="refresh-status" class="text-on-surface-variant font-body-md text-sm mt-2"></p>
+          <div class="flex flex-col divide-y divide-outline-variant mt-3">
+            <div class="flex items-center justify-between gap-3 py-2"><span class="label-strong text-on-surface-variant">Account status</span><span id="chip-status"></span></div>
+            <div class="flex items-center justify-between gap-3 py-2"><span class="label-strong text-on-surface-variant">Business status</span><span id="chip-business"></span></div>
+            <div class="flex items-center justify-between gap-3 py-2"><span class="label-strong text-on-surface-variant">Display name</span><span id="chip-name"></span></div>
+          </div>
+          <p id="hd-checked" class="label-muted mt-2"></p>
         </div>
 
         <div id="stats" class="hidden flex flex-col gap-4">
@@ -51,16 +65,8 @@
           </div>
         </div>
 
+
         <div id="sections" class="hidden flex flex-col gap-6">
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          <div id="key-card" class="card p-6">
-            <label class="section-title text-on-surface block" for="api-key">Your Watobot API key</label>
-            <p class="text-on-surface-variant font-body-md text-sm mt-1 mb-3">
-              Used by every section below, and filled into the commands as you type. It stays
-              in this page and is never saved.
-            </p>
-            <input id="api-key" type="password" autocomplete="off" placeholder="your 64-character API key" class="w-full px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-xs"/>
-          </div>
           <div class="card p-6">
             <p class="section-title text-on-surface mb-1">Override incoming message URL</p>
             <p class="text-on-surface-variant font-body-md text-sm mb-4">
@@ -75,7 +81,10 @@
             <input id="ov-url" placeholder="https://your-app.example.com/webhook" class="w-full mt-1 mb-3 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"/>
             <button id="ov-btn" class="rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">Verify &amp; save</button>
             <p class="text-on-surface-variant font-body-md text-sm mt-3" id="ov-status"></p>
-            <!--#include partial="test-events"-->
+            <details data-accordion class="mt-4">
+              <summary class="label-strong text-on-surface-variant cursor-pointer">Test your endpoint</summary>
+              <!--#include partial="test-events"-->
+            </details>
             <details class="mt-4">
               <summary class="label-strong text-on-surface-variant cursor-pointer">Using the test chatbot?</summary>
               <p class="text-on-surface-variant font-body-md text-sm mt-2">
@@ -86,8 +95,6 @@
                 <button id="copy-env-btn" class="absolute top-2 right-2 min-w-[3.5rem] rounded-lg border border-outline-variant bg-white px-2 py-1 font-label-md text-xs font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
               </div>
             </details>
-          </div>
-
           </div>
 
           <div class="card p-6">
@@ -197,6 +204,16 @@
             </details>
           </div>
         </div>
+          </div>
+        <div class="relative">
+        <div id="notifications-card" class="hidden card p-6 gap-3 lg:absolute lg:inset-0 lg:overflow-y-auto">
+          <p class="label-strong text-on-surface-variant">NOTIFICATIONS <span class="label-muted">what Meta told us about this number, kept for a month</span></p>
+          <ul id="notifications-list" class="flex flex-col divide-y divide-outline-variant"></ul>
+          <p id="notifications-empty" class="hidden text-on-surface-variant font-body-md text-sm">Nothing yet. Changes Meta reports about this account show up here.</p>
+          <button id="notifications-more" type="button" class="hidden self-start rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Show older</button>
+        </div>
+        </div>
+        </div>
       </div>
     </section>
   </div>
@@ -216,14 +233,10 @@
         <button id="hd-name-btn" type="button" class="rounded-xl bg-primary text-on-primary px-5 py-2 font-label-md text-label-md font-bold hover:opacity-90 transition-all disabled:opacity-50">Request</button>
       </div>
     </div>
-    <div class="border-t border-outline-variant mt-4 pt-4 flex flex-col gap-2">
-      <p id="hd-checked" class="label-muted"></p>
-      <div class="flex flex-col sm:flex-row gap-2">
-        <input id="hd-key" type="password" autocomplete="off" placeholder="Your API key" class="flex-1 px-4 py-2 bg-white border border-outline-variant rounded-lg outline-none font-mono text-xs"/>
-        <button id="hd-refresh" type="button" class="rounded-xl border border-outline-variant bg-white px-5 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all disabled:opacity-50">Refresh from Meta</button>
-      </div>
-      <p id="hd-status" class="text-on-surface-variant font-body-md text-sm"></p>
-    </div>
+    <p class="text-on-surface-variant font-body-md text-sm mt-4 border-t border-outline-variant pt-4">
+      This is the latest Meta told us. Once you have fixed what it names, enter your API key in the Status section and press Refresh from Meta.
+    </p>
+    <p id="hd-status" class="text-on-surface-variant font-body-md text-sm mt-2"></p>
   </dialog>
 
   <script type="module" src="/dashboard/waba/index.js"></script>

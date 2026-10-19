@@ -1,4 +1,5 @@
 import { effectiveStep } from './onboardingSteps';
+import { nextStep } from './nextStep';
 import { limitsView, UNITS } from './rateLimiter';
 import { effectiveConfigFor } from './health';
 import { counts, statusOf } from './gates';
@@ -32,6 +33,7 @@ export function numberView(doc: PhoneNumberDoc): NumberView {
     rateLimits: doc.rateLimits,
     onboarding: doc.onboarding,
     step: effectiveStep(doc),
+    next: nextStep(doc),
     hasToken: Boolean(doc.encAccessToken),
     isOnBizApp: doc.isOnBizApp,
     platformType: doc.platformType,

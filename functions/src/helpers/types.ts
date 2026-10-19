@@ -102,6 +102,15 @@ export interface PhoneNumberDoc {
  * A number as the dashboard and the MCP see it (listNumbers, getNumber). Built from an explicit
  * list of fields (see helpers/numberView.ts), so the stored token can never be in it.
  */
+/** What to do next for a number's onboarding step, in words an AI tool can follow. */
+export interface NextStep {
+  step: OnboardingStep;
+  title: string;
+  instruction: string;
+  /** The tools (API calls of the same name) the instruction mentions. */
+  tools: string[];
+}
+
 export interface NumberView {
   phoneNumberId: string;
   wabaId: string;
@@ -120,6 +129,8 @@ export interface NumberView {
   onboarding: OnboardingState;
   /** Where the wizard is, worked out from the record (see effectiveStep). */
   step: OnboardingStep;
+  /** What to do next at that step. */
+  next: NextStep;
   /** Whether a Meta token is stored, so the number can send. False after a lost-key reset. */
   hasToken: boolean;
   isOnBizApp?: boolean;
@@ -270,6 +281,8 @@ export interface ExchangeCodeRequest {
 /** The answer to exchangeCode and setWebhook while a number is in the wizard. */
 export interface OnboardingResponse extends ApiResponse {
   step?: OnboardingStep;
+  /** What to do next, once the step has moved. */
+  next?: NextStep;
   isOnBizApp?: boolean;
 }
 
