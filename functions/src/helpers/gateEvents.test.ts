@@ -48,7 +48,7 @@ test('template events: trouble is a gate, recovery removes it, quality only a no
 });
 
 test('messages, syncs and echoes are never turned into events, so they are never kept', () => {
-  for (const field of ['messages', 'history', 'smb_message_echoes', 'smb_app_state_sync', 'calls']) {
+  for (const field of ['messages', 'history', 'smb_message_echoes', 'smb_app_state_sync', 'calls', 'flows', 'user_preferences', 'group_participants_update']) {
     assert.deepEqual(parseWebhook(hook(field, { messages: [{ text: { body: 'secret' } }] })), []);
   }
   assert.deepEqual(parseWebhook({}), []);
@@ -84,4 +84,13 @@ test('applying events: a ban then its lifting, order, the name decision and the 
   assert.deepEqual(Object.keys(doc.templates), ['x|en_US']);
   apply(one('message_template_status_update', { event: 'REINSTATED', message_template_name: 'x', message_template_language: 'en_US' }, 1_700_000_060));
   assert.deepEqual(doc.templates, {});
+});
+
+test('every other account-level field is kept as a notification that gates nothing, whether or not we know it', () => {
+  const event = one('business_status_update', { event: 'VERIFIED', business_id: 77, detail: { nested: true } });
+  assert.equal(event.notification.title, 'Meta reported: business status update');
+  assert.match(event.notification.message, /event: VERIFIED/);
+  assert.deepEqual(event.effects, []);
+  assert.equal(one('account_settings_update', {}).notification.message, 'Meta sent an update with no simple fields.');
+  assert.equal(one('some_field_meta_adds_next_year', { a: 1 }).notification.title, 'Meta reported: some field meta adds next year');
 });

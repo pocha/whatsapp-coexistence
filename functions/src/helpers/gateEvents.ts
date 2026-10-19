@@ -192,8 +192,19 @@ function change(field: string, value: any, entry: any, at: number): Omit<Webhook
       };
     }
     default:
-      return null;
+      // Anything else Meta reports about the account is kept as it arrives, so it can be read in the notifications and
+      // handled once we know what it says. It gates nothing.
+      return NEVER_KEPT.test(field) ? null : { notification: { title: `Meta reported: ${label(field)}`, message: summary(value), severity: 'info' }, effects: [] };
   }
+}
+
+/** Fields that carry what customers wrote or did, or who they are: never read, never kept. */
+const NEVER_KEPT = /^(messages|message_echoes|smb_message_echoes|smb_app_state_sync|history|calls|flows|standby|messaging_handovers|user_preferences|tracking_events|automatic_events|group_.*)$/;
+
+/** A short line from an unfamiliar payload: its simple fields, so the notification says something without being a dump. */
+function summary(value: any): string {
+  const parts = Object.entries(value ?? {}).filter(([, v]) => ['string', 'number', 'boolean'].includes(typeof v)).slice(0, 6).map(([k, v]) => `${label(k)}: ${String(v).slice(0, 80)}`);
+  return parts.length ? parts.join('; ') : 'Meta sent an update with no simple fields.';
 }
 
 /** A webhook body as events. Fields we don't handle (messages, syncs, echoes, calls ...) give none. */

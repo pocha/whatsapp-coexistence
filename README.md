@@ -102,7 +102,7 @@ Each reason has a `title`, what is wrong (`message`), `action` and, where we kno
 | Method and path | What it does |
 | --- | --- |
 | `GET /webhook` | Answers Meta's verification handshake. |
-| `POST /webhook` | Receives the webhooks that can't be overridden. Checks Meta's `X-Hub-Signature-256` (an HMAC of the body with the app secret) and refuses anything else with 401. The account-level ones (`account_update`, `account_review_update`, `account_alerts`, `phone_number_name_update`, `phone_number_quality_update`, `business_capability_update`, `security`, and the template status and quality updates) are matched to the number by WABA ID, stored as its notifications under a stable id (so a retry is stored once), and applied to its sending status. Messages, syncs and echoes are never read or kept. |
+| `POST /webhook` | Receives the webhooks that can't be overridden. Checks Meta's `X-Hub-Signature-256` (an HMAC of the body with the app secret) and refuses anything else with 401. The account-level ones (`account_update`, `account_review_update`, `account_alerts`, `phone_number_name_update`, `phone_number_quality_update`, `business_capability_update`, `security`, and the template status and quality updates) are matched to the number by WABA ID, stored as its notifications under a stable id (so a retry is stored once), and applied to its sending status. Anything else about the account is kept as a notification, whether or not we act on it. What customers wrote or did (messages, echoes, syncs, calls, flows, user preferences, group events) is never read or kept. |
 
 The request bodies are typed in `functions/src/helpers/types.ts`, and each function's routes are listed at the top of `numbersApi.ts`, `onboardingApi.ts` and `wabaManager.ts` (templates).
 <!-- /docs:omit -->
@@ -513,6 +513,7 @@ Business Account".
    | `security` | Changes to a number's security settings. |
    | `message_template_status_update` | Tells a business when a template is approved, rejected, paused or disabled. |
    | `message_template_quality_update` | A template's quality changing. |
+   | `business_status_update`, `account_settings_update` | Not documented in Meta's webhook reference yet. Like any other account-level field, they are kept as notifications as they arrive, and gate nothing, so we can see what they say. |
 
    Those from `account_update` down arrive at our own webhook only: they can't be sent to a customer's URL. See
    the number's **Notifications** on the dashboard for what they look like.
