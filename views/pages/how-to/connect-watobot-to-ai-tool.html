@@ -43,7 +43,7 @@
       <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
         <li>an <strong>address</strong> for claude.ai and ChatGPT, which can only take an address;</li>
         <li>a <strong>command</strong> for Claude Code to connect to our hosted server;</li>
-        <li>a <strong>command</strong> for tools that start a program on your computer (Claude Code, Claude Desktop, Cursor).</li>
+        <li>a <strong>config</strong> for tools that start a program on your computer (Claude Desktop, Cursor). It needs Node.js 20 or newer.</li>
       </ul>
 
       <h2 class="section-title text-on-surface mt-4">3. Add it to your AI tool</h2>
@@ -69,12 +69,11 @@
       <div class="card p-6">
         <p class="section-title text-on-surface mb-2">Claude Code</p>
         <p class="text-on-surface-variant font-body-md">
-          Run the command from step 2, then type <code>/mcp</code> to see that Watobot is connected. The hosted one looks
-          like this:
+          Open a terminal on a computer where Claude Code is installed (installing it adds the <code>claude</code>
+          command) and run the command from step 2. Then start <code>claude</code> and type <code>/mcp</code> to see that
+          Watobot is connected. It looks like this:
         </p>
         <pre class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto mt-2">claude mcp add --transport http watobot https://us-central1-wa-coexistence.cloudfunctions.net/mcp --header "Authorization: Bearer &lt;your key&gt;"</pre>
-        <p class="text-on-surface-variant font-body-md mt-2">The one that runs on your computer needs Node.js 20 or newer:</p>
-        <pre class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto mt-2">claude mcp add watobot -e WATOBOT_API_KEY=&lt;your key&gt; -- npx -y watobot-mcp</pre>
       </div>
 
       <div class="card p-6">
