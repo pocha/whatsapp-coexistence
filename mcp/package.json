@@ -1,6 +1,6 @@
 {
   "name": "watobot-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server for Watobot: onboard and run a WhatsApp number (Cloud API alongside the WhatsApp Business app) from an AI tool.",
   "type": "module",
   "bin": {
@@ -19,11 +19,6 @@
     "watobot"
   ],
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/pocha/whatsapp-coexistence.git",
-    "directory": "mcp"
-  },
   "engines": {
     "node": ">=20"
   },

@@ -24,4 +24,3 @@ Prerequisites: a phone number registered on the WhatsApp Business app (or a numb
 - [Privacy Policy](https://watobot.com/privacy.html)
 - [Terms of Service](https://watobot.com/tos.html)
 - [Data Deletion](https://watobot.com/data-deletion.html)
-- [GitHub repository](https://github.com/pocha/whatsapp-coexistence): The code is open source.
