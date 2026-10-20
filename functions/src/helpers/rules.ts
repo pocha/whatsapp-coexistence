@@ -28,19 +28,15 @@ const HOUR = 60 * 60 * 1000;
 export interface Rule {
   title: string;
   message: string;
-  /** For the notification; by default what `send` implies. */
-  severity?: NotificationDoc['severity'];
   scope?: Scope;
   why?: Why;
   /** What the issue does to sending. Without it, a row with a scope and why clears that issue. */
   send?: Exclude<Send, 'ok'>;
   /** The most template messages the issue allows per window. */
-  cap?: Limits;
+  limits?: Limits;
   link?: keyof typeof LINKS;
   /** How long the issue lasts from when it is learned. */
   forMs?: number;
-  /** Set Meta's daily messaging limit from the payload. */
-  tier?: boolean;
   /** Changes to the display name state; texts are filled in, `null` removes a value. */
   name?: { [K in keyof DisplayNameState]?: string | null };
   /** The template named in the payload is in trouble, or has recovered. */
@@ -67,10 +63,10 @@ export const RULES: Record<string, Rule> = {
     message: 'Meta restricts this account ({{kinds|label}})[ until {{until}}]. Template messages are refused meanwhile; replies in a chat still go. Open WhatsApp Manager to see the restriction and what lifts it.',
     scope: 'account', why: 'restriction', send: 'block', link: 'manager',
   },
-  'account_update:ACCOUNT_RESTRICTION:OTHER': { title: 'Account restricted', message: 'Meta restricts this account ({{kinds|label}})[ until {{until}}].', severity: 'critical' },
+  'account_update:ACCOUNT_RESTRICTION:OTHER': { title: 'Account restricted', message: 'Meta restricts this account ({{kinds|label}})[ until {{until}}].' },
   'account_update:ACCOUNT_RESTRICTION:LIFTED': { title: 'Restriction lifted', message: 'Meta has lifted the restriction on this account.', scope: 'account', why: 'restriction' },
   'account_update:ACCOUNT_VIOLATION': {
-    title: 'Policy violation reported', message: 'Meta says the account violated its policies ({{violation_info.violation_type|label}}). Restrictions may follow.', severity: 'critical',
+    title: 'Policy violation reported', message: 'Meta says the account violated its policies ({{violation_info.violation_type|label}}). Restrictions may follow.',
   },
   'account_update:ACCOUNT_DELETED': {
     title: 'Account deleted', message: 'The WhatsApp Business Account was deleted, so nothing can be sent. Onboard the number again if you still need it.',
@@ -102,8 +98,7 @@ export const RULES: Record<string, Rule> = {
     scope: 'display_name', why: 'name',
   },
   'phone_number_name_update:REJECTED': {
-    title: 'Display name declined', message: 'Meta declined the display name "{{requested_verified_name}}"[ ({{rejection_reason|label}})]. Request a different name that follows the guidelines.',
-    severity: 'warning', name: { requestedName: '{{requested_verified_name}}', requestedStatus: 'DECLINED' },
+    title: 'Display name declined', message: 'Meta declined the display name "{{requested_verified_name}}"[ ({{rejection_reason|label}})]. Request a different name that follows the guidelines.', name: { requestedName: '{{requested_verified_name}}', requestedStatus: 'DECLINED' },
   },
   phone_number_name_update: {
     title: 'Display name in review', message: 'Meta is still reviewing the display name "{{requested_verified_name}}".',
@@ -113,13 +108,13 @@ export const RULES: Record<string, Rule> = {
   'phone_number_quality_update:FLAGGED': {
     title: 'Number flagged',
     message: `Meta flagged this number because of how its messages are received. Watobot allows only ${LIMITED_DAILY_TEMPLATES} template messages a day until it clears. Pause campaigns, send only to people who asked for them, and review your templates. ${REFRESH}`,
-    scope: 'phone', why: 'quality', send: 'limit', cap: LIMITED, link: 'manager', tier: true,
+    scope: 'phone', why: 'quality', send: 'limit', limits: LIMITED, link: 'manager',
   },
-  'phone_number_quality_update:UNFLAGGED': { title: 'Number unflagged', message: 'Meta reported unflagged[; the messaging limit is now {{tierName}}].', scope: 'phone', why: 'quality', tier: true },
-  phone_number_quality_update: { title: 'Number update: {{event|label}}', message: 'Meta reported {{event|label}}[; the messaging limit is now {{tierName}}].', tier: true },
+  'phone_number_quality_update:UNFLAGGED': { title: 'Number unflagged', message: 'Meta reported unflagged[; the messaging limit is now {{tierName}}].', scope: 'phone', why: 'quality' },
+  phone_number_quality_update: { title: 'Number update: {{event|label}}', message: 'Meta reported {{event|label}}[; the messaging limit is now {{tierName}}].' },
 
   business_capability_update: { title: 'Account capabilities changed', message: 'Meta changed the limits on the number of phone numbers.' },
-  'business_capability_update:TIER': { title: 'Messaging limit: {{tierName}}', message: "The business's messaging limit is now {{tierName}}.", tier: true },
+  'business_capability_update:TIER': { title: 'Messaging limit: {{tierName}}', message: "The business's messaging limit is now {{tierName}}." },
 
   account_alerts: { title: 'Alert: {{alert_info.alert_type|label}}', message: '{{alert_info.alert_description}}' },
   security: { title: 'Security settings changed', message: "Meta reported a change to the number's security settings." },
@@ -129,7 +124,7 @@ export const RULES: Record<string, Rule> = {
     message: 'The quality of "{{message_template_name}}" went from {{previous_quality_score|label}} to {{new_quality_score|label}}.',
   },
   'message_template_status_update:PROBLEM': {
-    title: 'Template {{status|label}}', severity: 'warning', template: 'problem',
+    title: 'Template {{status|label}}', template: 'problem',
     message: 'The template "{{message_template_name}}" ({{message_template_language}}) is {{status|label}}[ ({{reason|label}})]. It is not sent until it is fixed or reinstated.',
   },
   'message_template_status_update:RECOVERED': {
@@ -152,7 +147,7 @@ export const RULES: Record<string, Rule> = {
   'phone_note:display_name': {
     title: 'Display name not approved yet',
     message: `{{note}} Until it is approved the number can send only a few template messages a day (Watobot allows ${LIMITED_DAILY_TEMPLATES}). Replies in a chat are not limited. Wait for Meta's decision. If you haven't requested a name, or it was declined, request one that follows the guidelines.`,
-    scope: 'display_name', why: 'name', send: 'limit', cap: LIMITED, link: 'names',
+    scope: 'display_name', why: 'name', send: 'limit', limits: LIMITED, link: 'names',
   },
   'phone_status:BANNED': { title: 'Number banned', message: `Meta has banned this number, so nothing can be sent from it. ${ASK}`, scope: 'phone', why: 'ban', send: 'disable', link: 'manager' },
   'phone_status:DELETED': { title: 'Number deleted', message: 'This number has been deleted from the account. Onboard it again if you still need it.', scope: 'phone', why: 'ban', send: 'disable', link: 'manager' },
@@ -161,11 +156,11 @@ export const RULES: Record<string, Rule> = {
   'phone_status:RESTRICTED': { title: 'Number restricted', message: 'Meta restricts this number, so template messages are refused. Open WhatsApp Manager to see the restriction and what lifts it.', scope: 'phone', why: 'restriction', send: 'block', link: 'manager' },
   'phone_status:FLAGGED': {
     title: 'Number flagged', message: 'Meta has flagged this number because of how its messages are received, and may lower its limits. Pause campaigns and review your templates and who you message.',
-    scope: 'phone', why: 'quality', send: 'limit', cap: LIMITED, link: 'manager',
+    scope: 'phone', why: 'quality', send: 'limit', limits: LIMITED, link: 'manager',
   },
   'phone_status:RATE_LIMITED': {
     title: 'Number rate limited', message: 'Meta is limiting how much this number can send. Slow down and wait before sending more.',
-    scope: 'phone', why: 'quality', send: 'limit', cap: LIMITED, link: 'manager',
+    scope: 'phone', why: 'quality', send: 'limit', limits: LIMITED, link: 'manager',
   },
   review: {
     title: 'Account review: {{status|label}}',
@@ -175,7 +170,7 @@ export const RULES: Record<string, Rule> = {
   'quality:RED': {
     title: 'Message quality is low',
     message: `Customers are blocking or reporting your messages more than Meta likes. If it stays low, Meta lowers your limit or blocks the number. Pause campaigns, send only to people who asked to hear from you, and review your templates. ${REFRESH}`,
-    scope: 'phone', why: 'quality', send: 'limit', cap: LIMITED, link: 'manager',
+    scope: 'phone', why: 'quality', send: 'limit', limits: LIMITED, link: 'manager',
   },
 
   // ---- what a refused send tells us ----
@@ -210,7 +205,6 @@ export interface Picked {
   variant?: string;
   vars?: Record<string, unknown>;
   displayPhone?: string;
-  severity?: NotificationDoc['severity'];
 }
 
 /** The daily number of customers a Meta messaging limit tier allows, e.g. TIER_250 -> 250. Undefined if unknown or unlimited. */
@@ -263,12 +257,11 @@ export const PICK: Record<string, (value: any) => Picked> = {
   },
   account_alerts(value) {
     const alert = value?.alert_info ?? {};
-    const severity = /crit|high|error/i.test(String(alert.alert_severity)) ? 'critical' : /warn|med/i.test(String(alert.alert_severity)) ? 'warning' : 'info';
-    return { severity, vars: { event: alert.alert_type } };
+    return { vars: { event: alert.alert_type } };
   },
   message_template_status_update(value) {
     // A template's quality change arrives under the status field's name in Meta's docs, so it is told apart by its keys.
-    if (value?.new_quality_score) return { variant: 'QUALITY', severity: /RED|YELLOW/i.test(String(value.new_quality_score)) ? 'warning' : 'info' };
+    if (value?.new_quality_score) return { variant: 'QUALITY' };
     const status = upper(value?.event);
     const vars = { status, event: status, reason: value?.reason && value.reason !== 'NONE' ? String(value.reason) : undefined };
     if (['PAUSED', 'DISABLED', 'REJECTED', 'DELETED', 'PENDING_DELETION'].includes(status)) return { variant: 'PROBLEM', vars };
@@ -337,7 +330,7 @@ export function issueFrom(rule: Rule & { send: NonNullable<Rule['send']> }, ctx:
     ...(rule.link ? { link: LINKS[rule.link] } : {}),
     at,
     ...(rule.forMs ? { until: at + rule.forMs } : ctx.untilAt ? { until: ctx.untilAt } : {}),
-    ...(rule.cap ? { cap: rule.cap } : {}),
+    ...(rule.limits ? { limits: rule.limits } : {}),
     ...(ctx.code ? { code: ctx.code } : {}),
   };
 }
@@ -350,7 +343,7 @@ function summary(value: any): string {
 
 function effectsOf(rule: Rule, ctx: Record<string, any>, at: number): Effect[] {
   const effects: Effect[] = [];
-  if (rule.tier && ctx.tier !== undefined) effects.push({ kind: 'tier', tier: ctx.tier });
+  if (ctx.tier !== undefined) effects.push({ kind: 'tier', tier: ctx.tier });
   if (rule.template && ctx.message_template_name) {
     const key = templateKeyOf(ctx.message_template_name, ctx.message_template_language);
     effects.push({ kind: 'template', key, gate: rule.template === 'problem' ? { status: ctx.status, reason: ctx.reason, at } : null });
@@ -377,7 +370,7 @@ function toEvent(field: string, value: any, at: number): Omit<WebhookEvent, 'wab
   return {
     event,
     displayPhone: picked.displayPhone,
-    notification: { title: fill(rule.title, ctx), message: fill(rule.message, ctx), severity: picked.severity ?? rule.severity ?? (rule.send ? SEVERITY[rule.send] : 'info') },
+    notification: { title: fill(rule.title, ctx), message: fill(rule.message, ctx), severity: rule.send ? SEVERITY[rule.send] : 'info' },
     effects: effectsOf(rule, ctx, at),
   };
 }
@@ -409,7 +402,7 @@ export function settle(health: Partial<NumberHealth> | undefined, now: number): 
     next[scope] = { status: worst(own.map(([, issue]) => issue)), ...Object.fromEntries(own) } as ScopeHealth;
     for (const [, issue] of own) {
       all.push(issue);
-      for (const unit of UNITS) if (issue.cap?.[unit] !== undefined) next.limits[unit] = Math.min(next.limits[unit] ?? Infinity, issue.cap[unit]!);
+      for (const unit of UNITS) if (issue.limits?.[unit] !== undefined) next.limits[unit] = Math.min(next.limits[unit] ?? Infinity, issue.limits![unit]!);
     }
   }
   next.status = worst(all);

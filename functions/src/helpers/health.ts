@@ -81,7 +81,7 @@ export function deriveHealth(snapshot: Pick<MetaSnapshot, 'phone' | 'messagingLi
           link: LINKS.manager,
           at: now,
           code: error.error_code,
-          ...(send === 'limit' ? { cap: RULES['phone_status:FLAGGED'].cap } : {}),
+          ...(send === 'limit' ? { limits: RULES['phone_status:FLAGGED'].limits } : {}),
         });
         explained = true;
       }
@@ -96,7 +96,7 @@ export function deriveHealth(snapshot: Pick<MetaSnapshot, 'phone' | 'messagingLi
         message: 'Meta gave no reason. Check WhatsApp Manager, fix what it names, then refresh.',
         link: LINKS.manager,
         at: now,
-        ...(send === 'limit' ? { cap: RULES['phone_status:FLAGGED'].cap } : {}),
+        ...(send === 'limit' ? { limits: RULES['phone_status:FLAGGED'].limits } : {}),
       });
     }
   }

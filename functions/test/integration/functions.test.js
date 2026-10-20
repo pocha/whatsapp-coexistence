@@ -180,7 +180,7 @@ test('the relay authenticates with the API key, sends with the decrypted Meta to
 test('template sends are rate limited per number, and free-form text is not', async () => {
   await seedNumber('556', '667');
   // A ceiling from the number's health, so the test needs only a few sends: the day allows 2.
-  await db.collection('phoneNumbers').doc('556').update({ health: require('../../lib/helpers/rules').settle({ phone: { quality: { send: 'limit', title: 't', message: 'm', at: 1, cap: { day: 2 } } } }, Date.now()) });
+  await db.collection('phoneNumbers').doc('556').update({ health: require('../../lib/helpers/rules').settle({ phone: { quality: { send: 'limit', title: 't', message: 'm', at: 1, limits: { day: 2 } } } }, Date.now()) });
   const send = (message) =>
     fetch(`${FUNCTIONS_BASE}/numbers/556/messages`, {
       method: 'POST',
@@ -619,7 +619,7 @@ const seedHealth = (id, issues, extra = {}) => db.collection('phoneNumbers').doc
 const issue = (send, extra = {}) => ({ send, title: 'a title', message: 'a message', at: 1, ...extra });
 const healthOf = async (id) => (await post('/getNumber', { apiKey: KEY, phoneNumberId: id })).json().then((r) => r.number.health);
 
-test('stored issues decide sending: disable stops everything, block stops templates, a cap limits the day, a paused template is refused by name', async () => {
+test('stored issues decide sending: disable stops everything, block stops templates, a limit on the day, a paused template is refused by name', async () => {
   await seedNumber('9701', '9711');
   await seedHealth('9701', { account: { ban: issue('disable') } });
   assert.equal((await relayTo('9701', aText)).status, 403);
@@ -639,7 +639,7 @@ test('stored issues decide sending: disable stops everything, block stops templa
   assert.ok(Number(paused.headers.get('retry-after')) > 3000);
 
   await seedNumber('9704', '9714');
-  await seedHealth('9704', { phone: { quality: issue('limit', { cap: { day: 3 } }) }, tier: 250 });
+  await seedHealth('9704', { phone: { quality: issue('limit', { limits: { day: 3 } }) }, tier: 250 });
   assert.equal((await healthOf('9704')).limits.day, 3, 'the lowest ceiling wins over Meta\'s 250');
   const statuses = [];
   for (let i = 0; i < 5; i++) statuses.push((await relayTo('9704', aTemplate())).status);

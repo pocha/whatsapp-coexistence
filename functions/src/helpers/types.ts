@@ -159,7 +159,7 @@ export type Why = 'payment' | 'ban' | 'review' | 'connection' | 'restriction' | 
 /**
  * What an issue does to sending, in order of severity.
  *   ok       nothing in the way
- *   limit    few template messages a day (see `cap`)
+ *   limit    few template messages a day (see `limits`)
  *   block    no template messages; free-form replies still go through
  *   disable  nothing goes through
  */
@@ -178,7 +178,7 @@ export interface Issue {
   /** For a restriction or pause with a known end (epoch ms): it stops counting by itself after that. */
   until?: number;
   /** The most template messages this allows per window. */
-  cap?: Limits;
+  limits?: Limits;
   /** Meta's error code, when it gave one. */
   code?: number;
 }

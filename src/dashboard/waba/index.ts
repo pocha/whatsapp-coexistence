@@ -117,7 +117,7 @@ function renderLimitTable(data: NumberView, nowMs: number) {
 
   // The allowance is what a sender runs into; how it is worked out sits in a note behind an "i",
   // so the table stays at three rows.
-  const capped = SCOPES.flatMap((scope) => issuesOf(data.health?.[scope]).map(([, issue]) => issue)).filter((i) => i.cap?.day === limits.day);
+  const capped = SCOPES.flatMap((scope) => issuesOf(data.health?.[scope]).map(([, issue]) => issue)).filter((i) => i.limits?.day === limits.day);
   const allowanceNote = (u: (typeof units)[number][0]) => {
     const grows = `Grows with usage: up to ${config[u].growthPercent}% over the previous ${u}, and never below ${config[u].floor}.`;
     if (u !== 'day' || limits.day === undefined) return grows;
