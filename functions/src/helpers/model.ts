@@ -26,7 +26,6 @@ import type {
 //   phoneIndex/{phone}            userId (makes phone -> user creation race-free)
 //   phoneNumbers/{phoneNumberId}  one per onboarded number: see PhoneNumberDoc in types.ts
 //   otps/{phone}                  sign-in codes (no browser can read them)
-//   testRuns/{userId}             the codes of the last "send test data" (no browser can read them)
 //   meta/waitlist                 the waitlist click counter
 //
 // This file knows nothing about HTTP, keys or Meta: where a rule is decided by the caller, it is
@@ -42,7 +41,6 @@ const users = () => db().collection('users');
 const userRef = (userId: string) => users().doc(userId);
 const phoneIndexRef = (phone: string) => db().collection('phoneIndex').doc(phone);
 const otpRef = (phone: string) => db().collection('otps').doc(phone);
-const testRunRef = (userId: string) => db().collection('testRuns').doc(userId);
 const waitlistRef = () => db().collection('meta').doc('waitlist');
 
 const numberOf = (snap: DocumentSnapshot) => snap.data() as PhoneNumberDoc | undefined;
@@ -397,18 +395,18 @@ export interface TestRun {
 
 /** Saves the codes of a send, unless the last one was too recent. Answers the seconds to wait, or 0 if it was saved. */
 export async function reserveTestSend(userId: string, codes: Record<TestEventType, string>, gapMs: number): Promise<number> {
-  const ref = testRunRef(userId);
+  const ref = userRef(userId);
   return db().runTransaction(async (tx) => {
-    const last = (await tx.get(ref)).data() as { sentAt?: number } | undefined;
-    const elapsed = Date.now() - (last?.sentAt ?? 0);
+    const last = (await tx.get(ref)).data() as { testRun?: { sentAt?: number } } | undefined;
+    const elapsed = Date.now() - (last?.testRun?.sentAt ?? 0);
     if (elapsed < gapMs) return Math.ceil((gapMs - elapsed) / 1000);
-    tx.set(ref, { codes, sentAt: Date.now() });
+    tx.update(ref, { testRun: { codes, sentAt: Date.now() } });
     return 0;
   });
 }
 
 export async function readTestRun(userId: string): Promise<TestRun | undefined> {
-  return (await testRunRef(userId).get()).data() as TestRun | undefined;
+  return ((await userRef(userId).get()).data() as { testRun?: TestRun } | undefined)?.testRun;
 }
 
 // ---- sign-in codes ----

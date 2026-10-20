@@ -15,6 +15,8 @@ export interface UserDoc {
   apiKeyHash?: string;
   createdAt: number;
   rotatedAt?: number;
+  /** The codes of the last "send test data" and when it went out (see onboarding.ts). */
+  testRun?: { codes: Record<string, string>; sentAt: number };
 }
 
 import type { RateLimitOverride, RateState } from './rateLimiter';
