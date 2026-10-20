@@ -1,4 +1,4 @@
-<!--#var title="Onboard a number — WA Coexistence"-->
+<!--#var title="Onboard a number | Watobot"-->
 <!--#var description="Connect your WhatsApp Business app number to get WhatsApp API access with coexistence."-->
 <!--#include partial="head"-->
 <!--#include partial="header"-->
@@ -9,9 +9,20 @@
     <section class="flex-1 min-w-0 px-gutter md:px-10 py-12">
       <div class="max-w-4xl mx-auto flex flex-col gap-4 w-full">
         <h1 class="font-headline-lg text-headline-lg text-on-surface">Onboard a number</h1>
-        <p class="text-on-surface-variant font-body-md">
-          Onboarding runs in seven steps. If you closed the window, you can open it again.
-        </p>
+        <div id="chooser" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="card p-6 gap-3">
+            <div class="tile"><span class="material-symbols-outlined">web</span></div>
+            <p class="section-title text-on-surface">Onboard in the dashboard</p>
+            <p class="text-on-surface-variant font-body-md">A few short steps in a window on this page.</p>
+            <button id="chooser-here" type="button" class="mt-auto self-start rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Start here</button>
+          </div>
+          <div class="card p-6 gap-3">
+            <div class="tile"><span class="material-symbols-outlined">smart_toy</span></div>
+            <p class="section-title text-on-surface">Onboard with your AI tool</p>
+            <p class="text-on-surface-variant font-body-md">Add Watobot to Claude, ChatGPT or Claude Code and let it guide you.</p>
+            <a href="/how-to/connect-watobot-to-ai-tool.html" class="mt-auto self-start rounded-xl border border-outline-variant bg-white px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Connect your AI tool</a>
+          </div>
+        </div>
         <button id="reopen-btn" class="hidden self-start rounded-xl bg-primary text-on-primary px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all">Open onboarding</button>
       </div>
     </section>
@@ -70,6 +81,17 @@
             your endpoint must parse and save it. Meta gives 24 hours to request that sync, so we
             check your endpoint first.
           </p>
+          <label class="flex items-start gap-2 text-on-surface-variant font-body-md text-sm">
+            <input id="cb-none" type="checkbox" class="mt-1"/>
+            <span>I only send messages and reply in the WhatsApp Business app, so I don't need a callback URL.</span>
+          </label>
+          <p id="cb-none-note" class="hidden rounded-lg bg-surface-container-low p-3 text-on-surface-variant font-body-md text-sm">
+            Incoming messages, and delivery and read receipts for what you send, will reach no app of yours.
+            Meta also sends the contacts and chat history sync only once, to a callback URL, so it is skipped
+            and can't be done later. Replies still appear in the WhatsApp Business app. You can add a URL later
+            from the number's page.
+          </p>
+          <div id="cb-fields" class="flex flex-col gap-2">
           <label class="label-strong text-on-surface-variant block" for="cb-url">Your callback URL</label>
           <div class="flex flex-col sm:flex-row gap-2">
             <input id="cb-url" placeholder="https://your-app.example.com/webhook" class="flex-1 px-4 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"/>
@@ -92,10 +114,20 @@
             </div>
           </details>
           <label class="flex items-start gap-2 text-on-surface-variant font-body-md text-sm">
+            <input id="cb-skip-test" type="checkbox" class="mt-1"/>
+            <span>Skip the data test. I won't know my endpoint stores the history and contacts Meta sends once.</span>
+          </label>
+          <div id="cb-test" class="flex flex-col gap-2">
+          <label class="flex items-start gap-2 text-on-surface-variant font-body-md text-sm">
             <input id="cb-confirm" type="checkbox" class="mt-1"/>
             <span>My endpoint parses and stores history, contacts and echoed messages.</span>
           </label>
-          <!--#include partial="test-events"-->
+          <div class="rounded-lg border border-outline-variant p-4 mt-4">
+            <p class="section-title text-on-surface">Test your endpoint</p>
+            <!--#include partial="test-events"-->
+          </div>
+          </div>
+          </div>
         </div>
 
         <!-- Step 3: the Business app -->
@@ -184,6 +216,17 @@
 
         <!-- Step 6: sync (coexistence) or register (API only) -->
         <div id="step-6" class="hidden flex flex-col gap-4">
+          <!-- The wizard was opened from an AI tool's link: the tool carries on from here -->
+          <div id="view-handback" class="hidden flex flex-col gap-2">
+            <p class="section-title text-on-surface">Your number is connected. Go back to your AI tool.</p>
+            <p class="text-on-surface-variant font-body-md text-sm">
+              Meta's sign-up is done and your callback URL is set. Ask your AI tool to check the number
+              and carry on: it sees which step is next (the contacts and history sync, or registering the
+              number). You can close this window.
+            </p>
+            <button id="handback-continue-btn" class="self-start text-primary font-body-md text-sm hover:underline">Carry on here instead</button>
+          </div>
+
           <div id="view-override" class="hidden flex flex-col gap-2">
             <p class="section-title text-on-surface">Connect your callback URL</p>
             <p class="text-on-surface-variant font-body-md text-sm">Your number is connected. The last step here is pointing Meta's deliveries at your URL.</p>
@@ -240,6 +283,7 @@
               <button id="sync-done-btn" disabled class="ml-2 rounded-xl border border-outline-variant bg-white px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all disabled:opacity-50 disabled:cursor-not-allowed">Finished</button>
             </div>
             <p id="sync-status" class="text-on-surface-variant font-body-md text-sm"></p>
+            <button id="sync-skip-btn" type="button" class="self-start text-on-surface-variant font-body-md text-sm hover:underline">Skip the sync (it can't be done later)</button>
           </div>
         </div>
 

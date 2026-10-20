@@ -15,9 +15,12 @@ export interface UserDoc {
   apiKeyHash?: string;
   createdAt: number;
   rotatedAt?: number;
+  /** The codes of the last "send test data" and when it went out (see onboarding.ts). */
+  testRun?: { codes: Record<string, string>; sentAt: number };
 }
 
-import type { RateLimitOverride, RateState } from './rateLimiter';
+import type { Limits, RateLimitOverride, RateState } from './rateLimiter';
+export type { Limits };
 
 /** Counters written by the relay, keyed by day (YYYY-MM-DD), ISO week (YYYY-Www) and month (YYYY-MM). */
 export interface Usage {
@@ -45,7 +48,8 @@ export type SyncType = 'contacts' | 'history';
 
 /** `requesting` is held while the request to Meta is in flight, so a double click can't send it twice. */
 export interface SyncStatus {
-  state: 'none' | 'requesting' | 'requested' | 'failed';
+  /** `skipped`: the user chose not to request it, and Meta allows each only once, so it can't be asked for later. */
+  state: 'none' | 'requesting' | 'requested' | 'failed' | 'skipped';
   /** When the state last changed. */
   at?: number;
   error?: string;
@@ -75,10 +79,21 @@ export interface PhoneNumberDoc {
   displayPhoneNumber?: string;
   /** Template-message counts per window, written by the relay (see helpers/rateLimiter.ts). */
   rateState?: RateState;
+  /** What the number has earned to send per window. Starts at the floors; we can write higher ones for an account moving over. Only grows. */
+  limits?: Limits;
   /** Per-number override of the default rate limits. Set by us, never by the customer. */
   rateLimits?: RateLimitOverride;
   /** Wizard progress. Written only by the Functions. */
   onboarding: OnboardingState;
+  /** The user chose to onboard without a callback URL: nothing of theirs receives incoming messages. */
+  callbackSkipped?: boolean;
+  /** Whether the number may send, as of the last read from Meta. See NumberHealth. */
+  health?: NumberHealth;
+  displayName?: DisplayNameState;
+  /** Templates Meta paused, disabled, rejected or deleted, keyed `name|language`. */
+  templates?: Record<string, TemplateGate>;
+  /** When Meta was last really asked (a refresh is refused within ten minutes of it). Not set by a refused send. */
+  metaFetchedAt?: number;
   /** From Meta, after onboarding: whether the number is also on the WhatsApp Business app. */
   isOnBizApp?: boolean;
   platformType?: string;
@@ -86,6 +101,176 @@ export interface PhoneNumberDoc {
   metaStatus?: string;
   /** When each Meta data sync was requested. The data itself goes to the customer's URL and is never kept here. */
   sync?: Partial<Record<SyncType, SyncStatus>>;
+}
+
+/**
+ * A number as the dashboard and the MCP see it (listNumbers, getNumber). Built from an explicit
+ * list of fields (see helpers/onboarding.ts), so the stored token can never be in it.
+ */
+/** What to do next for a number's onboarding step, in words an AI tool can follow. */
+export interface NextStep {
+  step: OnboardingStep;
+  title: string;
+  instruction: string;
+  /** The tools (API calls of the same name) the instruction mentions. */
+  tools: string[];
+}
+
+export interface NumberView {
+  phoneNumberId: string;
+  wabaId: string;
+  displayPhoneNumber?: string;
+  overrideUrl?: string;
+  callbackSkipped?: boolean;
+  health?: NumberHealth;
+  displayName?: DisplayNameState;
+  templates?: Record<string, TemplateGate>;
+  metaFetchedAt?: number;
+  activatedAt?: number;
+  lastRelayCall?: number;
+  usage?: Usage;
+  rateState?: RateState;
+  limits?: Limits;
+  rateLimits?: RateLimitOverride;
+  onboarding: OnboardingState;
+  /** Where the wizard is, worked out from the record (see effectiveStep). */
+  step: OnboardingStep;
+  /** What to do next at that step. */
+  next: NextStep;
+  /** Whether a Meta token is stored, so the number can send. False after a lost-key reset. */
+  hasToken: boolean;
+  isOnBizApp?: boolean;
+  platformType?: string;
+  metaStatus?: string;
+  sync?: Partial<Record<SyncType, SyncStatus>>;
+}
+
+/** POST /listNumbers (a Firebase token or `apiKey` in the body). */
+export interface ListNumbersResponse extends ApiResponse {
+  numbers: NumberView[];
+}
+
+/** Which part of the account an issue is about: the Messaging account, the business, the display name, or the number. */
+export type Scope = 'account' | 'business' | 'display_name' | 'phone';
+
+/** What the issue is. `code_<N>` is a Meta error code we have no wording for. */
+export type Why = 'payment' | 'ban' | 'review' | 'connection' | 'restriction' | 'quality' | 'cooldown' | 'name' | 'business' | 'meta' | `code_${number}`;
+
+/**
+ * What an issue does to sending, in order of severity.
+ *   ok       nothing in the way
+ *   limit    few template messages a day (see `limits`)
+ *   block    no template messages; free-form replies still go through
+ *   disable  nothing goes through
+ */
+export type Send = 'ok' | 'limit' | 'block' | 'disable';
+
+/** One thing that currently restricts sending. It exists only while it does: when it lifts, it is deleted. */
+export interface Issue {
+  send: Exclude<Send, 'ok'>;
+  title: string;
+  /** What is wrong, what it means for sending, and what to do about it. */
+  message: string;
+  /** Where to do it, when we know a place. */
+  link?: string;
+  /** When this was learned (epoch ms): an older notification never overrides a newer one. */
+  at: number;
+  /** For a restriction or pause with a known end (epoch ms): it stops counting by itself after that. */
+  until?: number;
+  /** The most template messages this allows per window. */
+  limits?: Limits;
+  /** Meta's error code, when it gave one. */
+  code?: number;
+}
+
+/** A scope's status (the worst of its issues) and its issues, by what they are. */
+export type ScopeHealth = { status: Send } & { [K in Why]?: Issue };
+
+/**
+ * What currently restricts a number, as of the last time it was read from Meta (the dashboard's refresh, an
+ * AI tool's get_number, or a send Meta refused) or announced by a webhook: each scope's issues and status, the
+ * worst status overall, the lowest ceiling per window (from the issues and Meta's daily limit), and that limit.
+ * Every write works the status and ceilings out again (see `settle` in rules.ts), so they are stored with the
+ * issues. An issue with an end time is dropped by the next write after it, and the relay ignores it from then on.
+ */
+export type NumberHealth = { [S in Scope]?: ScopeHealth } & {
+  status: Send;
+  limits: Limits;
+  /** Meta's daily messaging limit (customers a day), e.g. 250 for an unverified business. */
+  tier?: number;
+};
+
+/** A template Meta paused, disabled, rejected or deleted: sends of it are refused. Templates in good standing are not stored. */
+export interface TemplateGate {
+  status: string;
+  reason?: string;
+  at: number;
+}
+
+/** One thing Meta told us (a webhook), or that a refresh found different, kept for the dashboard's Notifications. */
+export interface NotificationDoc {
+  eventAt: number;
+  receivedAt: number;
+  /** Meta's webhook field, or `refresh` for what a refresh found. */
+  field: string;
+  event?: string;
+  title: string;
+  message: string;
+  severity: 'critical' | 'warning' | 'info';
+  /** Meta's payload for the event: account-level facts only, never a message. */
+  value?: unknown;
+}
+
+/** What GET /numbers/<id>/notifications returns for one. */
+export type NotificationView = Omit<NotificationDoc, 'value'> & { id: string; value?: unknown };
+
+export interface NotificationsResponse extends ApiResponse {
+  notifications: NotificationView[];
+  /** Pass as `before` to get the next, older page. Absent when there are no more. */
+  nextBefore?: number;
+}
+
+/** The number's display name and any change waiting for Meta's review. */
+export interface DisplayNameState {
+  /** When this was learned (epoch ms). */
+  at?: number;
+  name?: string;
+  status?: string;
+  requestedName?: string;
+  requestedStatus?: string;
+}
+
+/** One live read from Meta: what it said, or why the read failed. Each part is separate so one failure hides nothing else. */
+export type MetaPart<T = unknown> = { ok: true; data: T } | { ok: false; error: string };
+
+/** What Meta says about a number and its account right now. Never holds the token. */
+export interface MetaSnapshot {
+  /** Status, display name and its approval, quality rating, Business app, account mode. */
+  phone: MetaPart<Record<string, unknown>>;
+  /** The number's messaging limit tier, e.g. TIER_250. */
+  messagingLimit: MetaPart<unknown>;
+  /** The Messaging account: name, currency, review and business verification status. */
+  waba: MetaPart<Record<string, unknown>>;
+  /** Who owns the Messaging account. */
+  ownership: MetaPart<Record<string, unknown>>;
+  /** The apps subscribed to the account, with any callback URL override. */
+  subscribedApps: MetaPart<unknown[]>;
+  /** The numbers Meta lists under the account. */
+  phoneNumbers: MetaPart<unknown[]>;
+  /** The stored token's own details: type, scopes, expiry and the WABAs it was granted. */
+  token: MetaPart<{ type?: string; isValid?: boolean; scopes: string[]; expiresAt?: number; dataAccessExpiresAt?: number; grantedWabaIds: string[] }>;
+}
+
+/** POST /getNumber (a Firebase token or `apiKey` in the body). */
+export interface GetNumberResponse extends ApiResponse {
+  number: NumberView;
+  limits: RelayLimitsResponse;
+  /** Live details from Meta. Only on a refresh (`?refresh=true`, with the key, which opens the stored token). */
+  meta?: MetaSnapshot;
+  /** When Meta may be asked again, an epoch time in ms. */
+  nextRefreshAt?: number;
+  /** Why `meta` is missing, when a key was given. */
+  metaError?: string;
 }
 
 export interface ExchangeCodeRequest {
@@ -100,6 +285,8 @@ export interface ExchangeCodeRequest {
 /** The answer to exchangeCode and setWebhook while a number is in the wizard. */
 export interface OnboardingResponse extends ApiResponse {
   step?: OnboardingStep;
+  /** What to do next, once the step has moved. */
+  next?: NextStep;
   isOnBizApp?: boolean;
 }
 
@@ -188,7 +375,21 @@ export interface RelayLimitsResponse extends ApiResponse {
 export interface SetWebhookRequest {
   phoneNumberId: string;
   apiKey: string;
-  overrideCallbackUrl: string;
+  /** Where Meta sends incoming messages and events. Leave it out, with `noCallback`, to receive none. */
+  overrideCallbackUrl?: string;
+  /** Onboard without a callback URL: incoming messages go to Watobot, which discards them. */
+  noCallback?: boolean;
+}
+
+export interface SetDisplayNameRequest {
+  phoneNumberId: string;
+  apiKey: string;
+  displayName: string;
+}
+
+export interface SkipSyncRequest {
+  phoneNumberId: string;
+  apiKey: string;
 }
 
 export interface RegisterNumberRequest {

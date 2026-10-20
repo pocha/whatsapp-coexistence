@@ -32,8 +32,8 @@ export async function exchangeCodeForToken(code: string, appId: string, appSecre
 export async function subscribeApp(
   wabaId: string,
   accessToken: string,
-  overrideCallbackUrl: string,
-  verifyToken: string,
+  overrideCallbackUrl?: string,
+  verifyToken?: string,
 ): Promise<void> {
   await graphFetch(`/${wabaId}/subscribed_apps`, {
     method: 'POST',
@@ -41,11 +41,52 @@ export async function subscribeApp(
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      override_callback_uri: overrideCallbackUrl,
-      verify_token: verifyToken,
-    }),
+    // Without a callback URL the app is subscribed with no override, so Meta uses the app's own webhook.
+    body: JSON.stringify(overrideCallbackUrl ? { override_callback_uri: overrideCallbackUrl, verify_token: verifyToken } : {}),
   });
+}
+
+/** A read of any Graph path with the token (for the live details on getNumber). */
+export function graphGet(path: string, accessToken: string): Promise<any> {
+  return graphFetch(path, { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } });
+}
+
+/** What Meta says about a token, from Debug Token. Authorised as the app, with its ID and secret. */
+export async function debugToken(accessToken: string, appId: string, appSecret: string): Promise<{
+  type?: string;
+  isValid?: boolean;
+  scopes: string[];
+  expiresAt?: number;
+  dataAccessExpiresAt?: number;
+  grantedWabaIds: string[];
+}> {
+  const params = new URLSearchParams({ input_token: accessToken, access_token: `${appId}|${appSecret}` });
+  const data = (await graphFetch(`/debug_token?${params.toString()}`, { method: 'GET' }))?.data ?? {};
+  const scopes: { scope?: string; target_ids?: string[] }[] = data.granular_scopes ?? [];
+  return {
+    type: data.type,
+    isValid: data.is_valid,
+    scopes: data.scopes ?? [],
+    expiresAt: data.expires_at,
+    dataAccessExpiresAt: data.data_access_expires_at,
+    // The WABAs this token was granted `whatsapp_business_management` for, so a WABA ID is known to be one
+    // the signing-up user really shared and is not just what their browser said.
+    grantedWabaIds: scopes.filter((s) => s.scope === 'whatsapp_business_management').flatMap((s) => (s.target_ids ?? []).map(String)),
+  };
+}
+
+/** The WABAs this token was granted (see debugToken). */
+export async function getGrantedWabaIds(accessToken: string, appId: string, appSecret: string): Promise<string[]> {
+  return (await debugToken(accessToken, appId, appSecret)).grantedWabaIds;
+}
+
+/** Whether the WABA's own list of phone numbers has this one (the first 100 are read). */
+export async function wabaHasPhoneNumber(wabaId: string, phoneNumberId: string, accessToken: string): Promise<boolean> {
+  const body = await graphFetch(`/${encodeURIComponent(wabaId)}/phone_numbers?fields=id&limit=100`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return ((body?.data ?? []) as { id?: string }[]).some((n) => String(n.id) === phoneNumberId);
 }
 
 /** The number as people see it, e.g. "+1 555-339-3615". */
@@ -70,7 +111,7 @@ export async function registerPhoneNumber(phoneNumberId: string, accessToken: st
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ messaging_product: 'whatsapp', pin }),
-  }, 60000); // registering can take Meta well over the usual 10 seconds
+  }, 45000); // registering can take Meta well over the usual 10 seconds, but the function's whole minute has to cover it
 }
 
 /**
@@ -174,10 +215,67 @@ export async function deregisterPhoneNumber(phoneNumberId: string, accessToken: 
   });
 }
 
+/** Asks Meta to review a new display name for the number (it is verified against the display name guidelines). */
+export async function requestDisplayName(phoneNumberId: string, accessToken: string, displayName: string): Promise<void> {
+  await graphFetch(`/${encodeURIComponent(phoneNumberId)}?new_display_name=${encodeURIComponent(displayName)}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
 /** Stops this app receiving the Messaging account's webhooks (and removes the callback URL override). */
 export async function unsubscribeApp(wabaId: string, accessToken: string): Promise<void> {
   await graphFetch(`/${encodeURIComponent(wabaId)}/subscribed_apps`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${accessToken}` },
   });
+}
+
+
+// Turns a template list a previous provider exported into requests that create those templates.
+//
+// The export is Meta's own read format (GET /<WABA_ID>/message_templates). Reading returns fields
+// that creating does not accept (`id`, `status`, `quality_score` and so on), so only the four
+// fields a create needs are kept.
+
+export interface TemplateCreatePayload {
+  name: string;
+  language: string;
+  category: string;
+  components: unknown[];
+  parameter_format?: string;
+}
+
+export interface TemplateRejection {
+  name: string;
+  language: string;
+  reason: string;
+}
+
+export interface ParsedTemplates {
+  templates: TemplateCreatePayload[];
+  rejected: TemplateRejection[];
+}
+
+/** Accepts the whole GET response (`{ data: [...] }`) or just the array. */
+export function parseTemplateExport(input: unknown): ParsedTemplates {
+  const list = Array.isArray(input) ? input : Array.isArray((input as { data?: unknown })?.data) ? (input as { data: unknown[] }).data : null;
+  if (!list) return { templates: [], rejected: [{ name: '(the pasted JSON)', language: '', reason: 'Expected a list of templates, or an object with a "data" list.' }] };
+
+  const templates: TemplateCreatePayload[] = [];
+  const rejected: TemplateRejection[] = [];
+  for (const item of list) {
+    const t = (item ?? {}) as Record<string, unknown>;
+    const name = typeof t.name === 'string' ? t.name : '';
+    const language = typeof t.language === 'string' ? t.language : '';
+    const category = typeof t.category === 'string' ? t.category : '';
+    if (!name || !language || !category || !Array.isArray(t.components)) {
+      rejected.push({ name: name || '(no name)', language, reason: 'Needs a name, language, category and components.' });
+      continue;
+    }
+    const payload: TemplateCreatePayload = { name, language, category, components: t.components };
+    if (typeof t.parameter_format === 'string') payload.parameter_format = t.parameter_format;
+    templates.push(payload);
+  }
+  return { templates, rejected };
 }

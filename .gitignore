@@ -18,6 +18,9 @@ start-conversation.pdf
 /public/dashboard/*.html
 /public/how-to/*.html
 
+# Built from README.md by scripts/build-documentation.js
+/views/partials/capabilities-body.html
+
 wa-coexistence-firebase-adminsdk-fbsvc-c3af518531.json
 
 # functions/.env already matched by the bare `.env` rule above (gitignore
@@ -33,3 +36,6 @@ functions/node_modules/
 # Not committed: CI and local installs resolve fresh from package.json
 /package-lock.json
 *.mp4
+
+# The local MCP package is published to npm, which never ships a lockfile.
+/mcp/package-lock.json

@@ -2,19 +2,11 @@
 // user's onboarded WABAs, wires up its Delete account button, and returns the
 // WABA records. Callers only invoke this when someone is signed in.
 import { auth, db, functionsBase, signOutUser } from '/assets/firebase-init.js';
-import { deleteAccount, keyMatchesAccount } from '/assets/account.js';
+import { deleteAccount, fetchNumbers, keyMatchesAccount } from '/assets/account.js';
 import { isValidApiKey } from '/assets/api-key.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { DisconnectNumberRequest, DisconnectNumberResponse, PhoneNumberDoc, UserDoc } from '../../functions/src/helpers/types';
-import { effectiveStep } from '../../functions/src/helpers/onboardingSteps';
-import {
-  collection,
-  doc,
-  getDoc,
-  query,
-  where,
-  getDocs,
-} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+import type { DisconnectNumberRequest, DisconnectNumberResponse, NumberView, UserDoc } from '../../functions/src/helpers/types';
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 // Selected item: white text on the dark green. Anything the link carried that sets a text
 // colour or a hover background has to go, or it competes with these.
@@ -29,7 +21,7 @@ function markActive(target: Element) {
 }
 
 /** A phone number record plus its document id (the phone number ID). */
-export type NumberRecord = PhoneNumberDoc & { id: string };
+export type NumberRecord = NumberView & { id: string };
 
 // Deleting the account first disconnects each number from Meta (on the server, which needs the
 // API key to open the stored token), then deletes our records and the sign-in.
@@ -46,7 +38,7 @@ function wireDelete() {
   const confirmBtn = el<HTMLButtonElement>('delete-confirm');
   const anywayBtn = el<HTMLButtonElement>('delete-anyway');
 
-  const withToken = () => currentNumbers.filter((n) => n.encAccessToken);
+  const withToken = () => currentNumbers.filter((n) => n.hasToken);
   const shown = (n: NumberRecord) => n.displayPhoneNumber ?? `number ${n.id}`;
 
   function open() {
@@ -74,10 +66,10 @@ function wireDelete() {
     const done = { coexistence: [] as string[], deregistered: [] as string[] };
     for (const n of withToken()) {
       status.textContent = `Disconnecting ${shown(n)} from Meta…`;
-      const res = await fetch(`${functionsBase()}/disconnectNumber`, {
+      const res = await fetch(`${functionsBase()}/numbers/${encodeURIComponent(n.id)}/disconnect`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumberId: n.id, apiKey, deregister: el<HTMLInputElement>('delete-deregister').checked } satisfies DisconnectNumberRequest),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ deregister: el<HTMLInputElement>('delete-deregister').checked } satisfies Partial<DisconnectNumberRequest>),
       });
       const body = (await res.json().catch(() => ({}))) as DisconnectNumberResponse;
       if (!res.ok || !body.ok) {
@@ -160,39 +152,37 @@ export async function fillSidebar(uid: string, currentId?: string | null): Promi
   el('key-nav-label').textContent = keyLabel;
   sidebar.querySelector('[data-nav="key"]')!.setAttribute('title', keyLabel);
 
-  const snapshot = await getDocs(query(collection(db, 'phoneNumbers'), where('userId', '==', uid)));
-  const numbers: NumberRecord[] = [];
+  const numbers: NumberRecord[] = (await fetchNumbers()).map((n) => ({ id: n.phoneNumberId, ...n }));
   list.replaceChildren();
-  snapshot.forEach((docSnap) => {
-    const waba = docSnap.data() as PhoneNumberDoc;
-    numbers.push({ id: docSnap.id, ...waba });
+  for (const waba of numbers) {
+    const id = waba.id;
     // A number whose onboarding is not finished goes back into the wizard, where it left off.
-    const unfinished = effectiveStep(waba) !== 'done';
+    const unfinished = waba.step !== 'done';
     const link = document.createElement('a');
     link.href = unfinished
-      ? `/dashboard/waba/create.html?id=${encodeURIComponent(docSnap.id)}`
-      : `/dashboard/waba/?id=${encodeURIComponent(docSnap.id)}`;
+      ? `/dashboard/waba/create.html?id=${encodeURIComponent(id)}`
+      : `/dashboard/waba/?id=${encodeURIComponent(id)}`;
     link.className = `${LINK} text-on-surface-variant`;
-    const shown = waba.displayPhoneNumber ?? `Number ${docSnap.id}`;
+    const shown = waba.displayPhoneNumber ?? `Number ${id}`;
     link.title = unfinished
       ? `${shown}: onboarding not finished. Continue where you left off.`
-      : `${shown} (phone number ID ${docSnap.id})`;
+      : `${shown} (phone number ID ${id})`;
 
     const icon = document.createElement('span');
     icon.className = 'material-symbols-outlined text-[22px] flex-shrink-0';
     if (unfinished) icon.style.color = '#b45309'; // amber: needs attention
-    icon.textContent = unfinished ? 'pending' : waba.overrideUrl && waba.encAccessToken ? 'chat' : 'chat_bubble_outline';
+    icon.textContent = unfinished ? 'pending' : (waba.overrideUrl || waba.callbackSkipped) && waba.hasToken ? 'chat' : 'chat_bubble_outline';
 
     const label = document.createElement('span');
     label.className = 'hidden lg:inline truncate';
     label.textContent = unfinished ? `${shown} · finish setup` : shown;
 
     link.append(icon, label);
-    if (docSnap.id === currentId) markActive(link);
+    if (id === currentId) markActive(link);
     list.append(link);
-  });
-  empty.classList.toggle('hidden', !snapshot.empty);
-  empty.classList.toggle('lg:block', snapshot.empty);
+  }
+  empty.classList.toggle('hidden', numbers.length > 0);
+  empty.classList.toggle('lg:block', numbers.length === 0);
 
   currentNumbers = numbers;
   sidebar.classList.remove('hidden');

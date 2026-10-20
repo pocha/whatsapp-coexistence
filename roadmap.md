@@ -8,13 +8,14 @@ Last reviewed 2026-10-17. The functions that exist are listed in the README's AP
 ### Built
 - [x] Phone + WhatsApp OTP sign-in, per-account Watobot API key, key rotation
 - [x] Meta token stored encrypted under the user's Watobot API key (decrypted in memory per request)
-- [x] Message relay, incoming-URL override (`setWebhook`), template manager (list, create, edit, delete)
-- [x] `registerNumber` (used by the wizard's register step)
+- [x] Message relay, incoming-URL override (`PUT /numbers/<id>/webhook`), template manager (list, create, edit, delete)
+- [x] `POST /numbers/<id>/register` (used by the wizard's register step)
 - [x] Rate limiting for template sends (ramp-up, attempts vs accepted, per-number override) and usage counters
 - [x] Embedded Signup launched with `featureType: whatsapp_business_app_onboarding`
 - [x] App-level webhook fields subscribed (checked through the Meta MCP, 2026-10-16): `account_alerts`, `account_review_update`, `account_update`, `message_template_quality_update`, `message_template_status_update`, `messages`, `phone_number_name_update`, `phone_number_quality_update`, `security`, `history`, `smb_message_echoes`, `smb_app_state_sync`
 
 ### P0: the migration promise and launch
+- [x] **Security: ownership is checked at sign-up.** `exchangeCode` no longer trusts the IDs the browser sends: Meta's `debug_token` must list the WABA among those the token was granted, and the WABA's phone number list must hold the number (if that list can't be read, the token must at least be able to read the number, and the fallback is logged as `ownership check fell back`). A number that belongs to another Watobot account is never replaced (409). Not yet run against real Meta: the `debug_token` call authorised with the app token, and `GET /<WABA>/phone_numbers`.
 Design: onboarding is a guided, resumable flow that starts only once the user has what they need afterwards.
 
 **The flow**
@@ -42,16 +43,19 @@ A step-by-step wizard: `checks → Meta onboarding → callback override → (co
 - [x] The wizard keeps the source account ID on the number's document once it exists; before that it lives only in the page. Watobot's business portfolio ID for the partner share is `1821963108976783`.
 - [x] Fallback: create templates in the template manager, or skip for now.
 
+- [x] **The API is grouped by resource,** with the key as the bearer token: `/numbers/<id>/...`, `/templates/<id>/...`, `/templatesBulk/<id>/...` (the 300 s one), `/onboarding/...`. The old one-function-per-call names are gone.
+- [x] **Sending status and notifications:** what decides whether a send goes out is a list of reasons per number, each with its cause, and a status (`ok`, `limited`, `blocked`, `disabled`) worked out from them. It is set from Meta's webhooks as they arrive (ban or disable, restriction with its end, account review, disconnection, display name decision, messaging limit tier, template paused or disabled) and from a refresh (`GET /numbers/<id>?refresh=true`, at most once in ten minutes, which replaces what notifications set and notes any disagreement). The relay refuses every send for a disabled number, template sends for a blocked one, caps a limited one at five a day, keeps the daily limit under Meta's tier, refuses a paused or disabled template by name, and pauses template sends for an hour after Meta's spam-rate-limit refusal. Shown as chips beside the number, each opening a popup with the refresh and the display name form, and below as the number's Notifications (kept a month by a Firestore TTL policy). Not built: the payment method has no notification, so only a refresh or a refused send learns of it; a template's quality is shown as a notification only.
+- [x] **Display name requests** (`PUT /numbers/<id>/display-name`): one change at a time, refused while one is in review.
+
 ### P1: moving in and out
-- [x] Disconnect / leave Watobot: Delete account first disconnects each number from Meta (`disconnectNumber`: unsubscribe our app, and de-register an API-only number unless the user unticks it; a coexistence number is only unsubscribed, and the user is told to disconnect it in the Business app), then deletes the records. Needs the API key; "I've lost my key" skips the Meta calls.
-- [x] Deregister endpoint, standard numbers only (`deregisterNumber`; Meta's deregister can't be used on a number that is on both the app and the API)
-- [ ] Ownership check on the number page: is the Messaging account in the user's portfolio
-- [ ] Template status and quality shown in the dashboard, and alerts on `message_template_status_update` / `message_template_quality_update` (not built; Meta emails the admins about template decisions)
-- [ ] Alerts when a template or the number's quality drops (Meta's webhooks reach `/webhook` but are not kept; Meta's own emails may cover it), and optional throttling on quality drops
-- [x] **Rate-limit read API and headers:** `GET /relayMessage/<id>/limits`, and `X-RateLimit-Remaining-*` / `X-RateLimit-Reset-*` headers on template sends, so a client (or an AI tool) can pace itself.
+- [x] Disconnect / leave Watobot: Delete account first disconnects each number from Meta (`POST /numbers/<id>/disconnect`: unsubscribe our app, and de-register an API-only number unless the user unticks it; a coexistence number is only unsubscribed, and the user is told to disconnect it in the Business app), then deletes the records. Needs the API key; "I've lost my key" skips the Meta calls.
+- [x] Deregister endpoint, standard numbers only (`POST /numbers/<id>/deregister`; Meta's deregister can't be used on a number that is on both the app and the API)
+- [ ] Ownership on the number page: show whether the number's Messaging account belongs to the user's own portfolio or to a previous provider (the template migration depends on it)
+- [x] **Rate-limit read API and headers:** `GET /numbers/<id>/limits`, and `X-RateLimit-Remaining-*` / `X-RateLimit-Reset-*` headers on template sends, so a client (or an AI tool) can pace itself.
 
 ### P2: reliability and trust
-- [ ] **MCP server**, local first (a small package an AI tool launches, with the API key in its setup): tools over the functions in the API section, server instructions that say how to sign up and get a key, and a hand-off link for the Meta step (a short-lived onboarding session holds the results of the checks). Needs key-only authentication for the functions that use sign-in today, read functions for numbers and their state, and later a hosted version with OAuth. Documentation for AI tools: an OpenAPI description of the functions and `llms.txt`.
+- [x] **MCP server**, hosted and local, one set of tools (`functions/src/mcp/tools.ts`): the `mcp` Function (`Authorization: Bearer <key>` or `/mcp/<key>`, for claude.ai, ChatGPT and any tool that takes an address) and the `watobot-mcp` package (`mcp/`, over stdio, for tools that launch a program). The API key is the credential, so there is no OAuth. Also built: key-only access to the wizard checks, `listNumbers` / `getNumber` (the dashboard reads through them as well, so the two cannot drift apart), and a link that opens the wizard at Meta's sign-up (`?checks=done&callback=`) and hands back to the AI tool afterwards. Still to do: exclude the `mcp` requests from Cloud Logging (see the README), publish to npm, check claude.ai and ChatGPT connect with the address (their auth options change), an OpenAPI description and `llms.txt`, and OAuth only if a connector directory asks for it.
+- [ ] Close the browser's read on `phoneNumbers` in the rules: blocked only by the key reset and delete account code in `src/assets/account.ts`, which still query the numbers directly
 - [ ] Move the last direct browser writes (first key, key reset, the Firestore side of delete account) into functions, so the rules can be read-only
 - [ ] Per-recipient ordering, retries when the customer's endpoint is down, de-duplication, published latency figures
 - [ ] `messaging_account_id` in send calls (required in multi-Messaging-account setups from Phase 2)
@@ -73,6 +77,7 @@ A step-by-step wizard: `checks → Meta onboarding → callback override → (co
 | New account model GA 2026-09-23; Phase 2 (H1 2027) adds `waac_id` to message events; Phase 3 (H1 2028) requires WAAC IDs in API paths | Account model evolution | 2026-09-22 |
 
 ### Open questions
+- Onboarding with no callback URL (`noCallback`) subscribes the app with no `override_callback_uri`. Not yet checked against Meta: that incoming events then reach the app's own webhook, and whether subscribing without an override removes an override set earlier
 - Whether migrated templates are reviewed again (Meta says only that migration "recreates" them; review "can take up to 24 hours")
 - What happens to templates on a second coexistence onboarding, and which Messaging account a standard-to-coexistence move ends up in
 - Whether unsharing a coexistence partner in Business Settings disconnects it (Meta documents only the Business app disconnect)

@@ -34,6 +34,7 @@ const SRC_DIR = path.join(ROOT_DIR, 'src');
 
 const PAGE_MAP = {
   'index.html': 'index.html',
+  'capabilities.html': 'capabilities.html',
   'privacy.html': 'privacy.html',
   'tos.html': 'tos.html',
   'data-deletion.html': 'data-deletion.html',
@@ -44,7 +45,7 @@ const PAGE_MAP = {
   'how-to/create-meta-business-portfolio-add-whatsapp-number.html': 'how-to/create-meta-business-portfolio-add-whatsapp-number.html',
   'how-to/get-whatsapp-api-for-free.html': 'how-to/get-whatsapp-api-for-free.html',
   'how-to/get-whatsapp-api-access-in-5-minutes.html': 'how-to/get-whatsapp-api-access-in-5-minutes.html',
-  'how-to/migrate-existing-whatsapp-api-to-watobot.html': 'how-to/migrate-existing-whatsapp-api-to-watobot.html',
+  'how-to/connect-watobot-to-ai-tool.html': 'how-to/connect-watobot-to-ai-tool.html',
   'how-to/move-whatsapp-api-between-providers.html': 'how-to/move-whatsapp-api-between-providers.html',
   'how-to/questions-to-ask-whatsapp-api-provider.html': 'how-to/questions-to-ask-whatsapp-api-provider.html',
   'how-to/deregister-whatsapp-number-from-provider.html': 'how-to/deregister-whatsapp-number-from-provider.html',

@@ -47,7 +47,7 @@ export function wireTestEvents(getUrl: () => string, onChecked?: (allCorrect: bo
       mark(type, 'none');
     }
     try {
-      const res = await callAsUser<SendTestEventsResponse>(`${functionsBase()}/sendTestEvents`, { overrideCallbackUrl: url } satisfies SendTestEventsRequest);
+      const res = await callAsUser<SendTestEventsResponse>(`${functionsBase()}/onboarding/test-events`, { overrideCallbackUrl: url } satisfies SendTestEventsRequest);
       sent = true;
       sendStatus.textContent = 'Sent. New codes, enter them below.';
       for (const type of TYPES) {
@@ -70,7 +70,7 @@ export function wireTestEvents(getUrl: () => string, onChecked?: (allCorrect: bo
     for (const type of TYPES) codes[type] = input(type).value;
     checkBtn.disabled = true;
     try {
-      const res = await callAsUser<VerifyTestCodesResponse>(`${functionsBase()}/verifyTestCodes`, { codes } satisfies VerifyTestCodesRequest);
+      const res = await callAsUser<VerifyTestCodesResponse>(`${functionsBase()}/onboarding/test-codes`, { codes } satisfies VerifyTestCodesRequest);
       const wrong = TYPES.filter((type) => !res.correct![type]);
       for (const type of TYPES) mark(type, res.correct![type] ? 'ok' : 'bad');
       checkStatus.textContent = wrong.length ? `Not matching: ${wrong.join(', ')}.` : 'All four match.';

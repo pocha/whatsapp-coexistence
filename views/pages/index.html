@@ -1,5 +1,5 @@
-<!--#var title="Get WhatsApp API Access with Coexistence — WA Coexistence"-->
-<!--#var description="Get WhatsApp API access on a number you already use with the WhatsApp Business app, without a verified business. Keep using the app and plug in your chatbot within 5 minutes. Free for the first 10 numbers."-->
+<!--#var title="Watobot: WhatsApp API with Coexistence from your AI tool"-->
+<!--#var description="Get WhatsApp API access on a number you already use with the WhatsApp Business app, no verified business needed. Let your AI tool guide the setup."-->
 <!--#include partial="head"-->
 <!--#include partial="header"-->
 
@@ -12,28 +12,9 @@
     .reveal-ready .reveal.d1 { transition-delay: .1s; }
     .reveal-ready .reveal.d2 { transition-delay: .2s; }
 
-    /* Hero scene: one 12s loop shared by every moving part. */
-    .scene { --cycle: 12s; }
-    .scene .msg, .scene .log, .scene .pkt, .scene .flash { opacity: 0; animation-duration: var(--cycle); animation-iteration-count: infinite; animation-timing-function: ease-out; }
-    .scene .m1 { animation-name: msg1; } .scene .m2 { animation-name: msg2; } .scene .m3 { animation-name: msg3; }
-    .scene .l1 { animation-name: log1; } .scene .l2 { animation-name: log2; } .scene .l3 { animation-name: log3; }
-    .scene .p0 { animation-name: pk0; } .scene .p1 { animation-name: pk1; } .scene .p2 { animation-name: pk2; }
-    .scene .p3 { animation-name: pk3; } .scene .p4 { animation-name: pk4; }
-    .scene .flash { animation-name: flash; }
-    .scene .wire { stroke-dasharray: 5 6; animation: dash 1.2s linear infinite; }
-    @keyframes dash { to { stroke-dashoffset: -11; } }
-    @keyframes msg1 { 0%,6% { opacity:0; transform: translateY(8px); } 10%,94% { opacity:1; transform:none; } 98%,100% { opacity:0; transform:none; } }
-    @keyframes msg2 { 0%,38% { opacity:0; transform: translateY(8px); } 42%,94% { opacity:1; transform:none; } 98%,100% { opacity:0; transform:none; } }
-    @keyframes msg3 { 0%,68% { opacity:0; transform: translateY(8px); } 72%,94% { opacity:1; transform:none; } 98%,100% { opacity:0; transform:none; } }
-    @keyframes log1 { 0%,19% { opacity:0; } 21%,94% { opacity:1; } 98%,100% { opacity:0; } }
-    @keyframes log2 { 0%,43% { opacity:0; } 45%,94% { opacity:1; } 98%,100% { opacity:0; } }
-    @keyframes log3 { 0%,75% { opacity:0; } 77%,94% { opacity:1; } 98%,100% { opacity:0; } }
-    @keyframes pk0 { 0%,2% { opacity:0; transform: translateY(0); } 3% { opacity:1; } 9% { opacity:1; transform: translateY(80px); } 10%,100% { opacity:0; transform: translateY(80px); } }
-    @keyframes pk1 { 0%,9% { opacity:0; transform: translateX(0); } 10% { opacity:1; } 15% { opacity:1; transform: translateX(-60px); } 16%,100% { opacity:0; transform: translateX(-60px); } }
-    @keyframes pk2 { 0%,9% { opacity:0; transform: translateX(0); } 10% { opacity:1; } 18% { opacity:1; transform: translateX(54px); } 19%,100% { opacity:0; transform: translateX(54px); } }
-    @keyframes pk3 { 0%,34% { opacity:0; transform: translateX(0); } 35% { opacity:1; } 42% { opacity:1; transform: translateX(-172px); } 43%,100% { opacity:0; transform: translateX(-172px); } }
-    @keyframes pk4 { 0%,64% { opacity:0; transform: translateX(0); } 65% { opacity:1; } 74% { opacity:1; transform: translateX(172px); } 75%,100% { opacity:0; transform: translateX(172px); } }
-    @keyframes flash { 0%,19% { opacity:0; } 21% { opacity:.28; } 27% { opacity:0; } 43% { opacity:0; } 45% { opacity:.28; } 51% { opacity:0; } 75% { opacity:0; } 77% { opacity:.28; } 83%,100% { opacity:0; } }
+    /* The typing cursor in the hero carousel. */
+    .caret { animation: blink 1s steps(1) infinite; color: #e9edef; }
+    @keyframes blink { 50% { opacity: 0; } }
 
     /* Little flow diagrams (Why Coexistence). */
     .node { width: 46px; height: 46px; border-radius: 9999px; display: grid; place-items: center; background: #e3f9ea; color: #006d2f; flex-shrink: 0; }
@@ -54,9 +35,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       .reveal-ready .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
-      .scene .msg, .scene .log { opacity: 1 !important; animation: none !important; }
-      .scene .pkt, .scene .flash { display: none; }
-      .scene .wire, .flow, .step-line, .pulse { animation: none !important; }
+      .flow, .step-line, .pulse, .caret { animation: none !important; }
       .lift { transition: none; }
     }
   </style>
@@ -76,18 +55,17 @@
   <section id="waitlist" class="px-gutter md:px-24 py-14 md:py-20 bg-surface-container-low overflow-hidden">
     <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-10 md:gap-12">
       <div class="flex flex-col gap-5 text-center md:text-left items-center md:items-start md:w-5/12">
-        <h1 class="font-headline-lg text-headline-lg"><span style="color:#46bc6a">Get WhatsApp API Access</span> <strong style="color:#5e5e5e">with Coexistence</strong></h1>
+        <h1 class="font-headline-lg text-headline-lg"><span style="color:#46bc6a">Get WhatsApp API with Coexistence</span> <strong style="color:#5e5e5e">right from your AI tool</strong></h1>
         <p class="text-on-surface-variant font-body-md text-lg">
-          You can get WhatsApp API access for free. But if you get it through
-          us (or any Tech Provider), you also get Coexistence.
-          <br/><b>Free for the first 10 numbers.</b>
+          Add the Watobot MCP server and let your AI tool guide you to get access.
+          <br/><b>Free to onboard &amp; try, with a perennially free account.</b>
         </p>
         <div class="flex flex-wrap gap-4 justify-center md:justify-start">
           <button id="join-btn" type="button" class="inline-flex flex-col items-center rounded-xl bg-primary-container text-on-surface px-6 py-3 font-label-md text-label-md font-bold hover:opacity-90 active:scale-95 transition-all pulse">
             <span>Join Waitlist</span>
             <span id="join-count" class="hidden text-xs font-normal opacity-80"></span>
           </button>
-          <a href="/how-to/get-whatsapp-api-for-free.html" class="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Get free API access</a>
+          <a href="/how-to/get-whatsapp-api-for-free.html" class="inline-flex items-center gap-2 rounded-xl border border-outline-variant px-6 py-3 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Get Free API (DIY) instead</a>
         </div>
         <p class="text-on-surface-variant font-body-md text-sm">
           Already have WhatsApp API access? You can still enable coexistence
@@ -95,75 +73,67 @@
         </p>
       </div>
 
-      <!-- Animated scene: a customer message reaches the phone and your app at once, the bot replies,
-           then a human replies from the phone and your app gets the echo. -->
-      <div class="md:w-7/12 w-full max-w-xl">
-        <svg class="scene w-full h-auto" viewBox="0 0 540 380" role="img" aria-label="A customer's WhatsApp message arrives on your phone and at your chatbot at the same time. The chatbot replies through the API, and a human can reply from the phone too.">
-          <defs>
-            <clipPath id="screen"><rect x="32" y="24" width="160" height="332" rx="20"/></clipPath>
-          </defs>
-
-          <!-- wires -->
-          <line class="wire" x1="200" y1="190" x2="262" y2="190" stroke="#25d366" stroke-width="2"/>
-          <line class="wire" x1="318" y1="190" x2="372" y2="190" stroke="#25d366" stroke-width="2"/>
-          <line class="wire" x1="290" y1="76" x2="290" y2="162" stroke="#25d366" stroke-width="2"/>
-
-          <!-- customer -->
-          <circle cx="290" cy="52" r="22" fill="#e0e3e6"/>
-          <circle cx="290" cy="46" r="7" fill="#6c7b6b"/>
-          <path d="M276 66c2-8 8-11 14-11s12 3 14 11" fill="#6c7b6b"/>
-          <text x="290" y="96" text-anchor="middle" font-size="11" fill="#6c7b6b" font-family="Inter, sans-serif">Customer</text>
-
-          <!-- hub -->
-          <circle cx="290" cy="190" r="28" fill="#25d366"/>
-          <path d="M276 182h28a4 4 0 0 1 4 4v12a4 4 0 0 1-4 4h-16l-8 7v-7h-4a4 4 0 0 1-4-4v-12a4 4 0 0 1 4-4z" fill="#fff" transform="translate(-2 -6)"/>
-          <text x="290" y="238" text-anchor="middle" font-size="11" fill="#3c4a3d" font-family="Inter, sans-serif" font-weight="600">WhatsApp</text>
-
-          <!-- phone -->
-          <rect x="24" y="14" width="176" height="352" rx="28" fill="#191c1e"/>
-          <rect x="32" y="24" width="160" height="332" rx="20" fill="#efeae2"/>
-          <g clip-path="url(#screen)">
-            <rect x="32" y="24" width="160" height="40" fill="#006d2f"/>
-            <circle cx="54" cy="44" r="11" fill="#25d366"/>
-            <text x="72" y="48" font-size="12" font-weight="700" fill="#fff" font-family="Inter, sans-serif">Your shop</text>
-
-            <g class="msg m1">
-              <rect x="42" y="82" width="112" height="36" rx="10" fill="#fff"/>
-              <text x="50" y="98" font-size="11" fill="#191c1e" font-family="Inter, sans-serif">Hi! Is this</text>
-              <text x="50" y="111" font-size="11" fill="#191c1e" font-family="Inter, sans-serif">in stock?</text>
-            </g>
-            <g class="msg m2">
-              <rect x="70" y="134" width="114" height="36" rx="10" fill="#d9fdd3"/>
-              <text x="78" y="150" font-size="11" fill="#191c1e" font-family="Inter, sans-serif">Yes! Order here</text>
-              <text x="78" y="163" font-size="10" fill="#6c7b6b" font-family="Inter, sans-serif">🤖 auto-reply ✓✓</text>
-            </g>
-            <g class="msg m3">
-              <rect x="70" y="186" width="114" height="36" rx="10" fill="#d9fdd3"/>
-              <text x="78" y="202" font-size="11" fill="#191c1e" font-family="Inter, sans-serif">I'll call you now</text>
-              <text x="78" y="215" font-size="10" fill="#6c7b6b" font-family="Inter, sans-serif">👤 from the phone ✓✓</text>
-            </g>
-          </g>
-
-          <!-- your app -->
-          <rect x="372" y="110" width="152" height="160" rx="12" fill="#fff" stroke="#bbcbb9" stroke-width="1.5"/>
-          <rect class="flash" x="372" y="110" width="152" height="160" rx="12" fill="#25d366"/>
-          <path d="M372 122a12 12 0 0 1 12-12h128a12 12 0 0 1 12 12v16H372z" fill="#e6f4fb"/>
-          <circle cx="386" cy="124" r="3" fill="#bbcbb9"/><circle cx="397" cy="124" r="3" fill="#bbcbb9"/><circle cx="408" cy="124" r="3" fill="#bbcbb9"/>
-          <text x="448" y="160" text-anchor="middle" font-size="12" font-weight="700" fill="#006686" font-family="Inter, sans-serif">Your app</text>
-          <g font-family="ui-monospace, Menlo, monospace" font-size="10">
-            <text class="log l1" x="384" y="188" fill="#3c4a3d">← Hi! Is this in stock?</text>
-            <text class="log l2" x="384" y="212" fill="#006d2f">→ Yes! Order here</text>
-            <text class="log l3" x="384" y="236" fill="#8a5200">↩ echo: human replied</text>
-          </g>
-          <text x="448" y="296" text-anchor="middle" font-size="11" fill="#6c7b6b" font-family="Inter, sans-serif">chatbot · webhook · API</text>
-
-          <!-- travelling packets -->
-          <circle class="pkt p0" cx="290" cy="80" r="5" fill="#25d366"/>
-          <circle class="pkt p1" cx="262" cy="190" r="5" fill="#25d366"/>
-          <circle class="pkt p2" cx="318" cy="190" r="5" fill="#25d366"/>
-          <circle class="pkt p3" cx="372" cy="190" r="5" fill="#006686"/>
-          <circle class="pkt p4" cx="200" cy="190" r="5" fill="#d98a1f"/>
-        </svg>
+      <!-- Hero carousel: what an AI tool does with Watobot, typed out like Claude Code. The text is in the page, so it can be read as well as watched. -->
+      <div id="hero-carousel" class="md:w-7/12 w-full max-w-xl" role="region" aria-roledescription="carousel" aria-label="What your AI tool does with Watobot">
+        <div class="rounded-2xl bg-[#0b141a] shadow-xl overflow-hidden">
+          <div class="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+            <span class="h-3 w-3 rounded-full bg-[#ff5f56]"></span><span class="h-3 w-3 rounded-full bg-[#ffbd2e]"></span><span class="h-3 w-3 rounded-full bg-[#27c93f]"></span>
+            <span id="hero-slide-title" class="ml-3 text-xs text-[#8696a0] font-mono"></span>
+          </div>
+          <div class="p-4 font-mono text-[12.5px] leading-6 min-h-[360px] break-words">
+            <div data-slide data-title="Onboard WhatsApp Account" class="flex flex-col gap-2" aria-label="Onboard WhatsApp Account">
+              <p data-line="type" class="text-[#8696a0]">$ <span data-text>claude mcp add watobot -e WATOBOT_API_KEY=3f9a… -- npx -y watobot-mcp</span><span class="caret hidden">&#9611;</span></p>
+              <p data-line="type" class="text-[#e9edef] border border-white/20 rounded-md px-3 py-1.5"><span class="text-[#25d366]">&gt;</span> <span data-text>Onboard my WhatsApp number to the API with coexistence. My endpoint is https://shop.example.com/webhook</span><span class="caret hidden">&#9611;</span></p>
+              <div data-line="tool">
+                <p class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span class="text-[#53bdeb]">watobot</span> - check_callback_url (MCP)</p>
+                <p data-result class="pl-4 text-[#8696a0]">&#9166; <span class="text-[#25d366]">&#10003;</span> answers Meta&rsquo;s handshake</p>
+              </div>
+              <div data-line="tool">
+                <p class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span class="text-[#53bdeb]">watobot</span> - send_test_events (MCP)</p>
+                <p data-result class="pl-4 text-[#8696a0]">&#9166; <span class="text-[#25d366]">&#10003;</span> message, echo, contacts, history</p>
+              </div>
+              <p data-line="say" class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span data-text>Open this link, complete Meta&rsquo;s sign-up, then tell me when you are back.</span></p>
+              <p data-line="type" class="text-[#e9edef] border border-white/20 rounded-md px-3 py-1.5"><span class="text-[#25d366]">&gt;</span> <span data-text>Done.</span><span class="caret hidden">&#9611;</span></p>
+              <div data-line="tool">
+                <p class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span class="text-[#53bdeb]">watobot</span> - get_number (MCP)</p>
+                <p data-result class="pl-4 text-[#8696a0]">&#9166; <span class="text-[#25d366]">&#10003;</span> step: sync</p>
+              </div>
+              <div data-line="tool">
+                <p class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span class="text-[#53bdeb]">watobot</span> - start_sync (MCP)</p>
+                <p data-result class="pl-4 text-[#8696a0]">&#9166; <span class="text-[#25d366]">&#10003;</span> contacts and history requested</p>
+              </div>
+              <p data-line="say" class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span data-text>Your number is onboarded. Messages now reach your endpoint.</span></p>
+            </div>
+            <div data-slide data-title="Run a campaign" class="hidden flex flex-col gap-2" aria-label="Run a campaign">
+              <p data-line="type" class="text-[#e9edef] border border-white/20 rounded-md px-3 py-1.5"><span class="text-[#25d366]">&gt;</span> <span data-text>Send the spring_offer template to my 10 most active customers.</span><span class="caret hidden">&#9611;</span></p>
+              <p data-line="say" class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span data-text>Reading your 10 most active customers from the database.</span></p>
+              <div data-line="tool">
+                <p class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span class="text-[#53bdeb]">watobot</span> - get_limits (MCP)</p>
+                <p data-result class="pl-4 text-[#8696a0]">&#9166; <span class="text-[#25d366]">&#10003;</span> 10 messages left today</p>
+              </div>
+              <div data-line="tool">
+                <p class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span class="text-[#53bdeb]">watobot</span> - send_message &times; 10 (MCP)</p>
+                <p data-result class="pl-4 text-[#8696a0]">&#9166; <span class="text-[#25d366]">&#10003;</span> spring_offer delivered to 10 customers</p>
+              </div>
+              <p data-line="say" class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span data-text>Done. Replies will reach your endpoint as usual.</span></p>
+            </div>
+            <div data-slide data-title="Build a chatbot" class="hidden flex flex-col gap-2" aria-label="Build a chatbot">
+              <p data-line="type" class="text-[#e9edef] border border-white/20 rounded-md px-3 py-1.5"><span class="text-[#25d366]">&gt;</span> <span data-text>Build a support chatbot for this number and deploy it on Cloudflare.</span><span class="caret hidden">&#9611;</span></p>
+              <p data-line="say" class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span data-text>Writing the worker: it answers Meta&rsquo;s handshake and replies through Watobot.</span></p>
+              <p data-line="type" class="text-[#8696a0]">$ <span data-text>wrangler deploy</span><span class="caret hidden">&#9611;</span></p>
+              <div data-line="tool">
+                <p class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span class="text-[#53bdeb]">watobot</span> - set_webhook (MCP)</p>
+                <p data-result class="pl-4 text-[#8696a0]">&#9166; <span class="text-[#25d366]">&#10003;</span> incoming messages go to your worker</p>
+              </div>
+              <p data-line="say" class="text-[#e9edef]"><span class="text-[#25d366]">&#9679;</span> <span data-text>Live. Send a message to your number to try it.</span></p>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-center gap-2 mt-4">
+          <button type="button" data-dot="0" aria-label="Onboard WhatsApp Account" class="h-2.5 w-2.5 rounded-full bg-outline-variant"></button>
+          <button type="button" data-dot="1" aria-label="Run a campaign" class="h-2.5 w-2.5 rounded-full bg-outline-variant"></button>
+          <button type="button" data-dot="2" aria-label="Build a chatbot" class="h-2.5 w-2.5 rounded-full bg-outline-variant"></button>
+        </div>
       </div>
     </div>
   </section>
@@ -241,57 +211,33 @@
   <!-- Getting Started -->
   <section class="px-gutter md:px-24 py-16 bg-surface-container-low" id="getting-started">
     <div class="max-w-5xl mx-auto">
-      <h2 class="reveal font-headline-lg text-headline-lg text-on-surface text-center mb-3">Get WhatsApp API Access with Coexistence in 5 minutes</h2>
-      <p class="reveal text-on-surface-variant font-body-md text-center max-w-3xl mx-auto mb-6">
-        Getting free access on your own means
-        <a class="text-primary font-bold hover:underline" href="/how-to/get-whatsapp-api-for-free.html">going through a maze</a>,
-        and it will <strong>NOT</strong> get you Coexistence. Via us you get access within
-        5 minutes, and <strong>no verified business is needed</strong>.
-      </p>
-
-      <div class="reveal flex flex-wrap items-center justify-center gap-3 mb-10">
-        <span class="label-strong text-primary">YOU NEED</span>
-        <span class="chip !font-sans"><span class="material-symbols-outlined text-[16px]">phone_iphone</span> WhatsApp Business app with your number</span>
-        <span class="chip !font-sans"><span class="material-symbols-outlined text-[16px]">link</span> An HTTPS endpoint for incoming messages</span>
-        <a class="text-primary font-bold hover:underline text-sm" href="https://github.com/pocha/whatsapp-coexistence/tree/main/test-chatbot" target="_blank" rel="noopener">No app yet? Use the test chatbot</a>
-      </div>
+      <h2 class="reveal font-headline-lg text-headline-lg text-on-surface text-center mb-10">Get WhatsApp API Access with Coexistence in 5 minutes</h2>
 
       <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr] gap-4 md:gap-3 items-stretch">
         <div class="reveal card p-6 gap-3 lift">
-          <div class="flex items-center gap-3"><div class="tile"><span class="material-symbols-outlined">add_link</span></div><p class="label-strong text-primary">STEP 1</p></div>
-          <p class="section-title text-on-surface">Connect your number</p>
-          <p class="text-on-surface-variant font-body-md">Open the <a class="text-primary font-bold hover:underline" href="/dashboard/">Dashboard</a>, create your Watobot API key (shown once, we keep only a hash) and connect through Meta's popup.</p>
-          <span class="chip mt-auto self-start"><span class="material-symbols-outlined text-[16px]">key</span> key shown once</span>
+          <div class="flex items-center gap-3"><div class="tile"><span class="material-symbols-outlined">key</span></div><p class="label-strong text-primary">STEP 1</p></div>
+          <p class="section-title text-on-surface">Get your Watobot API key</p>
+          <p class="text-on-surface-variant font-body-md">Sign in at the <a class="text-primary font-bold hover:underline" href="/dashboard/">Dashboard</a> with your phone number and create your key.</p>
         </div>
         <div class="step-line hidden md:block self-center w-8"></div>
         <div class="reveal d1 card p-6 gap-3 lift">
-          <div class="flex items-center gap-3"><div class="tile"><span class="material-symbols-outlined">webhook</span></div><p class="label-strong text-primary">STEP 2</p></div>
-          <p class="section-title text-on-surface">Point us at your endpoint</p>
-          <p class="text-on-surface-variant font-body-md">Give us your incoming-message URL. Messages then go <strong>straight</strong> from WhatsApp to your app. We're never in that path.</p>
-          <span class="chip mt-auto self-start">https://your-app.com/webhook</span>
+          <div class="flex items-center gap-3"><div class="tile"><span class="material-symbols-outlined">smart_toy</span></div><p class="label-strong text-primary">STEP 2</p></div>
+          <p class="section-title text-on-surface">Add the Watobot MCP server &amp; complete onboarding</p>
+          <p class="text-on-surface-variant font-body-md">Your AI tool checks your setup and guides you through Meta's sign-up. <a class="text-primary font-bold hover:underline" href="/how-to/connect-watobot-to-ai-tool.html">How to connect</a></p>
         </div>
         <div class="step-line hidden md:block self-center w-8"></div>
         <div class="reveal d2 card p-6 gap-3 lift">
-          <div class="flex items-center gap-3"><div class="tile"><span class="material-symbols-outlined">send</span></div><p class="label-strong text-primary">STEP 3</p></div>
-          <p class="section-title text-on-surface">Send through our endpoint</p>
-          <p class="text-on-surface-variant font-body-md">Point your app's outgoing messages at our endpoint. It's the only place we sit in the path.</p>
-          <span class="chip mt-auto self-start">POST /relayMessage/…/messages</span>
+          <div class="flex items-center gap-3"><div class="tile"><span class="material-symbols-outlined">campaign</span></div><p class="label-strong text-primary">STEP 3</p></div>
+          <p class="section-title text-on-surface">Create campaigns and chatbots with the Watobot API</p>
+          <p class="text-on-surface-variant font-body-md">Send messages through our endpoint, from your AI tool or your own code.</p>
         </div>
       </div>
 
-      <div class="reveal card p-5 mt-8 whatsapp-border !flex-row items-start gap-4">
-        <div class="tile"><span class="material-symbols-outlined">shield</span></div>
-        <div>
-          <p class="label-strong text-primary mb-1">WHY OUTGOING MESSAGES GO THROUGH US</p>
-          <p class="text-on-surface-variant font-body-md">
-            Meta doesn't let a Tech Provider hand the access token over to the
-            end user. So we hold it for you, and your app sends messages through
-            our endpoint, where we use the token on your behalf. That is the only
-            place we sit in the path: incoming messages go straight from WhatsApp
-            to your app. It also lets us protect your number from bans, with
-            rate limits at the minute, hour and day level.
-          </p>
-        </div>
+      <div class="reveal card p-5 mt-8 !flex-row items-center gap-4">
+        <div class="tile"><span class="material-symbols-outlined">web</span></div>
+        <p class="text-on-surface-variant font-body-md">
+          Prefer not to use an AI tool? You can still complete onboarding in the <a class="text-primary font-bold hover:underline" href="/dashboard/">web dashboard</a>.
+        </p>
       </div>
     </div>
   </section>
@@ -300,52 +246,51 @@
   <section class="px-gutter md:px-24 py-16" id="features">
     <div class="max-w-5xl mx-auto">
       <h2 class="reveal font-headline-lg text-headline-lg text-on-surface text-center mb-10">Features</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="reveal card p-8 gap-4 lift md:col-span-2 !border-2 !border-primary-container !bg-[#effcf3] !flex-col md:!flex-row md:items-center">
-          <div class="tile !w-16 !h-16 !rounded-2xl !bg-primary-container !text-white flex-shrink-0 pulse"><span class="material-symbols-outlined !text-[34px]">lock</span></div>
-          <div class="flex flex-col gap-2">
-            <p class="label-strong text-primary">PRIVACY · VERY FEW TECH PROVIDERS DO THIS</p>
-            <p class="section-title text-on-surface" style="font-size:24px;line-height:32px">Your token is zero-knowledge encrypted</p>
-            <p class="text-on-surface-variant font-body-md">
-              We value your privacy. Your WhatsApp access token is encrypted with your
-              Watobot API key, and we do <strong>NOT</strong> store that key on our server,
-              only a hash that can't open anything. Without your key, even we can't read or
-              use your token. If our database were ever leaked, an attacker would get only
-              scrambled data that can't be opened without your key.
-            </p>
-          </div>
-        </div>
-        <div class="reveal card p-8 gap-4 lift md:col-span-2 !flex-col md:!flex-row md:items-center">
-          <div class="tile !w-16 !h-16 !rounded-2xl flex-shrink-0"><span class="material-symbols-outlined !text-[34px]">speed</span></div>
-          <div class="flex flex-col gap-2">
-            <p class="label-strong text-primary">BAN PREVENTION</p>
-            <p class="section-title text-on-surface" style="font-size:24px;line-height:32px">Rate limits that keep your number from getting banned</p>
-            <p class="text-on-surface-variant font-body-md">
-              WhatsApp flags numbers that suddenly send far more than they used to. We limit template
-              messages per <strong>minute</strong>, per <strong>hour</strong> and per <strong>day</strong>,
-              and each window may only grow a little over the one before it, so your volume ramps up the
-              way Meta expects. If your app misbehaves, say a retry loop or a bug, the extra sends get a
-              clear <code>429</code> from us instead of reaching WhatsApp. You can see your limits, and
-              where each number stands, on its page in the dashboard.
-            </p>
-          </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="reveal card p-6 gap-3 lift">
+          <div class="tile"><span class="material-symbols-outlined">smart_toy</span></div>
+          <p class="section-title text-on-surface">AI native onboarding</p>
+          <p class="text-on-surface-variant font-body-md">Add Watobot to Claude, ChatGPT or Claude Code and ask it to onboard your number. It checks your setup and walks you through Meta's sign-up. <a class="text-primary font-bold hover:underline" href="/how-to/connect-watobot-to-ai-tool.html">How to connect</a></p>
         </div>
         <div class="reveal d1 card p-6 gap-3 lift">
-          <div class="tile"><span class="material-symbols-outlined">bolt</span></div>
-          <p class="section-title text-on-surface">Low latency</p>
-          <p class="text-on-surface-variant font-body-md">Incoming messages go straight from WhatsApp to your app, with no extra hop.</p>
+          <div class="tile"><span class="material-symbols-outlined">lock</span></div>
+          <p class="section-title text-on-surface">Zero-knowledge encrypted token</p>
+          <p class="text-on-surface-variant font-body-md">Your WhatsApp access token is encrypted with your Watobot API key. We keep only a hash that can't open it, so even we can't read your token, and a leaked database gives an attacker nothing.</p>
         </div>
         <div class="reveal d2 card p-6 gap-3 lift">
-          <div class="tile"><span class="material-symbols-outlined">code</span></div>
-          <p class="section-title text-on-surface">Open source</p>
-          <p class="text-on-surface-variant font-body-md">Every line is on GitHub and self-hostable. Read it, fork it, run your own copy.</p>
+          <div class="tile"><span class="material-symbols-outlined">visibility_off</span></div>
+          <p class="section-title text-on-surface">Complete privacy</p>
+          <p class="text-on-surface-variant font-body-md">Incoming messages go straight from WhatsApp to your app. We never store a copy of the messages you send: we only count them, for your limits and usage.</p>
+        </div>
+        <div class="reveal card p-6 gap-3 lift">
+          <div class="tile"><span class="material-symbols-outlined">speed</span></div>
+          <p class="section-title text-on-surface">Rate limits that protect your number</p>
+          <p class="text-on-surface-variant font-body-md">WhatsApp flags numbers that suddenly send far more than before. We limit template messages per minute, hour and day, and let each window grow only a little over the last. A blocked message gets a clear <code>429</code> and can always be retried. We don't queue messages yet.</p>
+        </div>
+        <div class="reveal d1 card p-6 gap-3 lift">
+          <div class="tile"><span class="material-symbols-outlined">content_copy</span></div>
+          <p class="section-title text-on-surface">Template migration Support</p>
+          <p class="text-on-surface-variant font-body-md">Moving over? We copy your approved templates from your previous Messaging account, or import an export from your provider.</p>
+        </div>
+        <div class="reveal d2 card p-6 gap-3 lift">
+          <div class="tile"><span class="material-symbols-outlined">exit_to_app</span></div>
+          <p class="section-title text-on-surface">Moving out Support</p>
+          <p class="text-on-surface-variant font-body-md">We help you move out of your existing provider, with guides on what to export, how to de-register and what to expect. If you ever want to leave us, we support that too: de-register or disconnect your number with an API call. <a class="text-primary font-bold hover:underline" href="/how-to/move-whatsapp-api-between-providers.html">Read the guide</a></p>
+        </div>
+        <div class="reveal card p-6 gap-3 lift">
+          <div class="tile"><span class="material-symbols-outlined">fact_check</span></div>
+          <p class="section-title text-on-surface">Coexistence best practices, enforced</p>
+          <p class="text-on-surface-variant font-body-md">Meta lets each history and contacts sync run once. Before onboarding we check that your callback URL answers Meta and receives those events, so you don't lose the history you want to store.</p>
         </div>
         <div class="reveal d1 card p-6 gap-3 lift opacity-80">
-          <div class="tile !bg-surface-container"><span class="material-symbols-outlined !text-on-surface-variant">low_priority</span></div>
-          <p class="section-title text-on-surface">Per-recipient ordering <span class="label-muted">(upcoming)</span></p>
-          <p class="text-on-surface-variant font-body-md">Messages to the same person are serialized, so retries can't look like spam.</p>
+          <div class="tile"><span class="material-symbols-outlined">monitor_heart</span></div>
+          <p class="section-title text-on-surface">Sending stops when quality drops <span class="label-muted">(upcoming)</span></p>
+          <p class="text-on-surface-variant font-body-md">Numbers often get blocked because the provider never tracks the quality of the number or its templates. We do, and we stop sends while it is degraded. The API response says why.</p>
         </div>
       </div>
+      <p class="reveal text-center mt-10">
+        <a class="text-primary font-bold hover:underline" href="/capabilities.html">See everything we support: capabilities and API &rarr;</a>
+      </p>
     </div>
   </section>
 
@@ -353,17 +298,37 @@
   <section class="px-gutter md:px-24 py-16 bg-surface-container-low" id="pricing">
     <div class="max-w-5xl mx-auto">
       <h2 class="reveal font-headline-lg text-headline-lg text-on-surface text-center mb-10">Pricing</h2>
-      <div class="reveal card max-w-4xl mx-auto">
-        <div class="grid grid-cols-1 md:grid-cols-2">
+      <p class="reveal text-on-surface-variant font-body-md text-center mb-8">
+        You pay only for the messages your app sends through the API. Messages customers send you,
+        and messages you type in the WhatsApp Business app, are never counted.
+      </p>
+      <div class="reveal card max-w-5xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-3">
           <div class="p-8 flex flex-col items-center justify-center text-center gap-2">
-            <p class="label-strong text-primary">FIRST 10 NUMBERS</p>
+            <p class="label-strong text-primary">FIRST 10 USERS</p>
             <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:44px;line-height:48px">Free</p>
-            <p class="text-on-surface-variant font-body-md">No setup cost, no monthly cost.</p>
+            <p class="text-on-surface-variant font-body-md">Completely free.</p>
           </div>
           <div class="p-8 flex flex-col items-center justify-center text-center gap-2 border-t md:border-t-0 md:border-l border-outline-variant">
-            <p class="label-strong text-primary">AFTER THAT</p>
-            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:44px;line-height:48px">$5 <span class="font-body-md text-on-surface-variant" style="font-size:14px">setup</span></p>
-            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:28px;line-height:36px">+ $1 <span class="font-body-md text-on-surface-variant" style="font-size:14px">/ number / month</span></p>
+            <p class="label-strong text-primary">FREE, FOREVER</p>
+            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:44px;line-height:48px">$0</p>
+            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:28px;line-height:36px">10 <span class="font-body-md text-on-surface-variant" style="font-size:14px">outgoing messages / day*</span></p>
+          </div>
+          <div class="p-8 flex flex-col items-center justify-center text-center gap-2 border-t md:border-t-0 md:border-l border-outline-variant">
+            <p class="label-strong text-primary">GROWING</p>
+            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:44px;line-height:48px">$5 <span class="font-body-md text-on-surface-variant" style="font-size:14px">/ month</span></p>
+            <p class="font-headline-lg text-headline-lg text-on-surface" style="font-size:28px;line-height:36px">100 <span class="font-body-md text-on-surface-variant" style="font-size:14px">outgoing messages / day*, then $1 per 1,000</span></p>
+          </div>
+        </div>
+        <div class="border-t border-outline-variant p-5 md:p-6">
+          <div class="rounded-xl bg-surface-container-low p-5 flex items-start gap-3">
+            <span class="material-symbols-outlined text-primary flex-shrink-0">forum</span>
+            <p class="text-on-surface font-body-md text-base">
+              <strong>If you reach your quota, conversations don't drop.</strong> On a coexistence number you can
+              keep replying from the WhatsApp Business app, and your customers see no difference. Sends from your
+              app through the API wait for the next day, or for the paid plan. (A number used through the API alone
+              has no app to fall back on.) A day runs from 00:00 to 24:00 UTC.
+            </p>
           </div>
         </div>
         <div class="border-t border-outline-variant p-5 md:p-6">
@@ -376,6 +341,7 @@
             </p>
           </div>
         </div>
+        <p class="px-6 pb-5 text-on-surface-variant font-body-md text-sm">* The quota is per number.</p>
       </div>
 
       <details class="reveal max-w-3xl mx-auto mt-10 bg-white border border-outline-variant rounded-xl shadow-sm p-5">
@@ -408,13 +374,6 @@
           <div>
             <p class="section-title text-on-surface mb-1">Get WhatsApp API Access in 5 minutes</p>
             <p class="text-on-surface-variant font-body-md text-sm">Anybody with the free WhatsApp Business app can get access. <b>No verified business needed</b>, and you keep using the app as usual.</p>
-          </div>
-        </a>
-        <a href="/how-to/migrate-existing-whatsapp-api-to-watobot.html" class="reveal d1 card p-6 !flex-row gap-4 items-start lift">
-          <div class="tile"><span class="material-symbols-outlined">swap_horiz</span></div>
-          <div>
-            <p class="section-title text-on-surface mb-1">Already Have WhatsApp API? Migrate to Watobot</p>
-            <p class="text-on-surface-variant font-body-md text-sm">What moving a number from another provider or your own app involves, and what to check first.</p>
           </div>
         </a>
         <a href="/how-to/create-meta-business-portfolio-add-whatsapp-number.html" class="reveal card p-6 !flex-row gap-4 items-start lift">

@@ -131,3 +131,15 @@ test('otps are not reachable from a browser at all', async () => {
   });
   await assertFails(as('owner-1').collection('otps').doc('1').get());
 });
+
+test('an owner can list and delete the notifications of their number, nobody can write them, and others cannot read them', async () => {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await ctx.firestore().collection('phoneNumbers').doc('phone-1').collection('notifications').doc('n1').set({ title: 'x', eventAt: 1 });
+  });
+  const own = as('owner-1').collection('phoneNumbers').doc('phone-1').collection('notifications');
+  await assertSucceeds(own.get());
+  await assertFails(own.doc('n2').set({ title: 'forged' }));
+  await assertFails(as('stranger').collection('phoneNumbers').doc('phone-1').collection('notifications').get());
+  await assertFails(testEnv.unauthenticatedContext().firestore().collection('phoneNumbers').doc('phone-1').collection('notifications').get());
+  await assertSucceeds(own.doc('n1').delete());
+});

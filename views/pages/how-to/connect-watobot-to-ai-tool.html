@@ -1,0 +1,140 @@
+<!--#var title="Connect Watobot to Claude or ChatGPT | Watobot"-->
+<!--#var description="Add the Watobot MCP server to Claude, ChatGPT, Claude Code or Cursor and let it guide your WhatsApp API setup. What you do, what it does, key safety."-->
+<!--#include partial="head"-->
+<!--#include partial="header"-->
+
+  <section class="px-gutter md:px-24 py-12">
+    <div class="max-w-3xl mx-auto flex flex-col gap-4">
+      <a href="/#how-to" class="text-primary font-bold font-body-md hover:underline w-fit">&larr; Back to How-To Guides</a>
+      <h1 class="font-headline-lg text-headline-lg text-on-surface">How to Connect Watobot to Claude, ChatGPT or Another AI Tool</h1>
+
+      <p class="text-on-surface-variant font-body-md">
+        Watobot has an MCP server. Once your AI tool is connected to it, you can ask the tool to get you onto
+        the WhatsApp API with coexistence, and it does the checking and the typing: it tests that your endpoint
+        receives what Meta sends, gives you the link for Meta's sign-up, requests the contacts and history sync,
+        registers the number if needed and brings your message templates across. Later it can send messages, show
+        how much of your daily limit is left and manage templates.
+      </p>
+
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">What you still do yourself</p>
+        <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+          <li><strong>Create your Watobot API key.</strong> It is made in your browser and shown once, so no tool can make it for you.</li>
+          <li><strong>Meta's sign-up.</strong> Facebook login, and the code or QR in the WhatsApp Business app, always happen in your browser. Your AI tool gives you the link and carries on when you are back.</li>
+          <li><strong>Say yes to anything that can't be undone.</strong> De-registering a number, disconnecting it and deleting a template are marked as destructive, and your AI tool should ask you first.</li>
+        </ul>
+      </div>
+
+      <h2 class="section-title text-on-surface mt-4">1. Create your API key</h2>
+      <p class="text-on-surface-variant font-body-md">
+        Open the <a class="text-primary font-bold hover:underline" href="/dashboard/key/">API key page</a> of the
+        <a class="text-primary font-bold hover:underline" href="/dashboard/">dashboard</a>, sign in with your phone
+        number (we send a code on WhatsApp) and click <strong>Create my API key</strong>. Copy it somewhere safe.
+        We keep only a hash of it, so we can't show it again. If you lose it, the same page lets you replace it, and
+        you onboard your numbers again.
+      </p>
+
+      <h2 class="section-title text-on-surface mt-4">2. Get your connection details</h2>
+      <p class="text-on-surface-variant font-body-md">
+        On the same page, under <strong>Use Watobot from an AI tool</strong>, paste your key. The page builds the
+        address and commands for your tool right there in your browser: the key isn't sent anywhere. You get three
+        things, each for a different kind of tool:
+      </p>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li>an <strong>address</strong> for claude.ai and ChatGPT, which can only take an address;</li>
+        <li>a <strong>command</strong> for Claude Code to connect to our hosted server;</li>
+        <li>a <strong>command</strong> for tools that start a program on your computer (Claude Code, Claude Desktop, Cursor).</li>
+      </ul>
+
+      <h2 class="section-title text-on-surface mt-4">3. Add it to your AI tool</h2>
+
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">Claude (claude.ai)</p>
+        <ol class="flex flex-col gap-2 list-decimal list-inside text-on-surface-variant font-body-md">
+          <li>Open <strong>Settings &rarr; Connectors</strong> and add a custom connector.</li>
+          <li>Paste the address from step 2, and choose no authentication (leave any OAuth fields empty).</li>
+          <li>Start a chat and turn the Watobot connector on for it.</li>
+        </ol>
+      </div>
+
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">ChatGPT</p>
+        <ol class="flex flex-col gap-2 list-decimal list-inside text-on-surface-variant font-body-md">
+          <li>Open <strong>Settings &rarr; Connectors &rarr; Advanced</strong> and turn on <strong>Developer mode</strong>.</li>
+          <li>Create a connector with the address from step 2 and no authentication.</li>
+          <li>Pick it in a chat from the tools menu.</li>
+        </ol>
+      </div>
+
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">Claude Code</p>
+        <p class="text-on-surface-variant font-body-md">
+          Run the command from step 2, then type <code>/mcp</code> to see that Watobot is connected. The hosted one looks
+          like this:
+        </p>
+        <pre class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto mt-2">claude mcp add --transport http watobot https://us-central1-wa-coexistence.cloudfunctions.net/mcp --header "Authorization: Bearer &lt;your key&gt;"</pre>
+        <p class="text-on-surface-variant font-body-md mt-2">The one that runs on your computer needs Node.js 20 or newer:</p>
+        <pre class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto mt-2">claude mcp add watobot -e WATOBOT_API_KEY=&lt;your key&gt; -- npx -y watobot-mcp</pre>
+      </div>
+
+      <div class="card p-6">
+        <p class="section-title text-on-surface mb-2">Claude Desktop, Cursor and other tools that start a program</p>
+        <p class="text-on-surface-variant font-body-md">Add this to the tool's MCP settings (Claude Desktop: <strong>Settings &rarr; Developer &rarr; Edit config</strong>), then restart the tool:</p>
+        <pre class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto mt-2">{ "mcpServers": { "watobot": {
+    "command": "npx",
+    "args": ["-y", "watobot-mcp"],
+    "env": { "WATOBOT_API_KEY": "&lt;your key&gt;" }
+} } }</pre>
+      </div>
+
+      <p class="text-on-surface-variant font-body-md">
+        The menus change from one plan and one release to the next, so the names above may differ a little on yours.
+        Custom connectors need a plan that allows them (on claude.ai the free plan allows one), and on a team plan an
+        owner may have to switch them on first. Claude.ai and ChatGPT connect from their own servers, which is why
+        they need the hosted address and can't use the program that runs on your computer.
+      </p>
+
+      <h2 class="section-title text-on-surface mt-4">4. Ask it to onboard your number</h2>
+      <p class="text-on-surface-variant font-body-md">
+        You need two things before you start: the number is on the <strong>WhatsApp Business app</strong> (for
+        coexistence), and you have an app or chatbot at a public https address that receives what WhatsApp sends.
+        If you don't have one, our <a class="text-primary font-bold hover:underline" href="https://github.com/pocha/whatsapp-coexistence/tree/main/test-chatbot" target="_blank" rel="noopener">test chatbot</a>
+        gives you one in a minute. Then say something like:
+      </p>
+      <pre class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto whitespace-pre-wrap">Use Watobot to onboard my WhatsApp number to the API with coexistence. My endpoint is https://example.com/webhook.</pre>
+      <p class="text-on-surface-variant font-body-md">What happens, in order:</p>
+      <ol class="flex flex-col gap-2 list-decimal list-inside text-on-surface-variant font-body-md">
+        <li>Your AI tool checks that your address answers Meta's handshake, then sends you test data. Each kind (a message, an echo of one you typed in the app, contacts and history) carries a code your endpoint should show. You read the codes back, and it checks them. The data test is optional. If you only send messages and reply in the WhatsApp Business app, you can have no callback URL at all: your AI tool will tell you what that costs (no incoming messages or delivery receipts, and the contacts and history sync is skipped for good) and ask you first.</li>
+        <li>It gives you a link. You open it, enter your API key, and complete Meta's sign-up. When it is done, the page tells you to go back to your AI tool.</li>
+        <li>Back in your AI tool, it looks up the number and carries on: a coexistence number gets its contacts and history sync (Meta allows each once, within 24 hours of onboarding), an API-only number gets registered with a six-digit PIN, and your templates are copied across from your previous account or imported from an export.</li>
+        <li>It confirms the number is done and shows your limits.</li>
+      </ol>
+
+      <h2 class="section-title text-on-surface mt-4">Keep your key safe</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li>The address for claude.ai and ChatGPT <strong>contains your key</strong>. Treat it like the key: don't share a screenshot of the connector's settings.</li>
+        <li>The key never goes into your chat. Your AI tool uses it behind the scenes, and our server doesn't log it.</li>
+        <li>If an address or a config file leaks, <a class="text-primary font-bold hover:underline" href="/dashboard/key/">replace the key</a> on the API key page. Every number keeps working with the new one, and you update the key in your tool.</li>
+        <li>You can remove the connector in your tool's settings whenever you like.</li>
+      </ul>
+
+      <h2 class="section-title text-on-surface mt-4">If something doesn't work</h2>
+      <ul class="flex flex-col gap-2 list-disc list-inside text-on-surface-variant font-body-md">
+        <li><strong>"There is no Watobot API key yet"</strong>: the key is missing from the tool's settings. Check step 2, and restart the tool after changing it.</li>
+        <li><strong>"Incorrect API key"</strong> or the connector won't connect: the key is mistyped or was replaced. Build the address again from the API key page.</li>
+        <li><strong>The tools don't show up</strong> (the program that runs on your computer): restart the tool. In Claude Code, <code>/mcp</code> lists what is connected.</li>
+        <li><strong>A send is refused with 429</strong>: you reached a limit. Ask your AI tool for your limits: it shows what is left and when each window resets.</li>
+        <li><strong>Meta's sign-up shows an error</strong>: see <a class="text-primary font-bold hover:underline" href="/how-to/get-whatsapp-api-access-in-5-minutes.html">How to Get WhatsApp API Access in 5 Minutes</a>, and tell your AI tool what the error said so it can help.</li>
+      </ul>
+
+      <div class="card p-6 mt-4">
+        <p class="section-title text-on-surface mb-2">Rather do it by hand?</p>
+        <p class="text-on-surface-variant font-body-md">
+          Everything your AI tool does is also in the dashboard.
+          <a class="text-primary font-bold hover:underline" href="/how-to/get-whatsapp-api-access-in-5-minutes.html">Get WhatsApp API access in 5 minutes &rarr;</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+<!--#include partial="footer"-->

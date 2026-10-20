@@ -1,14 +1,14 @@
-import { auth, db, functionsBase, onAuthStateChanged } from '/assets/firebase-init.js';
+import { auth, functionsBase, onAuthStateChanged } from '/assets/firebase-init.js';
 import { WEBHOOK_VERIFY_TOKEN } from '/assets/app-config.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import { isValidApiKey } from '/assets/api-key.js';
 import '/assets/nav-auth.js';
 import { wireTestEvents } from '/assets/test-events.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { PhoneNumberDoc, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
-import { effectiveConfig, view } from '../../../functions/src/helpers/rateLimiter';
-import { effectiveStep } from '../../../functions/src/helpers/onboardingSteps';
-import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+import type { NumberView, Scope, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
+import { effectiveConfig, REFRESH_MIN_INTERVAL_MS, view } from '../../../functions/src/helpers/rateLimiter';
+import { issuesOf, SCOPES } from '../../../functions/src/helpers/sendGate';
+import { fetchNotifications, fetchNumber } from '/assets/account.js';
 
 // The page for one number, identified by ?id= in the URL (its phone number ID). Signed-in
 // only: signed-out visitors are sent to the Dashboard's sign-in. What it does to the number
@@ -105,9 +105,10 @@ function infoIcon(text: string, align: 'left' | 'right'): HTMLElement {
   return wrap;
 }
 
-function renderLimitTable(data: PhoneNumberDoc, nowMs: number) {
+function renderLimitTable(data: NumberView, nowMs: number) {
+  const limits = data.health?.limits ?? {};
   const config = effectiveConfig(data.rateLimits);
-  const windows = view(data.rateState, config, nowMs);
+  const windows = view(data.rateState, data.limits, limits, config, nowMs);
   const units = [
     ['minute', 'Minute'],
     ['hour', 'Hour'],
@@ -116,8 +117,12 @@ function renderLimitTable(data: PhoneNumberDoc, nowMs: number) {
 
   // The allowance is what a sender runs into; how it is worked out sits in a note behind an "i",
   // so the table stays at three rows.
-  const allowanceNote = (u: (typeof units)[number][0]) =>
-    `Grows with usage: up to ${config[u].growthPercent}% over the previous ${u}, and never below ${config[u].floor}.`;
+  const capped = SCOPES.flatMap((scope) => issuesOf(data.health?.[scope]).map(([, issue]) => issue)).filter((i) => i.limits?.day === limits.day);
+  const allowanceNote = (u: (typeof units)[number][0]) => {
+    const grows = `Grows with usage: up to ${config[u].growthPercent}% over the previous ${u}, and never below ${config[u].floor}.`;
+    if (u !== 'day' || limits.day === undefined) return grows;
+    return `${grows} It will not go above ${limits.day} a day, ${capped.length ? capped.map((i) => i.title.toLowerCase()).join(' and ') : "Meta's messaging limit"}.`;
+  };
 
   const rows: [string, (u: (typeof units)[number][0]) => Node | string, string?][] = [
     ['This window', (u) => pair(windows[u].current, windows[u].currentAttempts)],
@@ -171,7 +176,7 @@ function renderLimitTable(data: PhoneNumberDoc, nowMs: number) {
 
 // Messages sent come from the date-keyed usage counters (previous period = the earlier key);
 // rate limiting from the relay's window counts, advanced to now the same way the relay does.
-function renderStats(data: PhoneNumberDoc) {
+function renderStats(data: NumberView) {
   const now = new Date();
   const usage = data.usage ?? {};
   const dayAgo = new Date(now.getTime() - 86_400_000);
@@ -206,11 +211,12 @@ function syncText(s: SyncStatus | undefined): string {
   if (!s || s.state === 'none') return 'not requested';
   if (s.state === 'requesting') return 'being requested';
   if (s.state === 'failed') return `failed (${s.error ?? 'unknown error'})`;
+  if (s.state === 'skipped') return 'skipped';
   return `requested ${new Date(s.at ?? 0).toLocaleString()}`;
 }
 
 /** For a coexistence number: when the contacts and history syncs were requested. */
-function renderSyncCard(data: PhoneNumberDoc) {
+function renderSyncCard(data: NumberView) {
   const card = el('onboarding-card');
   card.replaceChildren();
   const line = (text: string, className = 'text-on-surface-variant font-body-md text-sm') => {
@@ -226,12 +232,12 @@ function renderSyncCard(data: PhoneNumberDoc) {
   card.classList.remove('hidden');
 }
 
-// The rules let just the owner read phoneNumbers/{phoneNumberId}. Returns false if the record
+// Only the owner gets a number's record (getNumber). Returns false if the record
 // is missing or isn't this user's; the page still works then, just without the saved details.
 async function loadRecord(): Promise<boolean> {
-  let data: PhoneNumberDoc | undefined;
+  let data: NumberView | undefined;
   try {
-    data = (await getDoc(doc(db, 'phoneNumbers', phoneNumberId))).data() as PhoneNumberDoc | undefined;
+    data = await fetchNumber(phoneNumberId);
   } catch {
     return false;
   }
@@ -249,18 +255,203 @@ async function loadRecord(): Promise<boolean> {
   }
   // A number that needs a step (no URL saved, no longer connected, syncs not requested, or onboarding
   // unfinished) goes to the wizard, which opens at that step.
-  if (effectiveStep(data) !== 'done') {
+  if (data.step !== 'done') {
     location.replace(`/dashboard/waba/create.html?id=${encodeURIComponent(phoneNumberId)}`);
     return true;
   }
   renderSyncCard(data);
+  renderChips(data);
+  void renderNotifications();
   renderStats(data);
   return true;
 }
 
+// --- Sending status chips and their popup ------------------------------------------
+
+const STATUS_CHIP = {
+  ok: ['OK', 'bg-primary/10 text-primary'],
+  limit: ['Limited', 'bg-amber-100 text-amber-900'],
+  block: ['Blocked', 'bg-error/10 text-error'],
+  // Nothing at all is sent; it reads as Blocked, and the popup says why.
+  disable: ['Blocked', 'bg-error/10 text-error'],
+} as const;
+const SCOPE_TITLE: Record<Scope, string> = { account: 'Account status', business: 'Business status', display_name: 'Display name', phone: 'Number status' };
+
+const NEUTRAL = 'bg-surface-container text-on-surface-variant';
+
+const dialog = el<HTMLDialogElement>('health-dialog');
+let shown: NumberView | undefined;
+
+/** One chip per scope in the Status section: OK, Limited or Blocked, and what it is behind. */
+function renderChips(data: NumberView) {
+  shown = data;
+  for (const scope of SCOPES) {
+    const status = data.health?.[scope]?.status;
+    const [text, classes] = !data.health ? (['Not checked', NEUTRAL] as const) : STATUS_CHIP[status ?? 'ok'];
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `rounded-full px-3 py-1 label-strong inline-flex items-center gap-1 ${classes}`;
+    button.setAttribute('aria-haspopup', 'dialog');
+    button.append(text);
+    const icon = document.createElement('span');
+    icon.className = 'material-symbols-outlined text-[16px]';
+    icon.textContent = 'info';
+    button.append(icon);
+    button.addEventListener('click', () => openDialog(scope));
+    el(`chip-${scope}`).replaceChildren(button);
+  }
+  renderRefresh(data);
+}
+
+/** When Meta was last asked, and whether the refresh can be used yet. */
+function renderRefresh(data: NumberView) {
+  const fetchedAt = data.metaFetchedAt;
+  el('hd-checked').textContent = fetchedAt ? `Last checked ${new Date(fetchedAt).toLocaleString()}` : 'Never checked';
+  const next = fetchedAt ? fetchedAt + REFRESH_MIN_INTERVAL_MS : 0;
+  const wait = next > Date.now();
+  el<HTMLButtonElement>('refresh-btn').disabled = wait;
+  el('refresh-status').textContent = wait
+    ? `Meta can be asked again at ${new Date(next).toLocaleTimeString()}.`
+    : 'Meta is asked at most once in ten minutes.';
+}
+
+function paragraph(text: string, className = ''): HTMLParagraphElement {
+  const p = document.createElement('p');
+  p.className = className;
+  p.textContent = text;
+  return p;
+}
+
+function openDialog(scope: Scope) {
+  if (!shown) return;
+  const health = shown.health;
+  const status = health?.[scope]?.status ?? 'ok';
+  el('hd-title').textContent = `${SCOPE_TITLE[scope]}: ${health ? STATUS_CHIP[status][0] : 'not checked'}`;
+
+  const body = el('hd-body');
+  body.replaceChildren();
+  const issues = issuesOf(health?.[scope]).map(([, issue]) => issue);
+  if (!health) {
+    body.append(paragraph("Meta hasn't been asked about this number yet. Enter your API key and refresh."));
+  } else if (!issues.length) {
+    body.append(paragraph('Nothing needs your attention.'));
+  }
+  for (const issue of issues) {
+    const item = document.createElement('div');
+    item.className = 'flex flex-col gap-1';
+    item.append(paragraph(issue.title, 'text-on-surface font-bold'), paragraph(issue.message));
+    if (issue.link) {
+      const link = document.createElement('a');
+      link.href = issue.link;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.className = 'text-primary font-bold hover:underline w-fit';
+      link.textContent = 'Open it →';
+      item.append(link);
+    }
+    body.append(item);
+  }
+  if (scope === 'display_name' && shown.displayName?.name) {
+    body.append(paragraph(`Current display name: ${shown.displayName.name} (${shown.displayName.status ?? 'status unknown'}).`));
+  }
+  // A new name can be requested unless one is already waiting for Meta's decision.
+  const pending = /PENDING/i.test(shown.displayName?.requestedStatus ?? '');
+  el('hd-name').classList.toggle('hidden', scope !== 'display_name' || pending);
+
+  el('hd-status').textContent = '';
+  dialog.showModal();
+}
+
+el('hd-close').addEventListener('click', () => dialog.close());
+dialog.addEventListener('click', (event) => {
+  if (event.target === dialog) dialog.close();
+});
+
+/** Calls /numbers/<this number> with the key from the popup, which opens the stored token. */
+async function callWithKey(method: 'GET' | 'PUT', path: string, body?: object) {
+  const res = await fetch(`${functionsBase()}/numbers/${encodeURIComponent(phoneNumberId)}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKeyInput.value.trim()}` },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; metaError?: string };
+  if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+const hasKey = () => isValidApiKey(apiKeyInput.value.trim());
+
+el('refresh-btn').addEventListener('click', async () => {
+  const status = el('refresh-status');
+  if (!hasKey()) {
+    status.textContent = 'Enter your API key first.';
+    return;
+  }
+  el<HTMLButtonElement>('refresh-btn').disabled = true;
+  status.textContent = 'Asking Meta…';
+  try {
+    const result = await callWithKey('GET', '?refresh=true');
+    if (result.metaError) throw new Error(result.metaError);
+    location.reload();
+  } catch (err) {
+    status.textContent = errorMessage(err);
+    el<HTMLButtonElement>('refresh-btn').disabled = false;
+  }
+});
+
+el('hd-name-btn').addEventListener('click', async () => {
+  const status = el('hd-status');
+  const displayName = el<HTMLInputElement>('hd-name-input').value.trim();
+  if (!hasKey() || displayName.length < 3) {
+    status.textContent = 'Enter your API key and a name of at least 3 characters.';
+    return;
+  }
+  el<HTMLButtonElement>('hd-name-btn').disabled = true;
+  status.textContent = 'Sending the request to Meta…';
+  try {
+    await callWithKey('PUT', '/display-name', { displayName });
+    location.reload();
+  } catch (err) {
+    status.textContent = `Not sent: ${errorMessage(err)}`;
+    el<HTMLButtonElement>('hd-name-btn').disabled = false;
+  }
+});
+
+// --- Notifications: what Meta told us, newest first ---------------------------------
+
+const SEVERITY_DOT = { critical: 'bg-error', warning: 'bg-amber-500', info: 'bg-outline-variant' } as const;
+let nextBefore: number | undefined;
+
+async function renderNotifications(more = false) {
+  el('notifications-card').classList.remove('hidden');
+  const list = el('notifications-list');
+  try {
+    const page = await fetchNotifications(phoneNumberId, more ? nextBefore : undefined);
+    if (!more) list.replaceChildren();
+    for (const n of page.notifications) {
+      const item = document.createElement('li');
+      item.className = 'py-3 flex gap-3 items-start';
+      const dot = document.createElement('span');
+      dot.className = `mt-1.5 h-2.5 w-2.5 rounded-full flex-shrink-0 ${SEVERITY_DOT[n.severity]}`;
+      const text = document.createElement('div');
+      text.className = 'flex flex-col gap-0.5 min-w-0';
+      text.append(paragraph(n.title, 'text-on-surface font-bold'), paragraph(n.message, 'text-on-surface-variant font-body-md text-sm'), paragraph(new Date(n.eventAt).toLocaleString(), 'label-muted'));
+      item.append(dot, text);
+      list.append(item);
+    }
+    nextBefore = page.nextBefore;
+    el('notifications-more').classList.toggle('hidden', !page.nextBefore);
+    el('notifications-empty').classList.toggle('hidden', list.children.length > 0);
+  } catch {
+    el('notifications-empty').textContent = 'Could not load the notifications.';
+    el('notifications-empty').classList.remove('hidden');
+  }
+}
+el('notifications-more').addEventListener('click', () => void renderNotifications(true));
+
 // --- Override incoming message URL ------------------------------------------
 el('chatbot-env').textContent =
-  `WEBHOOK_VERIFY_TOKEN=${WEBHOOK_VERIFY_TOKEN}\nRELAY_BASE=${functionsBase()}/relayMessage\nWATOBOT_API_KEY=`;
+  `WEBHOOK_VERIFY_TOKEN=${WEBHOOK_VERIFY_TOKEN}\nRELAY_BASE=${functionsBase()}/numbers\nWATOBOT_API_KEY=`;
 el('copy-env-btn').addEventListener('click', async () => {
   await navigator.clipboard.writeText(el('chatbot-env').textContent ?? '');
   el('copy-env-btn').textContent = 'Copied';
@@ -279,10 +470,10 @@ overrideBtn.addEventListener('click', async () => {
   overrideBtn.disabled = true;
   overrideStatus.textContent = 'Checking your URL and updating WhatsApp…';
   try {
-    const res = await fetch(`${functionsBase()}/setWebhook`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phoneNumberId, apiKey, overrideCallbackUrl } satisfies SetWebhookRequest),
+    const res = await fetch(`${functionsBase()}/numbers/${encodeURIComponent(phoneNumberId)}/webhook`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ overrideCallbackUrl } satisfies Partial<SetWebhookRequest>),
     });
     const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     if (!res.ok || !body.ok) {
@@ -317,7 +508,7 @@ function renderCommands() {
     template: { name: 'hello_world', language: { code: 'en_US' } },
   });
   el<HTMLTextAreaElement>('send-command').value = [
-    `curl -X POST '${base}/relayMessage/${phoneNumberId}/messages' \\`,
+    `curl -X POST '${base}/numbers/${phoneNumberId}/messages' \\`,
     `  ${auth} \\`,
     `  ${json} \\`,
     `  -d '${message}'`,
@@ -331,7 +522,7 @@ function renderCommands() {
     text: { body: 'Hello from Watobot' },
   });
   el<HTMLTextAreaElement>('send-text-command').value = [
-    `curl -X POST '${base}/relayMessage/${phoneNumberId}/messages' \\`,
+    `curl -X POST '${base}/numbers/${phoneNumberId}/messages' \\`,
     `  ${auth} \\`,
     `  ${json} \\`,
     `  -d '${text}'`,
@@ -344,13 +535,13 @@ function renderCommands() {
     `  -d '${JSON.stringify({ phoneNumberId, apiKey: key })}'`,
   ].join('\n');
   el<HTMLTextAreaElement>('tpl-migrate-command').value = [
-    `curl -X POST '${base}/templates/${phoneNumberId}/migrate' \\`,
+    `curl -X POST '${base}/templatesBulk/${phoneNumberId}/migrate' \\`,
     `  ${auth} \\`,
     `  ${json} \\`,
     `  -d '${JSON.stringify({ sourceWabaId: 'PREVIOUS_MESSAGING_ACCOUNT_ID' })}'`,
   ].join('\n');
   el<HTMLTextAreaElement>('tpl-import-command').value = [
-    `curl -X POST '${base}/templates/${phoneNumberId}/import' \\`,
+    `curl -X POST '${base}/templatesBulk/${phoneNumberId}/import' \\`,
     `  ${auth} \\`,
     `  ${json} \\`,
     `  -d '{"templates":[ ...the exported templates... ]}'`,

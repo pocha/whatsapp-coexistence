@@ -17,14 +17,45 @@ let db;
 let idToken;
 let userId;
 
-const post = (path, body, headers = {}) =>
-  fetch(`${FUNCTIONS_BASE}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify(body),
+// Calls to the Functions. The calls about a number go to the `numbers` API (see numbersApi.ts), where the
+// number ID is in the path and the key is the bearer token; the tests below keep naming them by what they
+// do, and this maps each name onto its route.
+const NUMBER_ROUTES = {
+  listNumbers: ['GET', () => '/numbers'],
+  getNumber: ['GET', (id) => `/numbers/${id}`],
+  setWebhook: ['PUT', (id) => `/numbers/${id}/webhook`],
+  setDisplayName: ['PUT', (id) => `/numbers/${id}/display-name`],
+  registerNumber: ['POST', (id) => `/numbers/${id}/register`],
+  deregisterNumber: ['POST', (id) => `/numbers/${id}/deregister`],
+  disconnectNumber: ['POST', (id) => `/numbers/${id}/disconnect`],
+  startSync: ['POST', (id) => `/onboarding/${id}/sync`],
+  skipSync: ['POST', (id) => `/onboarding/${id}/sync/skip`],
+  setOnboardingStep: ['PUT', (id) => `/onboarding/${id}/step`],
+};
+// Calls that come before there is a number: the body is unchanged, only the path differs.
+const PLAIN_ROUTES = {
+  exchangeCode: '/numbers',
+  checkCallbackUrl: '/onboarding/callback-check',
+  sendTestEvents: '/onboarding/test-events',
+  verifyTestCodes: '/onboarding/test-codes',
+};
+
+const post = (path, body, headers = {}) => {
+  const route = NUMBER_ROUTES[path.slice(1)];
+  if (!route) {
+    return fetch(`${FUNCTIONS_BASE}${PLAIN_ROUTES[path.slice(1)] ?? path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
+  }
+  const { phoneNumberId, apiKey, refresh, ...rest } = body ?? {};
+  const [method, urlFor] = route;
+  return fetch(`${FUNCTIONS_BASE}${urlFor(phoneNumberId)}${refresh ? '?refresh=true' : ''}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(apiKey !== undefined ? { Authorization: `Bearer ${apiKey}` } : {}), ...headers },
+    body: method === 'GET' ? undefined : JSON.stringify(rest),
   });
+};
 
 const asUser = () => ({ Authorization: `Bearer ${idToken}` });
+const FieldValueDelete = () => require('firebase-admin').firestore.FieldValue.delete();
 
 async function seedNumber(phoneNumberId, wabaId, key = KEY) {
   await db.collection('phoneNumbers').doc(phoneNumberId).set({
@@ -70,7 +101,7 @@ test('webhook GET verify handshake echoes the challenge for a matching token', a
 test('exchangeCode stores the Meta token encrypted under the API key and never returns it', async () => {
   const res = await post(
     '/exchangeCode',
-    { code: 'fake-signup-code', wabaId: '111', phoneNumberId: '222', apiKey: KEY, event: 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING' },
+    { code: 'c:111', wabaId: '111', phoneNumberId: '222', apiKey: KEY, event: 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING' },
     asUser(),
   );
   const body = await res.json();
@@ -87,7 +118,7 @@ test('exchangeCode stores the Meta token encrypted under the API key and never r
 });
 
 test('exchangeCode refuses a wrong API key and an unauthenticated caller', async () => {
-  const body = { code: 'c', wabaId: '111', phoneNumberId: '223', apiKey: NEW_KEY, event: 'FINISH' };
+  const body = { code: 'c:111', wabaId: '111', phoneNumberId: '222', apiKey: NEW_KEY, event: 'FINISH' };
   assert.equal((await post('/exchangeCode', body, asUser())).status, 401);
   assert.equal((await post('/exchangeCode', { ...body, apiKey: KEY })).status, 401);
   assert.equal((await db.collection('phoneNumbers').doc('223').get()).exists, false);
@@ -127,10 +158,10 @@ test('setWebhook needs the API key, then verifies the endpoint and subscribes, w
   assert.equal(badEndpoint.status, 400);
 });
 
-test('relayMessage authenticates with the API key, sends with the decrypted Meta token, and records usage', async () => {
+test('the relay authenticates with the API key, sends with the decrypted Meta token, and records usage', async () => {
   await seedNumber('555', '666');
   const send = (key) =>
-    fetch(`${FUNCTIONS_BASE}/relayMessage/555/messages`, {
+    fetch(`${FUNCTIONS_BASE}/numbers/555/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
       body: JSON.stringify({ messaging_product: 'whatsapp', to: '15551234567', type: 'text', text: { body: 'hi' } }),
@@ -148,13 +179,10 @@ test('relayMessage authenticates with the API key, sends with the decrypted Meta
 
 test('template sends are rate limited per number, and free-form text is not', async () => {
   await seedNumber('556', '667');
-  // A per-number override, so the test needs only a few sends: every window allows 2, with no growth.
-  const tight = { floor: 2, growthPercent: 0 };
-  await db.collection('phoneNumbers').doc('556').update({
-    rateLimits: { headroomSigmas: 0, minute: tight, hour: tight, day: tight },
-  });
+  // A ceiling from the number's health, so the test needs only a few sends: the day allows 2.
+  await db.collection('phoneNumbers').doc('556').update({ health: require('../../lib/helpers/rules').settle({ phone: { quality: { send: 'limit', title: 't', message: 'm', at: 1, limits: { day: 2 } } } }, Date.now()) });
   const send = (message) =>
-    fetch(`${FUNCTIONS_BASE}/relayMessage/556/messages`, {
+    fetch(`${FUNCTIONS_BASE}/numbers/556/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
       body: JSON.stringify({ messaging_product: 'whatsapp', to: '15551234567', ...message }),
@@ -162,7 +190,7 @@ test('template sends are rate limited per number, and free-form text is not', as
   const template = { type: 'template', template: { name: 'hello_world', language: { code: 'en_US' } } };
 
   const limits = (key = KEY) =>
-    fetch(`${FUNCTIONS_BASE}/relayMessage/556/limits`, { headers: { Authorization: `Bearer ${key}` } });
+    fetch(`${FUNCTIONS_BASE}/numbers/556/limits`, { headers: { Authorization: `Bearer ${key}` } });
 
   // Before anything is sent, the whole allowance is there.
   const start = await (await limits()).json();
@@ -222,7 +250,7 @@ const numberDoc = async (id) => (await db.collection('phoneNumbers').doc(id).get
 async function onboard(phoneNumberId, event) {
   const exchanged = await post(
     '/exchangeCode',
-    { code: 'c', wabaId: `9${phoneNumberId}`, phoneNumberId, apiKey: KEY, event },
+    { code: `c:9${phoneNumberId}`, wabaId: `9${phoneNumberId}`, phoneNumberId, apiKey: KEY, event },
     asUser(),
   );
   assert.equal(exchanged.status, 200, JSON.stringify(await exchanged.clone().json()));
@@ -243,6 +271,68 @@ test('a coexistence signup goes on to the sync step and is never registered; a p
   assert.equal((await numberDoc('224')).isOnBizApp, false);
 });
 
+test('onboarding with no callback URL subscribes without an override, skips the syncs, and still counts as set up', async () => {
+  const exchange = (id, event) => post('/exchangeCode', { code: `c:9${id}`, wabaId: `9${id}`, phoneNumberId: id, apiKey: KEY, event }, asUser());
+
+  assert.equal((await exchange('2280', 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING')).status, 200);
+  const none = await post('/setWebhook', { phoneNumberId: '2280', apiKey: KEY, noCallback: true });
+  const body = await none.json();
+  assert.equal(none.status, 200, JSON.stringify(body));
+  assert.equal(body.step, 'templates', 'there is nowhere to send the syncs, so the sync step is passed');
+  const saved = await numberDoc('2280');
+  assert.equal(saved.callbackSkipped, true);
+  assert.equal(saved.overrideUrl, undefined);
+  assert.equal(saved.sync.contacts.state, 'skipped');
+  assert.equal(saved.sync.history.state, 'skipped');
+  const one = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '2280' })).json();
+  assert.equal(one.number.step, 'templates', 'not sent back to the callback step');
+  assert.equal((await post('/setOnboardingStep', { phoneNumberId: '2280', apiKey: KEY, step: 'done' })).status, 200);
+
+  assert.equal((await exchange('2281', 'FINISH')).status, 200);
+  const apiOnly = await (await post('/setWebhook', { phoneNumberId: '2281', apiKey: KEY, noCallback: true })).json();
+  assert.equal(apiOnly.step, 'not_on_app', 'an API-only number still chooses what to do');
+
+  assert.equal((await post('/setWebhook', { phoneNumberId: '2281', apiKey: KEY })).status, 400, 'a URL or noCallback is needed');
+});
+
+test('skipping the sync marks both as skipped, moves on, and cannot be done twice', async () => {
+  const done = await onboard('2283', 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING');
+  assert.equal(done.body.step, 'sync');
+  const skipped = await post('/skipSync', { phoneNumberId: '2283', apiKey: KEY });
+  assert.equal(skipped.status, 200);
+  assert.equal((await skipped.json()).step, 'templates');
+  const saved = await numberDoc('2283');
+  assert.equal(saved.sync.contacts.state, 'skipped');
+  assert.equal(saved.sync.history.state, 'skipped');
+  assert.equal(saved.overrideUrl, BUSINESS_ENDPOINT, 'the URL is kept');
+  assert.equal((await post('/skipSync', { phoneNumberId: '2283', apiKey: KEY })).status, 409);
+  assert.equal((await post('/skipSync', { phoneNumberId: '2283', apiKey: NEW_KEY })).status, 401);
+});
+
+test('sign-up refuses IDs Meta does not back, and a number that belongs to another Watobot account', async () => {
+  const exchange = (code, wabaId, phoneNumberId) => post('/exchangeCode', { code, wabaId, phoneNumberId, apiKey: KEY, event: 'FINISH' }, asUser());
+
+  // The token was granted WABA 9990, but the browser says another one.
+  const wrongWaba = await exchange('c:9990', '9991', '991');
+  assert.equal(wrongWaba.status, 403);
+  assert.equal((await db.collection('phoneNumbers').doc('991').get()).exists, false, 'nothing is stored');
+
+  // The token covers WABA 9990, which does not list the number the browser names.
+  const wrongNumber = await exchange('c:9990', '9990', '222');
+  assert.equal(wrongNumber.status, 403);
+
+  // A number that is on another Watobot account is not replaced, even with a real grant for it.
+  await db.collection('phoneNumbers').doc('992').set({ userId: 'someone-else', wabaId: '9992', phoneNumberId: '992', onboarding: { step: 'done', event: 'FINISH', updatedAt: 1 } });
+  const taken = await exchange('c:9992', '9992', '992');
+  assert.equal(taken.status, 409);
+  assert.equal((await db.collection('phoneNumbers').doc('992').get()).data().userId, 'someone-else', 'the owner is unchanged');
+
+  // When Meta's list of a WABA's numbers can't be read, the token reading the number is enough.
+  const fallback = await exchange('c:9777', '9777', '777');
+  assert.equal(fallback.status, 200, JSON.stringify(await fallback.json()));
+  assert.equal((await db.collection('phoneNumbers').doc('777').get()).data().userId, userId);
+});
+
 test('register refuses a number on the Business app, moves a plain number on, and keeps the step when Meta refuses', async () => {
   const register = (id) => post('/registerNumber', { phoneNumberId: id, apiKey: KEY, pin: '123456' });
 
@@ -254,6 +344,12 @@ test('register refuses a number on the Business app, moves a plain number on, an
   const ok = await register('224');
   assert.equal(ok.status, 200);
   assert.equal((await ok.json()).step, 'templates');
+
+  // Registering straight from the "not on the app" choice screen moves on as well.
+  await seedNumber('238', '9238');
+  await db.collection('phoneNumbers').doc('238').update({ callbackSkipped: true, onboarding: { step: 'not_on_app', event: 'FINISH', updatedAt: 1 } });
+  assert.equal((await (await register('238')).json()).step, 'templates');
+  assert.equal((await numberDoc('238')).onboarding.step, 'templates');
 
   await seedNumber('229', '9229');
   await db.collection('phoneNumbers').doc('229').update({ onboarding: { step: 'register', event: 'FINISH', updatedAt: 1 } });
@@ -285,7 +381,7 @@ test('each sync can be requested once: contacts first, no repeat after it was ac
 
 test('templates: a source we cannot read sends the user to their provider; a readable one is copied', async () => {
   const migrate = (sourceWabaId) =>
-    fetch(`${FUNCTIONS_BASE}/templates/222/migrate`, {
+    fetch(`${FUNCTIONS_BASE}/templatesBulk/222/migrate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
       body: JSON.stringify({ sourceWabaId }),
@@ -337,7 +433,7 @@ test('disconnecting: an API-only number is unsubscribed and de-registered, a coe
 });
 
 test('de-registering a plain number sends it to the register step', async () => {
-  const { effectiveStep } = require('../../lib/helpers/onboardingSteps');
+  const { effectiveStep } = require('../../lib/helpers/onboarding');
   await db.collection('phoneNumbers').doc('241').set({
     userId,
     wabaId: '9241',
@@ -359,6 +455,260 @@ test('de-registering a plain number sends it to the register step', async () => 
   // Registering it again brings it back to done, with nothing else to do.
   const registered = await (await post('/registerNumber', { phoneNumberId: '241', apiKey: KEY, pin: '123456' })).json();
   assert.equal(registered.step, 'done');
+});
+
+test('the wizard checks take the API key as well as a sign-in, and refuse anything else', async () => {
+  const withKey = await post('/checkCallbackUrl', { apiKey: KEY, overrideCallbackUrl: BUSINESS_ENDPOINT });
+  assert.equal(withKey.status, 200);
+  const withToken = await post('/checkCallbackUrl', { overrideCallbackUrl: BUSINESS_ENDPOINT }, asUser());
+  assert.equal(withToken.status, 200, 'the dashboard still signs in');
+  assert.equal((await post('/checkCallbackUrl', { apiKey: NEW_KEY, overrideCallbackUrl: BUSINESS_ENDPOINT })).status, 401, 'a key nobody has');
+  assert.equal((await post('/checkCallbackUrl', { apiKey: 'nope', overrideCallbackUrl: BUSINESS_ENDPOINT })).status, 401, 'not even a key');
+  assert.equal((await post('/checkCallbackUrl', { overrideCallbackUrl: BUSINESS_ENDPOINT })).status, 401, 'no credential at all');
+
+  const events = await post('/sendTestEvents', { apiKey: KEY, overrideCallbackUrl: BUSINESS_ENDPOINT });
+  assert.equal(events.status, 200, 'sending test events works with the key');
+  const codes = await post('/verifyTestCodes', { apiKey: KEY, codes: {} });
+  assert.equal(codes.status, 200, 'and so does checking the codes');
+});
+
+test('listNumbers and getNumber answer with the key or a sign-in, only for the caller\'s numbers, and never with the token', async () => {
+  await seedNumber('9501', '9511');
+  await db.collection('phoneNumbers').doc('9502').set({
+    userId: 'someone-else',
+    wabaId: '9512',
+    phoneNumberId: '9502',
+    encAccessToken: encryptToken(META_TOKEN, NEW_KEY),
+    onboarding: { step: 'done', event: 'FINISH', updatedAt: 1 },
+  });
+
+  for (const credentials of [{ body: { apiKey: KEY }, headers: {} }, { body: {}, headers: asUser() }]) {
+    const list = await post('/listNumbers', credentials.body, credentials.headers);
+    assert.equal(list.status, 200);
+    const text = JSON.stringify(await list.clone().json());
+    assert.equal(text.includes('encAccessToken') || text.includes('ciphertext'), false, 'the token is never in the answer');
+    const ids = (await list.json()).numbers.map((n) => n.phoneNumberId);
+    assert.ok(ids.includes('9501'), 'their number is listed');
+    assert.equal(ids.includes('9502'), false, 'someone else\'s is not');
+
+    const one = await (await post('/getNumber', { ...credentials.body, phoneNumberId: '9501' }, credentials.headers)).json();
+    assert.equal(one.number.hasToken, true);
+    assert.equal(one.number.step, 'override', 'the step is worked out on the server (no callback URL is saved)');
+    assert.equal(one.limits.windows.minute.limit > 0, true, 'the limits come with it');
+  }
+
+  assert.equal((await post('/getNumber', { apiKey: KEY, phoneNumberId: '9502' })).status, 404, 'someone else\'s number looks like it does not exist');
+  assert.equal((await post('/listNumbers', { apiKey: NEW_KEY })).status, 401);
+  assert.equal((await post('/listNumbers', {})).status, 401);
+});
+
+test('the hosted MCP server takes the key as a bearer token or in the path, refuses anything else, and its tools work', async () => {
+  await seedNumber('9601', '9611');
+  const rpc = (url, body, headers = {}) =>
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', ...headers },
+      body: JSON.stringify({ jsonrpc: '2.0', ...body }),
+    });
+  const asBearer = `${FUNCTIONS_BASE}/mcp`;
+  const inPath = (key) => `${FUNCTIONS_BASE}/mcp/${key}`;
+  const init = { id: 1, method: 'initialize', params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'test', version: '0' } } };
+
+  assert.equal((await rpc(asBearer, init)).status, 401, 'no key');
+  assert.equal((await rpc(inPath(NEW_KEY), init)).status, 401, 'a key nobody has');
+  assert.equal((await rpc(inPath('nope'), init)).status, 401, 'not a key');
+
+  for (const [url, headers] of [[asBearer, { Authorization: `Bearer ${KEY}` }], [inPath(KEY), {}]]) {
+    const hello = await (await rpc(url, init, headers)).json();
+    assert.equal(hello.result.serverInfo.name, 'watobot');
+    const tools = await (await rpc(url, { id: 2, method: 'tools/list' }, headers)).json();
+    assert.ok(tools.result.tools.length >= 19);
+
+    const list = await (await rpc(url, { id: 3, method: 'tools/call', params: { name: 'list_numbers', arguments: {} } }, headers)).json();
+    assert.notEqual(list.result.isError, true, JSON.stringify(list));
+    const text = list.result.content[0].text;
+    assert.ok(JSON.parse(text).numbers.some((n) => n.phoneNumberId === '9601'), 'it lists the caller\'s numbers');
+    assert.equal(text.includes(KEY) || text.includes('ciphertext'), false, 'neither the key nor a token comes back');
+  }
+  assert.equal((await fetch(inPath(KEY))).status, 405, 'only POST');
+});
+
+test('getNumber adds what Meta says right now when the key is given, part by part, and never the token', async () => {
+  await seedNumber('9801', '9811');
+  const withKey = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9801', refresh: true })).json();
+  assert.ok(withKey.meta, JSON.stringify(withKey));
+  assert.equal(withKey.meta.phone.ok, true);
+  assert.equal(withKey.meta.phone.data.quality_rating, 'GREEN');
+  assert.equal(withKey.meta.messagingLimit.data, 'TIER_250');
+  assert.equal(withKey.meta.subscribedApps.data[0].override_callback_uri, 'https://example.com/hook');
+  assert.equal(withKey.meta.ownership.ok, false, 'a part Meta refuses says why and hides nothing else');
+  assert.match(withKey.meta.ownership.error, /ownership not readable/);
+  assert.equal(withKey.meta.token.ok, true);
+  const text = JSON.stringify(withKey);
+  assert.equal(text.includes(META_TOKEN) || text.includes('ciphertext') || text.includes('encAccessToken'), false, 'no token anywhere in the answer');
+
+  const signedIn = await (await post('/getNumber', { phoneNumberId: '9801' }, asUser())).json();
+  assert.equal(signedIn.meta, undefined, 'a plain read never asks Meta');
+  assert.equal(signedIn.ok, true);
+  assert.ok(signedIn.nextRefreshAt > Date.now(), 'and says when Meta may be asked again');
+  assert.equal((await post('/getNumber', { phoneNumberId: '9801', refresh: true }, asUser())).status, 401, 'a refresh needs the key, not a sign-in');
+
+  // Meta is not asked twice within ten minutes: the second refresh is refused, with the stored status.
+  const again = await post('/getNumber', { apiKey: KEY, phoneNumberId: '9801', refresh: true });
+  assert.equal(again.status, 429);
+  assert.ok(Number(again.headers.get('retry-after')) > 0);
+  const refusedBody = await again.json();
+  assert.match(refusedBody.error, /can be asked again/);
+  assert.ok(refusedBody.number.hasToken !== undefined, 'the stored data comes with it');
+  const plain = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9801' })).json();
+  assert.equal(plain.meta, undefined, 'a read without refresh is always allowed');
+});
+
+test('a display name change is refused while one is in review, and goes to Meta otherwise', async () => {
+  await seedNumber('9803', '9813');
+  const waiting = await post('/setDisplayName', { phoneNumberId: '9803', apiKey: KEY, displayName: 'New Shop Name' });
+  assert.equal(waiting.status, 409);
+  assert.match((await waiting.json()).error, /already in review/);
+
+  await seedNumber('9806', '9816');
+  const accepted = await post('/setDisplayName', { phoneNumberId: '9806', apiKey: KEY, displayName: 'New Shop Name' });
+  assert.equal(accepted.status, 200);
+  assert.ok((await metaCalls()).some((c) => c.startsWith('POST /9806?new_display_name=New%20Shop%20Name')), 'Meta was asked');
+
+  assert.equal((await post('/setDisplayName', { phoneNumberId: '9806', apiKey: KEY, displayName: 'No' })).status, 400);
+  assert.equal((await post('/setDisplayName', { phoneNumberId: '9806', apiKey: NEW_KEY, displayName: 'New Shop Name' })).status, 401);
+});
+
+// ---- what Meta's webhooks do to a number's gates, and the notifications ----
+
+const crypto = require('node:crypto');
+const WEBHOOK_SECRET = () => require('node:fs').readFileSync(require('node:path').join(__dirname, '..', '..', '.env'), 'utf8').match(/^META_APP_SECRET=(.*)$/m)[1].trim();
+const hook = (wabaId, field, value, time = Math.floor(Date.now() / 1000)) => ({ object: 'whatsapp_business_account', entry: [{ id: wabaId, time, changes: [{ field, value }] }] });
+const send = (body) => {
+  const raw = JSON.stringify(body);
+  return fetch(`${FUNCTIONS_BASE}/webhook`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Hub-Signature-256': 'sha256=' + crypto.createHmac('sha256', WEBHOOK_SECRET()).update(raw).digest('hex') }, body: raw });
+};
+const relayTo = (id, body) => fetch(`${FUNCTIONS_BASE}/numbers/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` }, body: JSON.stringify(body) });
+const notificationsOf = async (id, query = '') => (await (await fetch(`${FUNCTIONS_BASE}/numbers/${id}/notifications${query}`, { headers: { Authorization: `Bearer ${KEY}` } })).json());
+const aTemplate = (name = 'hello') => ({ messaging_product: 'whatsapp', to: '15551234567', type: 'template', template: { name, language: { code: 'en_US' } } });
+const aText = { messaging_product: 'whatsapp', to: '15551234567', type: 'text', text: { body: 'hi' } };
+const nowS = () => Math.floor(Date.now() / 1000);
+
+test('the notifications come newest first in pages, only to the owner, and never hold a message', async () => {
+  await seedNumber('9907', '9917');
+  for (let i = 0; i < 5; i++) await send(hook('9917', 'security', { n: i }, nowS() + i));
+  await send(hook('9917', 'messages', { messages: [{ text: { body: 'a customer wrote this' } }] }, nowS() + 10));
+  const first = await notificationsOf('9907', '?limit=2');
+  assert.equal(first.notifications.length, 2);
+  assert.ok(first.nextBefore);
+  const second = await notificationsOf('9907', `?limit=2&before=${first.nextBefore}`);
+  assert.equal(second.notifications.length, 2);
+  assert.ok(first.notifications[1].eventAt > second.notifications[0].eventAt, 'older and older');
+  const all = await notificationsOf('9907', '?limit=50');
+  assert.equal(all.notifications.length, 5, 'the customer message was not kept');
+  assert.equal(JSON.stringify(all).includes('a customer wrote this'), false);
+  assert.equal((await fetch(`${FUNCTIONS_BASE}/numbers/9502/notifications`, { headers: { Authorization: `Bearer ${KEY}` } })).status, 404, 'not another account\'s number');
+  assert.equal((await fetch(`${FUNCTIONS_BASE}/numbers/9907/notifications`, { headers: { Authorization: `Bearer ${NEW_KEY}` } })).status, 401);
+});
+
+// ---- sending is gated by what is stored in health, whatever put it there ----
+
+// Issues as they would be stored, with the status and ceilings worked out as every write does.
+const { settle } = require('../../lib/helpers/rules');
+const seedHealth = (id, issues, extra = {}) => db.collection('phoneNumbers').doc(id).update({ health: settle(issues, Date.now()), ...extra });
+const issue = (send, extra = {}) => ({ send, title: 'a title', message: 'a message', at: 1, ...extra });
+const healthOf = async (id) => (await post('/getNumber', { apiKey: KEY, phoneNumberId: id })).json().then((r) => r.number.health);
+
+test('stored issues decide sending: disable stops everything, block stops templates, a limit on the day, a paused template is refused by name', async () => {
+  await seedNumber('9701', '9711');
+  await seedHealth('9701', { account: { ban: issue('disable') } });
+  assert.equal((await relayTo('9701', aText)).status, 403);
+  assert.equal((await relayTo('9701', aTemplate())).status, 403);
+
+  await seedNumber('9702', '9712');
+  await seedHealth('9702', { account: { payment: issue('block') } });
+  const blocked = await relayTo('9702', aTemplate());
+  assert.equal(blocked.status, 403);
+  assert.equal((await blocked.json()).issues[0].title, 'a title', 'it says why');
+  assert.equal((await relayTo('9702', aText)).status, 200, 'a reply still goes');
+
+  await seedNumber('9703', '9713');
+  await seedHealth('9703', { phone: { cooldown: issue('block', { until: Date.now() + 3_600_000 }) } });
+  const paused = await relayTo('9703', aTemplate());
+  assert.equal(paused.status, 429, 'a pause with an end is a wait, not a refusal');
+  assert.ok(Number(paused.headers.get('retry-after')) > 3000);
+
+  await seedNumber('9704', '9714');
+  await seedHealth('9704', { phone: { quality: issue('limit', { limits: { day: 3 } }) }, tier: 250 });
+  assert.equal((await healthOf('9704')).limits.day, 3, 'the lowest ceiling wins over Meta\'s 250');
+  const statuses = [];
+  for (let i = 0; i < 5; i++) statuses.push((await relayTo('9704', aTemplate())).status);
+  assert.deepEqual(statuses, [200, 200, 200, 429, 429]);
+
+  await seedNumber('9705', '9715');
+  await db.collection('phoneNumbers').doc('9705').update({ templates: { 'promo|en_US': { status: 'PAUSED', at: 1 } } });
+  assert.equal((await relayTo('9705', aTemplate('promo'))).status, 403);
+  assert.equal((await relayTo('9705', aTemplate('hello'))).status, 200);
+});
+
+test('Meta\'s webhooks update health: a ban and its lifting leave another issue alone, a flagged number is capped, and a repeat is kept once', async () => {
+  await seedNumber('9721', '9731');
+  await seedHealth('9721', { account: { payment: issue('block') } });
+  const ban = hook('9731', 'account_update', { event: 'DISABLED_UPDATE', ban_info: { waba_ban_state: ['DISABLE'] } }, nowS());
+  assert.equal((await send(ban)).status, 200);
+  assert.equal((await send(ban)).status, 200, 'Meta retries');
+  assert.equal((await healthOf('9721')).status, 'disable');
+  const notes = (await notificationsOf('9721')).notifications;
+  assert.equal(notes.length, 1, 'stored once');
+  assert.ok((await db.collection('phoneNumbers').doc('9721').collection('notifications').get()).docs[0].data().expireAt, 'with an expiry for the clean-up');
+
+  assert.equal((await send(hook('9731', 'account_update', { event: 'DISABLED_UPDATE', ban_info: { waba_ban_state: 'REINSTATE' } }, nowS() + 5))).status, 200);
+  const lifted = await healthOf('9721');
+  assert.equal(lifted.status, 'block', 'the payment problem is still there');
+  assert.deepEqual(Object.keys((await db.collection('phoneNumbers').doc('9721').get()).data().health.account).sort(), ['payment', 'status']);
+
+  assert.equal((await send(hook('9731', 'phone_number_quality_update', { display_phone_number: '1', event: 'FLAGGED', current_limit: 'TIER_10K' }, nowS() + 10))).status, 200);
+  assert.equal((await healthOf('9721')).limits.day, 5, 'flagged: a few a day, under Meta\'s 10K');
+  assert.equal((await send(hook('999999999', 'account_update', { event: 'ACCOUNT_DELETED' }))).status, 200, 'an account we do not hold is not an error');
+});
+
+test('refreshing from Meta stores what it finds and replaces what a webhook set', async () => {
+  await seedNumber('9801', '9811');
+  const blocked = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9801', refresh: true })).json();
+  assert.equal(blocked.number.health.status, 'block');
+  assert.equal(blocked.number.health.account.payment.title, 'Payment method problem');
+  assert.equal(blocked.number.health.limits.day, 250, 'Meta\'s daily limit');
+  assert.ok((await db.collection('phoneNumbers').doc('9801').get()).data().health.account.payment, 'stored');
+  assert.equal((await relayTo('9801', aTemplate())).status, 403);
+  assert.equal((await relayTo('9801', aText)).status, 200);
+
+  await seedNumber('9802', '9812');
+  const limited = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9802', refresh: true })).json();
+  assert.equal(limited.number.health.status, 'limit');
+  assert.deepEqual(Object.keys(limited.number.health).filter((k) => ['account', 'business', 'display_name', 'phone'].includes(k)).sort(), ['business', 'display_name']);
+  assert.equal(limited.number.health.limits.day, 5);
+
+  await seedNumber('9805', '9815');
+  await send(hook('9815', 'account_update', { event: 'DISABLED_UPDATE', ban_info: { waba_ban_state: 'DISABLE' } }, nowS() - 100));
+  assert.equal((await healthOf('9805')).status, 'disable');
+  const fine = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9805', refresh: true })).json();
+  assert.equal(fine.number.health.status, 'ok', 'Meta says the number is fine');
+  assert.ok((await notificationsOf('9805')).notifications.some((n) => n.field === 'refresh'), 'and the disagreement is written down');
+});
+
+test('a send Meta refuses is remembered: a payment problem blocks templates, a spam rate limit pauses them for an hour', async () => {
+  await seedNumber('9804', '9814');
+  assert.equal((await relayTo('9804', aText)).status, 400);
+  assert.ok((await db.collection('phoneNumbers').doc('9804').get()).data().health.account.payment);
+  assert.equal((await relayTo('9804', aTemplate())).status, 403);
+
+  await seedNumber('9908', '9918');
+  assert.equal((await relayTo('9908', aTemplate())).status, 400, 'Meta refuses with the spam rate limit');
+  const paused = await relayTo('9908', aTemplate());
+  assert.equal(paused.status, 429);
+  assert.ok(Number(paused.headers.get('retry-after')) > 3000, 'an hour');
+  assert.equal((await metaCalls()).filter((c) => c === 'POST /9908/messages').length, 1, 'the second never reached Meta');
+  assert.ok((await notificationsOf('9908')).notifications.some((n) => n.field === 'send'));
 });
 
 test('login: a new phone number gets a user, sets a key, and then needs that key to log in', async () => {

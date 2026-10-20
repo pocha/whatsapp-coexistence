@@ -83,6 +83,7 @@ function watchAndRebuild() {
   };
   // Page templates (views/) and the browser TypeScript (src/) both feed build-pages.js.
   for (const dir of [VIEWS_DIR, SRC_DIR]) fs.watch(dir, { recursive: true }, rebuild);
+  fs.watch(path.join(ROOT, 'README.md'), rebuild); // the Capabilities page is built from it
 }
 
 console.log('Building pages…');

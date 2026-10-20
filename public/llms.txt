@@ -1,13 +1,17 @@
-# WA Coexistence (Watobot)
+# Watobot
 
-> Get WhatsApp API access on a phone number you already use with the WhatsApp Business app, without a verified business. Coexistence lets you keep using the app normally while also building a chatbot on the API, through a WhatsApp Business Account (WABA). We are a Meta Tech Provider (approval pending), so you don't need to create your own Meta app. Free for the first 10 numbers.
+> Get WhatsApp API access on a phone number you already use with the WhatsApp Business app, without a verified business. Coexistence lets you keep using the app normally while also building a chatbot on the API, through a WhatsApp Business Account (WABA). We are a Meta Tech Provider (approval pending), so you don't need to create your own Meta app. You can set it up from an AI tool (Claude, ChatGPT, Claude Code, Cursor) by adding the Watobot MCP server (address https://us-central1-wa-coexistence.cloudfunctions.net/mcp, with your Watobot API key as a Bearer token; steps in the first guide below). Completely free for the first 10 users. After that, free for up to 10 outgoing messages a day, then $5 a month for 100 a day and $1 per 1,000 beyond that (quotas are per number).
 
-Prerequisites: a phone number registered on the WhatsApp Business app, and an app (such as a chatbot) hosted at a public HTTPS URL that receives incoming messages. Your Meta access token is stored encrypted with a Watobot API key that only you hold, and incoming messages go straight from WhatsApp to your app.
+Prerequisites: a phone number registered on the WhatsApp Business app (or a number to run on the API alone). A public HTTPS URL for your own app is optional: it is only needed to receive incoming messages, delivery receipts and the one-time contacts and history sync. Your Meta access token is stored encrypted with a Watobot API key that only you hold, and incoming messages go straight from WhatsApp to your app.
+
+## Capabilities
+
+- [Capabilities: what Watobot supports](https://watobot.com/capabilities.html): Every call Watobot supports for a number (onboarding with coexistence or API only, sending and its limits, sending status and display name, message templates and their migration, de-registering and disconnecting) and the MCP server's tools, so you can check a capability exists before relying on it.
 
 ## Guides
 
+- [How to Connect Watobot to Claude, ChatGPT or Another AI Tool](https://watobot.com/how-to/connect-watobot-to-ai-tool.html): Add the Watobot MCP server to claude.ai, ChatGPT, Claude Code, Claude Desktop or Cursor, and let your AI tool guide you through getting WhatsApp API access with coexistence: what it does for you, what you still do yourself (the API key and Meta's sign-up), and how to keep your key safe.
 - [How to Get WhatsApp API Access in 5 Minutes](https://watobot.com/how-to/get-whatsapp-api-access-in-5-minutes.html): Connect your number through coexistence, save your Watobot API key, point incoming messages at your app and test both directions.
-- [Already Have WhatsApp API? How to Migrate to Watobot](https://watobot.com/how-to/migrate-existing-whatsapp-api-to-watobot.html): What moving a number from another provider or your own Meta app involves, and what to check first.
 - [How to Get WhatsApp API for Free](https://watobot.com/how-to/get-whatsapp-api-for-free.html): The do-it-yourself route: create your own Meta app, generate an access token and set up your webhook. This route does not give you coexistence.
 - [How to Create a Meta Business Portfolio and Add Your WhatsApp Number](https://watobot.com/how-to/create-meta-business-portfolio-add-whatsapp-number.html): Create a business portfolio without a registered business, add your WhatsApp number to it, and get ready to connect an app.
 - [How to Move Your WhatsApp API Number to Another Tech Provider or BSP](https://watobot.com/how-to/move-whatsapp-api-between-providers.html): How to tell whether you have a standard-onboarding (API-only) or a coexistence number, what to prepare (ownership, display name, two-step verification, payment method), the move for each kind, what carries over, and how to fix common errors.

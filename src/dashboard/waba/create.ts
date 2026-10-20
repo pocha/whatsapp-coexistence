@@ -3,8 +3,9 @@ import { META_APP_ID, META_CONFIG_ID, WEBHOOK_VERIFY_TOKEN } from '/assets/app-c
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
 import { isValidApiKey } from '/assets/api-key.js';
-import { callAsUser, keyMatchesAccount } from '/assets/account.js';
+import { callAsUser, fetchNumber, keyMatchesAccount } from '/assets/account.js';
 import { el, errorMessage } from '/assets/dom.js';
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 import { wireTestEvents } from '/assets/test-events.js';
 import type {
   ExchangeCodeRequest,
@@ -12,7 +13,7 @@ import type {
   MigrateTemplatesResponse,
   OnboardingResponse,
   OnboardingStep,
-  PhoneNumberDoc,
+  NumberView,
   RegisterNumberRequest,
   SetOnboardingStepRequest,
   SetWebhookRequest,
@@ -22,8 +23,6 @@ import type {
   SyncType,
   UserDoc,
 } from '../../../functions/src/helpers/types';
-import { effectiveStep } from '../../../functions/src/helpers/onboardingSteps';
-import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 // The onboarding wizard. Before Meta's popup opens it checks what the user will need afterwards
 // (a callback URL that handles the data Meta sends, the Business app, where their templates are).
@@ -33,13 +32,21 @@ import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase
 
 const params = new URLSearchParams(location.search);
 const resumeId = params.get('id');
+// A link from the MCP (or any tool) that has already done steps 2 to 4: it carries the callback URL
+// it checked. Nothing on the server depends on those steps, so the page takes the link's word for
+// it and, once the key is entered, goes straight to Meta's sign-up.
+const linkedChecks = params.get('checks') === 'done';
+const linkedCallback = linkedChecks ? (params.get('callback') ?? '') : '';
+// A link with no callback URL (or callback=none) means the user chose to onboard without one.
+const linkedNone = linkedChecks && !/^https?:\/\//.test(linkedCallback);
 
 const keyInput = el<HTMLInputElement>('key-input');
 const status = el('onboarding-status');
 const lastError = el('last-error');
 // The sub-views of steps 6 and 7. Steps 1 to 5 are plain panels.
-const VIEWS = ['view-override', 'view-not-on-app', 'view-register', 'view-sync', 'view-templates'];
+const VIEWS = ['view-handback', 'view-override', 'view-not-on-app', 'view-register', 'view-sync', 'view-templates'];
 const STEP_OF: Record<string, number> = {
+  'view-handback': 6,
   'view-override': 6,
   'view-not-on-app': 6,
   'view-register': 6,
@@ -100,6 +107,7 @@ function show(view: string | null) {
   goStep(STEP_OF[view]);
   // Step 6 is one of four things, depending on the number.
   const title: Record<string, string> = {
+    'view-handback': 'Back to your AI tool',
     'view-override': 'Connect your callback URL',
     'view-not-on-app': 'Choose how to continue',
     'view-register': 'Register the number',
@@ -135,10 +143,15 @@ let resumeStep: OnboardingStep | null = null;
 
 const apiKey = () => keyInput.value.trim();
 
-/** POSTs to a path under templates/<number> with the Watobot API key as the bearer token. */
-async function templatesCall<T extends { ok: boolean; error?: string }>(path: string, body: object): Promise<T> {
-  const res = await fetch(`${functionsBase()}/templates/${encodeURIComponent(phoneNumberId!)}/${path}`, {
-    method: 'POST',
+/** Calls /<resource>/<this number>/<path> with the Watobot API key as the bearer token (no sign-in needed). */
+async function withKey<T extends { ok: boolean; error?: string }>(
+  method: 'POST' | 'PUT',
+  resource: 'numbers' | 'onboarding' | 'templatesBulk',
+  path: string,
+  body: object = {},
+): Promise<T> {
+  const res = await fetch(`${functionsBase()}/${resource}/${encodeURIComponent(phoneNumberId!)}/${path}`, {
+    method,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey()}` },
     body: JSON.stringify(body),
   });
@@ -147,20 +160,8 @@ async function templatesCall<T extends { ok: boolean; error?: string }>(path: st
   return data;
 }
 
-/** POSTs to a Function with the Watobot API key as the credential (no sign-in needed). */
-async function withKey<T extends { ok: boolean; error?: string }>(fn: string, body: object): Promise<T> {
-  const res = await fetch(`${functionsBase()}/${fn}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phoneNumberId, apiKey: apiKey(), ...body }),
-  });
-  const data = (await res.json().catch(() => ({}))) as T;
-  if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
-}
-
-async function loadNumber(): Promise<PhoneNumberDoc | undefined> {
-  return (await getDoc(doc(db, 'phoneNumbers', phoneNumberId!))).data() as PhoneNumberDoc | undefined;
+async function loadNumber(): Promise<NumberView> {
+  return fetchNumber(phoneNumberId!);
 }
 
 // --- The key ---------------------------------------------------------------------------------
@@ -201,11 +202,24 @@ cbUrl.addEventListener('input', () => {
   refreshNav();
 });
 
+// No callback URL (nothing of theirs receives incoming messages), or no data test.
+let noCallback = false;
+let skipTest = false;
+function applyCallbackChoice() {
+  noCallback = el<HTMLInputElement>('cb-none').checked;
+  skipTest = el<HTMLInputElement>('cb-skip-test').checked;
+  el('cb-fields').classList.toggle('hidden', noCallback);
+  el('cb-none-note').classList.toggle('hidden', !noCallback);
+  el('cb-test').classList.toggle('hidden', skipTest);
+  refreshNav();
+}
+for (const id of ['cb-none', 'cb-skip-test']) el(id).addEventListener('change', applyCallbackChoice);
+
 el('cb-verify').addEventListener('click', async () => {
   const url = cbUrl.value.trim();
   cbStatus.textContent = 'Checking…';
   try {
-    await callAsUser(`${functionsBase()}/checkCallbackUrl`, { overrideCallbackUrl: url });
+    await callAsUser(`${functionsBase()}/onboarding/callback-check`, { overrideCallbackUrl: url });
     urlVerified = true;
     callbackUrl = url;
     cbStatus.textContent = 'Your URL answered Meta\'s handshake.';
@@ -218,7 +232,7 @@ el('cb-verify').addEventListener('click', async () => {
 
 // The test chatbot's settings, for someone who has no endpoint yet (same as on the number page).
 el('chatbot-env').textContent =
-  `WEBHOOK_VERIFY_TOKEN=${WEBHOOK_VERIFY_TOKEN}\nRELAY_BASE=${functionsBase()}/relayMessage\nWATOBOT_API_KEY=`;
+  `WEBHOOK_VERIFY_TOKEN=${WEBHOOK_VERIFY_TOKEN}\nRELAY_BASE=${functionsBase()}/numbers\nWATOBOT_API_KEY=`;
 el('copy-env-btn').addEventListener('click', async () => {
   await navigator.clipboard.writeText(el('chatbot-env').textContent ?? '');
   el('copy-env-btn').textContent = 'Copied';
@@ -234,6 +248,25 @@ const ID_RE = /^\d{8,20}$/;
 function countTemplates(parsed: unknown): number {
   const list = Array.isArray(parsed) ? parsed : (parsed as { data?: unknown })?.data;
   return Array.isArray(list) ? list.length : 0;
+}
+
+/** Marks steps 2 to 4 as done, as the link says they are. */
+function takeLinkedChecks() {
+  if (linkedNone) {
+    el<HTMLInputElement>('cb-none').checked = true;
+    applyCallbackChoice();
+  } else {
+    cbUrl.value = linkedCallback;
+    callbackUrl = linkedCallback;
+    urlVerified = true;
+    testCodesOk = true;
+  }
+  for (const id of ['cb-confirm', 'app-confirm']) el<HTMLInputElement>(id).checked = true;
+  const none = tplRadios.find((r) => r.value === 'none');
+  if (none) none.checked = true;
+  readTemplateChoice();
+  status.textContent = 'The checks were done in your AI tool. Enter your API key, then continue to Meta.';
+  refreshNav();
 }
 
 function readTemplateChoice() {
@@ -268,7 +301,9 @@ function missingFor(n: number): string | null {
     case 1:
       return keyVerified ? null : 'Enter your API key.';
     case 2:
+      if (noCallback) return null;
       if (!urlVerified) return 'Verify your callback URL.';
+      if (skipTest) return null;
       if (!el<HTMLInputElement>('cb-confirm').checked) return 'Confirm your endpoint stores the data.';
       return testCodesOk ? null : 'Send the test data and check the four codes.';
     case 3:
@@ -299,6 +334,10 @@ function refreshNav() {
 for (const id of ['cb-confirm', 'app-confirm']) el(id).addEventListener('change', refreshNav);
 
 nextBtn.addEventListener('click', async () => {
+  if (currentStep === 1 && linkedChecks) {
+    goStep(5);
+    return;
+  }
   // Picking up a number part-way through: the key is the only thing to ask again.
   if (currentStep === 1 && resumeStep) {
     await showStep(resumeStep);
@@ -389,7 +428,7 @@ async function maybeFinish() {
   exchanging = true;
   status.textContent = 'Connecting your number…';
   try {
-    await callAsUser(`${functionsBase()}/exchangeCode`, {
+    await callAsUser(`${functionsBase()}/numbers`, {
       code: signupCode,
       wabaId,
       phoneNumberId,
@@ -411,14 +450,33 @@ async function maybeFinish() {
 
 // --- The callback URL ------------------------------------------------------------------------
 
+let carryOnHere = false;
+let handedBackAt: OnboardingStep = 'done';
+el('handback-continue-btn').addEventListener('click', async () => {
+  carryOnHere = true;
+  await showStep(handedBackAt);
+});
+
 /** Subscribes the user's URL (and, for a number in the wizard, finds the next step). */
 async function connectOverride(url: string) {
-  busy('Pointing Meta at your URL…');
+  busy(noCallback && !url ? 'Finishing…' : 'Pointing Meta at your URL…');
   fail(undefined);
   try {
-    const res = await withKey<OnboardingResponse>('setWebhook', { overrideCallbackUrl: url } satisfies Partial<SetWebhookRequest>);
+    const res = await withKey<OnboardingResponse>(
+      'PUT',
+      'numbers',
+      'webhook',
+      (noCallback && !url ? { noCallback: true } : { overrideCallbackUrl: url }) satisfies Partial<SetWebhookRequest>,
+    );
     status.textContent = '';
-    await showStep(res.step ?? 'done');
+    const next = res.step ?? 'done';
+    // Opened from an AI tool's link: it carries on from here, unless the user chooses to stay.
+    if (linkedChecks && !carryOnHere && next !== 'done') {
+      handedBackAt = next;
+      show('view-handback');
+    } else {
+      await showStep(next);
+    }
   } catch (err) {
     status.textContent = '';
     fail(`Could not connect your URL: ${errorMessage(err)}`);
@@ -469,7 +527,7 @@ async function surfaceSavedError() {
 }
 
 async function moveTo(step: SetOnboardingStepRequest['step']) {
-  const res = await withKey<OnboardingResponse>('setOnboardingStep', { step });
+  const res = await withKey<OnboardingResponse>('PUT', 'onboarding', 'step', { step });
   await showStep(res.step ?? step);
 }
 
@@ -497,7 +555,7 @@ el('register-btn').addEventListener('click', async () => {
   el<HTMLButtonElement>('register-btn').disabled = true;
   out.textContent = 'Registering. This can take up to a minute…';
   try {
-    const res = await withKey<OnboardingResponse>('registerNumber', { pin } satisfies Partial<RegisterNumberRequest>);
+    const res = await withKey<OnboardingResponse>('POST', 'numbers', 'register', { pin } satisfies Partial<RegisterNumberRequest>);
     out.textContent = '';
     await showStep(res.step ?? 'templates');
   } catch (err) {
@@ -514,6 +572,7 @@ function describe(s: SyncStatus | undefined): string {
   if (!s || s.state === 'none') return 'not requested';
   if (s.state === 'requesting') return 'being requested…';
   if (s.state === 'failed') return `failed: ${s.error ?? 'unknown error'}`;
+  if (s.state === 'skipped') return 'skipped';
   return `requested ${new Date(s.at ?? 0).toLocaleString()}`;
 }
 
@@ -521,7 +580,7 @@ async function renderSync() {
   const data = await loadNumber();
   el('sync-contacts').textContent = describe(data?.sync?.contacts);
   el('sync-history').textContent = describe(data?.sync?.history);
-  const both = SYNC_TYPES.every((t) => data?.sync?.[t]?.state === 'requested');
+  const both = SYNC_TYPES.every((t) => data?.sync?.[t]?.state === 'requested' || data?.sync?.[t]?.state === 'skipped');
   const anyFailed = SYNC_TYPES.some((t) => data?.sync?.[t]?.state === 'failed');
   el<HTMLButtonElement>('sync-btn').disabled = both;
   el('sync-btn').textContent = anyFailed ? 'Retry' : 'Start sync';
@@ -539,13 +598,26 @@ el('sync-btn').addEventListener('click', async () => {
     for (const syncType of SYNC_TYPES) {
       const data = await loadNumber();
       if (data?.sync?.[syncType]?.state === 'requested') continue;
-      await withKey('startSync', { syncType } satisfies Partial<StartSyncRequest>);
+      await withKey('POST', 'onboarding', 'sync', { syncType } satisfies Partial<StartSyncRequest>);
     }
     out.textContent = 'Both requested. Your endpoint now receives the data.';
   } catch (err) {
     out.textContent = errorMessage(err);
   }
   await renderSync();
+});
+
+el('sync-skip-btn').addEventListener('click', async () => {
+  const sure = confirm(
+    "Meta sends the contacts and chat history only once, and only in the 24 hours after onboarding. If you skip it, it can't be requested later. Skip it?",
+  );
+  if (!sure) return;
+  try {
+    await withKey('POST', 'onboarding', 'sync/skip');
+    await showStep('templates');
+  } catch (err) {
+    el('sync-status').textContent = errorMessage(err);
+  }
 });
 
 el('sync-done-btn').addEventListener('click', async () => {
@@ -589,7 +661,7 @@ el('tpl2-migrate').addEventListener('click', async () => {
   el<HTMLButtonElement>('tpl2-migrate').disabled = true;
   out.textContent = 'Copying…';
   try {
-    const res = await templatesCall<MigrateTemplatesResponse>('migrate', { sourceWabaId });
+    const res = await withKey<MigrateTemplatesResponse>('POST', 'templatesBulk', 'migrate', { sourceWabaId });
     if (res.outcome === 'unreadable') {
       out.textContent = 'We can\'t read that account. Either Watobot has not been added as a partner on it, or it belongs to your provider. Check the partner step, or ask your provider for the template list and create them below.';
     } else {
@@ -618,7 +690,7 @@ el('tpl2-import').addEventListener('click', async () => {
   el<HTMLButtonElement>('tpl2-import').disabled = true;
   out.textContent = 'Creating… this can take a while.';
   try {
-    const res = await templatesCall<ImportTemplatesResponse>('import', { templates });
+    const res = await withKey<ImportTemplatesResponse>('POST', 'templatesBulk', 'import', { templates });
     const failed = res.failed ?? [];
     out.textContent =
       `${res.created} created, waiting for Meta's review.` +
@@ -640,6 +712,16 @@ el('tpl-finish').addEventListener('click', async () => {
 
 // --- Boot ------------------------------------------------------------------------------------
 
+/** Opens the window at the first step, for a new number. A number picked up again carries on below. */
+function openWizard() {
+  wizard.classList.remove('hidden');
+  goStep(1);
+  if (resumeId) return;
+  status.textContent = '';
+  if (linkedChecks) takeLinkedChecks();
+  initEmbeddedSignup();
+}
+
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     location.href = '/dashboard/';
@@ -654,14 +736,18 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  wizard.classList.remove('hidden');
-  goStep(1);
-
-  if (!resumeId) {
-    status.textContent = '';
-    initEmbeddedSignup();
+  // A fresh onboarding starts by choosing how. Picking a number up again, or coming from an AI tool's
+  // link, goes straight to the window.
+  if (!resumeId && !linkedChecks) {
+    el('chooser').classList.remove('hidden');
+    el('chooser-here').addEventListener('click', () => {
+      el('chooser').classList.add('hidden');
+      openWizard();
+    });
     return;
   }
+  openWizard();
+  if (!resumeId) return;
 
   // Picking up a number that is part-way through.
   const data = await loadNumber().catch(() => undefined);
@@ -669,7 +755,7 @@ onAuthStateChanged(auth, async (user) => {
     status.textContent = 'We could not find that number under your account.';
     return;
   }
-  const step = effectiveStep(data);
+  const step = data.step;
   if (step === 'done') {
     location.href = `/dashboard/waba/?id=${encodeURIComponent(resumeId)}`;
     return;
