@@ -19,12 +19,11 @@ import {
 import { newApp, type Handler } from './helpers/http';
 import { relayLimits } from './helpers/numberView';
 import { refreshHealth } from './helpers/healthRefresh';
-import { reasonsFromRefusal, templateGateFromRefusal } from './helpers/health';
+import { issuesFromRefusal, templateGateFromRefusal } from './helpers/health';
 import { sendDecision, templateKey } from './helpers/gates';
 import { applyEffects, type Effect } from './helpers/gateEvents';
 import { parseTemplateExport } from './helpers/templateImport';
-import { limitsView, UNITS, type RateState } from './helpers/rateLimiter';
-import type { RateLimitConfig } from './helpers/rateLimitConfig';
+import { limitsView, UNITS, type Limits, type RateState } from './helpers/rateLimiter';
 import { verifyEndpointChallenge } from './helpers/endpointCheck';
 import { HttpError } from './helpers/auth';
 import { failedRequest, logEvent } from './helpers/log';
@@ -274,8 +273,8 @@ export function isoWeekKey(d: Date): string {
 
 
 /** What is left in each window and when it resets, as headers on a template send, so a sender can pace itself. */
-function setRateHeaders(res: express.Response, state: RateState, config: RateLimitConfig, now: number) {
-  const windows = limitsView(state, config, now);
+function setRateHeaders(res: express.Response, state: RateState, earned: Limits, caps: Limits, now: number) {
+  const windows = limitsView(state, earned, caps, now);
   for (const unit of UNITS) {
     const name = unit[0].toUpperCase() + unit.slice(1);
     res.set(`X-RateLimit-Remaining-${name}`, String(windows[unit].remaining));
@@ -322,14 +321,14 @@ numbersApp.post('/:phoneNumberId/messages', async (req, res) => {
   if (!decision.allow) {
     logEvent('send refused', { phoneNumberId, status: decision.status });
     if (decision.retryAfterSeconds) res.set('Retry-After', String(decision.retryAfterSeconds));
-    res.status(decision.httpStatus).send({ error: decision.error, status: decision.status, reasons: decision.reasons, retryAfterSeconds: decision.retryAfterSeconds });
+    res.status(decision.httpStatus).send({ error: decision.error, status: decision.status, issues: decision.issues, retryAfterSeconds: decision.retryAfterSeconds });
     return;
   }
 
   // Only template messages are limited; free-form replies go straight through.
   if (req.body?.type === 'template') {
-    const { verdict, config, now } = await reserveTemplateSend(phoneNumberId);
-    if ('state' in verdict) setRateHeaders(res, verdict.state, config, now);
+    const { verdict, caps, now } = await reserveTemplateSend(phoneNumberId);
+    if ('state' in verdict) setRateHeaders(res, verdict.state, verdict.earned, caps, now);
     if (!verdict.allowed && 'unit' in verdict) {
       res.set('Retry-After', String(verdict.retryAfterSeconds));
       logEvent('template send limited', { phoneNumberId, window: verdict.unit, limit: verdict.limit });
@@ -375,19 +374,19 @@ numbersApp.post('/:phoneNumberId/messages', async (req, res) => {
 /** What a refused send tells us about the number or the template, as gates, and a line in the notifications. */
 async function rememberRefusal(phoneNumberId: string, error: { code?: number; message?: string } | undefined, key: string | undefined): Promise<void> {
   const at = Date.now();
-  const reasons = reasonsFromRefusal(error, at);
+  const issues = issuesFromRefusal(error, at);
   const template = templateGateFromRefusal(error, key, at);
-  const effects: Effect[] = [...reasons.map((reason) => ({ kind: 'raise' as const, reason })), ...(template ? [{ kind: 'template' as const, key: template.key, gate: template.gate }] : [])];
+  const effects: Effect[] = [...issues.map(({ scope, why, issue }) => ({ kind: 'set' as const, scope, why, issue })), ...(template ? [{ kind: 'template' as const, key: template.key, gate: template.gate }] : [])];
   if (!effects.length) return;
-  await updateGates(phoneNumberId, (doc) => applyEffects(doc, effects, at, at));
+  await updateGates(phoneNumberId, (doc) => applyEffects(doc, effects, at));
   const id = createHash('sha1').update(`send|${phoneNumberId}|${error?.code}|${Math.floor(at / 60000)}`).digest('hex');
   await addNotification(phoneNumberId, id, {
     eventAt: at,
     receivedAt: at,
     field: 'send',
     event: String(error?.code),
-    title: reasons[0]?.title ?? `Template ${template?.gate.status.toLowerCase()}`,
-    message: reasons[0]?.message ?? `Meta refused a send of "${key}": ${error?.message ?? 'the template is not available'}.`,
+    title: issues[0]?.issue.title ?? `Template ${template?.gate.status.toLowerCase()}`,
+    message: issues[0]?.issue.message ?? `Meta refused a send of "${key}": ${error?.message ?? 'the template is not available'}.`,
     severity: 'warning',
   });
 }

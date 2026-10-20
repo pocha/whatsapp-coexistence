@@ -1,18 +1,18 @@
-import { clear, counts, raise, settle, templateKeyOf } from './gates';
-import { LIMITED_DAILY_TEMPLATES } from './health';
-import { ALIASES, LINKS, NEVER_KEPT, PICK, RULES, type Rule } from './webhookRules';
-import type { DisplayNameState, GateCause, HealthReason, NotificationDoc, PhoneNumberDoc, TemplateGate } from './types';
+import { clearIssue, setIssue, templateKeyOf } from './gates';
+import { ALIASES, LINKS, NEVER_KEPT, PICK, RULES, type Rule } from './rules';
+import type { DisplayNameState, Issue, NotificationDoc, PhoneNumberDoc, Scope, TemplateGate, Why } from './types';
 
 // What Meta's webhooks tell us about a number's account, in two steps: parseWebhook turns a payload into
 // events (what to show in the Notifications, and what the event does to the gates) using the rows in
-// webhookRules.ts, and applyEffects applies those to a number's record. Both are pure. Only account-level
+// rules.ts, and applyEffects applies those to a number's record. Both are pure. Only account-level
 // fields are handled; a `messages` event, a history or contacts sync or an echo is never looked at, let alone kept.
 
 export type Effect =
-  | { kind: 'raise'; reason: HealthReason; /** Keep the worse of this and what that cause says now. */ keepWorse?: boolean }
-  | { kind: 'clear'; cause: GateCause }
+  | { kind: 'set'; scope: Scope; why: Why; issue: Issue }
+  | { kind: 'clear'; scope: Scope; why: Why }
+  /** Meta's daily messaging limit; null when there is none. */
+  | { kind: 'tier'; tier: number | null }
   | { kind: 'name'; patch: Partial<DisplayNameState> }
-  | { kind: 'tier'; tier: string }
   | { kind: 'template'; key: string; gate: TemplateGate | null };
 
 export interface WebhookEvent {
@@ -27,15 +27,14 @@ export interface WebhookEvent {
   value: unknown;
 }
 
-const RANK = { info: 0, limited: 1, blocked: 2, disabled: 3 } as const;
 const label = (text: string) => text.toLowerCase().replace(/_/g, ' ');
 
-/** Fills a row's text from the payload and the values its field picked. See webhookRules.ts for the syntax. */
-function fill(text: string, ctx: Record<string, any>): string {
+/** Fills a row's text from the payload and the values its source picked. See rules.ts for the syntax. */
+export function fill(text: string, ctx: Record<string, any>): string {
   const render = (part: string) => {
     let missing = false;
     const out = part.replace(/\{\{([\w.]+)(?:\|(label))?\}\}/g, (_, path: string, filter?: string) => {
-      let v: any = path.split(".").reduce((o: any, k) => o?.[k], ctx);
+      let v: any = path.split('.').reduce((o: any, k) => o?.[k], ctx);
       if (Array.isArray(v)) v = v.join(', ');
       if (v === undefined || v === null || v === '') {
         missing = true;
@@ -48,6 +47,23 @@ function fill(text: string, ctx: Record<string, any>): string {
   return render(text.replace(/\[([^[\]]*)\]/g, (_, inner: string) => { const r = render(inner); return r.missing ? '' : r.out; })).out;
 }
 
+/** The row for a signal, following the aliases. */
+export const ruleFor = (key: string): Rule | undefined => RULES[ALIASES[key] ?? key];
+
+/** The issue a row stands for, learned at `at`. */
+export function issueFrom(rule: Rule & { send: NonNullable<Rule['send']> }, ctx: Record<string, any>, at: number): Issue {
+  return {
+    send: rule.send,
+    title: fill(rule.title, ctx),
+    message: fill(rule.message, ctx),
+    ...(rule.link ? { link: LINKS[rule.link] } : {}),
+    at,
+    ...(rule.forMs ? { until: at + rule.forMs } : ctx.untilAt ? { until: ctx.untilAt } : {}),
+    ...(rule.cap ? { cap: rule.cap } : {}),
+    ...(ctx.code ? { code: ctx.code } : {}),
+  };
+}
+
 /** A short line from an unfamiliar payload: its simple fields, so the notification says something without being a dump. */
 function summary(value: any): string {
   const parts = Object.entries(value ?? {}).filter(([, v]) => ['string', 'number', 'boolean'].includes(typeof v)).slice(0, 6).map(([k, v]) => `${label(k)}: ${String(v).slice(0, 80)}`);
@@ -56,47 +72,34 @@ function summary(value: any): string {
 
 function effectsOf(rule: Rule, ctx: Record<string, any>, at: number): Effect[] {
   const effects: Effect[] = [];
-  if (rule.tier && ctx.tier) effects.push({ kind: 'tier', tier: ctx.tier });
+  if (rule.tier && ctx.tier !== undefined) effects.push({ kind: 'tier', tier: ctx.tier });
   if (rule.template && ctx.message_template_name) {
     const key = templateKeyOf(ctx.message_template_name, ctx.message_template_language);
     effects.push({ kind: 'template', key, gate: rule.template === 'problem' ? { status: ctx.status, reason: ctx.reason, at } : null });
   }
   if (rule.name) effects.push({ kind: 'name', patch: Object.fromEntries(Object.entries(rule.name).map(([k, v]) => [k, v === null ? undefined : fill(v, ctx)])) });
-  const r = rule.raise;
-  if (r) {
-    const reason: HealthReason = {
-      chip: r.chip ?? 'status',
-      cause: r.cause,
-      scope: r.scope ?? 'WABA',
-      severity: r.blocks,
-      title: fill(r.title ?? rule.title, ctx),
-      message: fill(r.message ?? rule.message, ctx),
-      action: r.action,
-      link: LINKS[r.link],
-      at,
-      ...(ctx.untilAt ? { until: ctx.untilAt } : {}),
-    };
-    effects.push({ kind: 'raise', reason, keepWorse: r.keepWorse });
+  if (rule.scope && rule.why) {
+    effects.push(rule.send ? { kind: 'set', scope: rule.scope, why: rule.why, issue: issueFrom({ ...rule, send: rule.send }, ctx, at) } : { kind: 'clear', scope: rule.scope, why: rule.why });
   }
-  if (rule.clear) effects.push({ kind: 'clear', cause: rule.clear });
   return effects;
 }
 
+const SEVERITY = { disable: 'critical', block: 'critical', limit: 'warning' } as const;
+
 function toEvent(field: string, value: any, at: number): Omit<WebhookEvent, 'wabaId' | 'eventAt' | 'field' | 'value'> | null {
   const picked = PICK[field]?.(value) ?? {};
-  const key = picked.variant ? `${field}:${picked.variant}` : field;
-  const rule = RULES[ALIASES[key] ?? key] ?? RULES[field];
+  const rule = (picked.variant ? ruleFor(`${field}:${picked.variant}`) : undefined) ?? RULES[field];
   const event = String(picked.vars?.event ?? picked.vars?.decision ?? picked.variant ?? '') || undefined;
   if (!rule) {
     // Anything else Meta reports about the account is kept as it arrives, so it can be read in the notifications and
     // handled once we know what it says. It gates nothing.
     return NEVER_KEPT.test(field) ? null : { notification: { title: `Meta reported: ${label(field)}`, message: summary(value), severity: 'info' }, effects: [] };
   }
-  const ctx = { ...value, ...picked.vars, limitedDaily: LIMITED_DAILY_TEMPLATES };
+  const ctx = { ...value, ...picked.vars };
   return {
     event,
     displayPhone: picked.displayPhone,
-    notification: { title: fill(rule.title, ctx), message: fill(rule.message, ctx), severity: picked.severity ?? rule.severity ?? 'info' },
+    notification: { title: fill(rule.title, ctx), message: fill(rule.message, ctx), severity: picked.severity ?? rule.severity ?? (rule.send ? SEVERITY[rule.send] : 'info') },
     effects: effectsOf(rule, ctx, at),
   };
 }
@@ -116,24 +119,18 @@ export function parseWebhook(body: any): WebhookEvent[] {
 
 /**
  * What an event does to a number's record: the new `health`, `displayName` and `templates`, or null when it
- * changes nothing (it was about something we already know better, or older). Each cause is only ever touched
- * by what it is about, and an event older than what is stored for that cause is ignored.
+ * changes nothing (it was about something we already know better, or older). Each issue is only ever touched
+ * by what it is about, and an event older than what is stored for that issue is ignored.
  */
-export function applyEffects(doc: Pick<PhoneNumberDoc, 'health' | 'displayName' | 'templates'>, effects: Effect[], eventAt: number, now: number): Pick<PhoneNumberDoc, 'health' | 'displayName' | 'templates'> | null {
+export function applyEffects(doc: Pick<PhoneNumberDoc, 'health' | 'displayName' | 'templates'>, effects: Effect[], eventAt: number): Pick<PhoneNumberDoc, 'health' | 'displayName' | 'templates'> | null {
   let { health, displayName, templates } = doc;
   const patch: Pick<PhoneNumberDoc, 'health' | 'displayName' | 'templates'> = {};
   for (const effect of effects) {
-    if (effect.kind === 'raise') {
-      const reasonToSet = { ...effect.reason };
-      const current = health?.reasons.find((r) => r.cause === reasonToSet.cause && counts(r, now));
-      if (effect.keepWorse && current && RANK[current.severity] > RANK[reasonToSet.severity]) reasonToSet.severity = current.severity;
-      const next = raise(health, reasonToSet, now);
-      if (next) patch.health = health = next;
-    } else if (effect.kind === 'clear') {
-      const next = clear(health, effect.cause, eventAt, now);
+    if (effect.kind === 'set' || effect.kind === 'clear') {
+      const next = effect.kind === 'set' ? setIssue(health, effect.scope, effect.why, effect.issue) : clearIssue(health, effect.scope, effect.why, eventAt);
       if (next) patch.health = health = next;
     } else if (effect.kind === 'tier') {
-      patch.health = health = settle({ ...health, tier: effect.tier }, health?.reasons ?? [], now);
+      patch.health = health = { ...health, tier: effect.tier ?? undefined };
     } else if (effect.kind === 'name') {
       if ((displayName?.at ?? 0) <= eventAt) patch.displayName = displayName = { ...displayName, ...effect.patch, at: eventAt };
     } else if (effect.kind === 'template') {

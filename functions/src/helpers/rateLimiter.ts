@@ -1,10 +1,13 @@
 // The rate-limiting logic: pure functions with no Firebase or Node imports, so the Functions use
 // them to decide and the dashboard uses the same code to show where a number stands. The values
 // live in rateLimitConfig.ts.
-import { DEFAULT_RATE_LIMITS, type RateLimitConfig, type WindowConfig } from './rateLimitConfig';
+import { DEFAULT_RATE_LIMITS, type WindowConfig } from './rateLimitConfig';
 
 export type Unit = 'minute' | 'hour' | 'day';
 export const UNITS: Unit[] = ['minute', 'hour', 'day'];
+
+/** A number per window: what a number has earned, or a ceiling on it. */
+export type Limits = Partial<Record<Unit, number>>;
 // Fixed windows: minutes and hours on the clock, days in UTC.
 const PERIOD_MS: Record<Unit, number> = { minute: 60_000, hour: 3_600_000, day: 86_400_000 };
 
@@ -26,20 +29,6 @@ export interface RateState {
   minute: WindowCount;
   hour: WindowCount;
   day: WindowCount;
-}
-
-/** The per-number override: any part of the config, merged over the defaults. */
-export type RateLimitOverride = Partial<Omit<RateLimitConfig, Unit>> & { [U in Unit]?: Partial<WindowConfig> };
-
-export function effectiveConfig(override?: RateLimitOverride): RateLimitConfig {
-  const base = DEFAULT_RATE_LIMITS;
-  return {
-    enabled: override?.enabled ?? base.enabled,
-    headroomSigmas: override?.headroomSigmas ?? base.headroomSigmas,
-    minute: { ...base.minute, ...override?.minute },
-    hour: { ...base.hour, ...override?.hour },
-    day: { ...base.day, ...override?.day },
-  };
 }
 
 const empty = (): WindowCount => ({ current: 0, previous: 0, currentAttempts: 0, previousAttempts: 0 });
@@ -71,28 +60,38 @@ export function windowEnd(unit: Unit, now: number): number {
   return (Math.floor(now / PERIOD_MS[unit]) + 1) * PERIOD_MS[unit];
 }
 
-export function limitFor(previous: number, window: WindowConfig, headroomSigmas: number): number {
-  const grown = Math.floor(Math.max(window.floor, previous * (1 + window.growthPercent / 100) + headroomSigmas * Math.sqrt(previous)));
-  return window.max === undefined ? grown : Math.min(grown, window.max);
+const grown = (previous: number, window: WindowConfig, sigmas: number) => Math.floor(previous * (1 + window.growthPercent / 100) + sigmas * Math.sqrt(previous));
+
+/**
+ * What a window allows: what the number has earned so far (the stored limit, the floor, or growth over the
+ * previous window, whichever is most), under the ceiling. `earned` is what to store; it only ever rises.
+ */
+export function allowance(unit: Unit, previous: number, stored: Limits | undefined, caps: Limits): { earned: number; limit: number } {
+  const window = DEFAULT_RATE_LIMITS[unit];
+  const earned = Math.max(stored?.[unit] ?? 0, window.floor, grown(previous, window, DEFAULT_RATE_LIMITS.headroomSigmas));
+  return { earned, limit: Math.min(earned, caps[unit] ?? Infinity) };
 }
 
 export type Verdict =
-  | { allowed: true; state: RateState }
-  | { allowed: false; state: RateState; unit: Unit; limit: number; current: number; retryAfterSeconds: number };
+  | { allowed: true; state: RateState; earned: Limits }
+  | { allowed: false; state: RateState; earned: Limits; unit: Unit; limit: number; current: number; retryAfterSeconds: number };
 
 /**
  * Decides whether one more template message may go, and returns the state to store. Every request
  * counts as an attempt in every window; only an accepted one raises the accepted count.
  */
-export function reserve(stored: RateState | undefined, config: RateLimitConfig, now: number): Verdict {
+export function reserve(stored: RateState | undefined, limits: Limits | undefined, caps: Limits, now: number): Verdict {
   const state = advance(stored, now);
+  const earned: Limits = {};
   for (const unit of UNITS) state[unit].currentAttempts += 1;
+  for (const unit of UNITS) earned[unit] = allowance(unit, state[unit].previous, limits, caps).earned;
   for (const unit of UNITS) {
-    const limit = limitFor(state[unit].previous, config[unit], config.headroomSigmas);
+    const limit = Math.min(earned[unit]!, caps[unit] ?? Infinity);
     if (state[unit].current + 1 > limit) {
       return {
         allowed: false,
         state,
+        earned,
         unit,
         limit,
         current: state[unit].current,
@@ -101,16 +100,16 @@ export function reserve(stored: RateState | undefined, config: RateLimitConfig, 
     }
   }
   for (const unit of UNITS) state[unit].current += 1;
-  return { allowed: true, state };
+  return { allowed: true, state, earned };
 }
 
 /** Where a number stands right now, for display: each window's count, previous count and limit. */
-export function view(stored: RateState | undefined, config: RateLimitConfig, now: number) {
+export function view(stored: RateState | undefined, limits: Limits | undefined, caps: Limits, now: number) {
   const state = advance(stored, now);
   return Object.fromEntries(
     UNITS.map((unit) => [
       unit,
-      { ...state[unit], limit: limitFor(state[unit].previous, config[unit], config.headroomSigmas) },
+      { ...state[unit], limit: allowance(unit, state[unit].previous, limits, caps).limit },
     ]),
   ) as Record<Unit, WindowCount & { limit: number }>;
 }
@@ -126,8 +125,8 @@ export interface WindowLimits {
   resetsAt: number;
 }
 
-export function limitsView(stored: RateState | undefined, config: RateLimitConfig, now: number): Record<Unit, WindowLimits> {
-  const windows = view(stored, config, now);
+export function limitsView(stored: RateState | undefined, limits: Limits | undefined, caps: Limits, now: number): Record<Unit, WindowLimits> {
+  const windows = view(stored, limits, caps, now);
   return Object.fromEntries(
     UNITS.map((unit) => {
       const w = windows[unit];

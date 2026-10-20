@@ -4,6 +4,7 @@ import { post, type Handler } from './helpers/http';
 import { listNotifications, listNumbersForUser, readNumber } from './helpers/model';
 import { numberView, relayLimits } from './helpers/numberView';
 import { refreshHealth } from './helpers/healthRefresh';
+import { presentHealth } from './helpers/gates';
 import { nextRefreshAt, REFRESH_MIN_INTERVAL_MS } from './helpers/health';
 import type { GetNumberResponse, ListNumbersResponse, NotificationsResponse } from './helpers/types';
 import { logEvent } from './helpers/log';
@@ -43,7 +44,7 @@ export const getNumber: Handler = async (req, res) => {
       const { meta, derived } = await refreshHealth({ phoneNumberId, wabaId: doc.wabaId, accessToken });
       body.meta = meta;
       body.nextRefreshAt = now + REFRESH_MIN_INTERVAL_MS;
-      if (derived) body.number = { ...body.number, health: derived.health, displayName: derived.displayName, metaFetchedAt: now };
+      if (derived) body.number = { ...body.number, health: presentHealth(derived.health, now), displayName: derived.displayName, metaFetchedAt: now };
     } catch (err) {
       body.metaError = (err as Error).message;
       logEvent('live details unavailable', { phoneNumberId, error: body.metaError });

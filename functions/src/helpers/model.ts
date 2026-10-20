@@ -1,7 +1,6 @@
 import { FieldValue, getFirestore, Timestamp, type DocumentSnapshot } from 'firebase-admin/firestore';
-import { reserve, type Verdict } from './rateLimiter';
-import type { RateLimitConfig } from './rateLimitConfig';
-import { effectiveConfigFor } from './health';
+import { reserve, type Limits, type Verdict } from './rateLimiter';
+import { capsOf } from './gates';
 import type {
   DisplayNameState,
   EncryptedToken,
@@ -345,22 +344,21 @@ export const setSyncState = (phoneNumberId: string, type: SyncType, status: Sync
 /**
  * Counts one more template message against the number's windows, and says whether it may go. The
  * check and the count happen in one transaction, so sends arriving together cannot all slip under
- * the limit. Limits come from helpers/rateLimitConfig.ts, overridden per number by `rateLimits`.
+ * the limit. Limits come from helpers/rateLimitConfig.ts, and a number's own `limits` (what it has earned) start it higher.
  */
 export async function reserveTemplateSend(
   phoneNumberId: string,
-): Promise<{ verdict: Verdict | { allowed: true }; config: RateLimitConfig; now: number }> {
+): Promise<{ verdict: Verdict; caps: Limits; now: number }> {
   const ref = phoneNumberRef(phoneNumberId);
   const now = Date.now();
   return db().runTransaction(async (tx) => {
     const data = numberOf(await tx.get(ref));
-    // Whether the number may send templates at all was decided before this (sendDecision). Here a limited number,
-    // or one under a low messaging limit tier, only gets its daily cap (see effectiveConfigFor).
-    const config = effectiveConfigFor(data ?? {}, now);
-    if (!config.enabled) return { verdict: { allowed: true as const }, config, now };
-    const verdict = reserve(data?.rateState, config, now);
-    tx.update(ref, { rateState: verdict.state });
-    return { verdict, config, now };
+    // Whether the number may send templates at all was decided before this (sendDecision). Here its ceilings
+    // (Meta's daily limit, and what a limited number gets) cap what it has earned.
+    const caps = capsOf(data?.health, now);
+    const verdict = reserve(data?.rateState, data?.limits, caps, now);
+    tx.update(ref, { rateState: verdict.state, limits: verdict.earned });
+    return { verdict, caps, now };
   });
 }
 

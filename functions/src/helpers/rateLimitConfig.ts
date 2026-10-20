@@ -1,10 +1,12 @@
-// Rate limits for template messages sent through the relay. Edit the values here to tune them
-// for every number, or set a partial override on one number's record (phoneNumbers/{id}.rateLimits,
-// written with the Admin SDK or the Firebase console, never by the customer) to treat it differently.
+// Rate limits for template messages sent through the relay. Edit the values here to tune them for every number.
+// To start one number higher (an account moving over in good standing), set `limits` on its record
+// (phoneNumbers/{id}.limits = { minute, hour, day }, with the Admin SDK or the Firebase console, never by the
+// customer): it applies at once and then only grows.
 //
 // How a window's limit is worked out (see rateLimiter.ts):
 //
-//   limit = max(floor, previous × (1 + growthPercent / 100) + headroomSigmas × √previous)
+//   earned = max(stored limit, floor, previous × (1 + growthPercent / 100) + headroomSigmas × √previous)
+//   limit  = min(earned, the ceilings from the number's health)
 //
 // `previous` is the count in the window just before the current one. The floor is what a number
 // may always send, so a quiet or new number can start. `growthPercent` is how much a window may
@@ -18,13 +20,9 @@ export interface WindowConfig {
   growthPercent: number;
   /** The count that is always allowed, whatever the previous window held. */
   floor: number;
-  /** A ceiling the limit never goes above, however much the window has grown (set from Meta's messaging limit tier). */
-  max?: number;
 }
 
 export interface RateLimitConfig {
-  /** Set to false to switch limiting off (the counters stop being written too). */
-  enabled: boolean;
   /** Standard deviations of headroom added to the limit; 3 covers normal scatter. */
   headroomSigmas: number;
   minute: WindowConfig;
@@ -33,7 +31,6 @@ export interface RateLimitConfig {
 }
 
 export const DEFAULT_RATE_LIMITS: RateLimitConfig = {
-  enabled: true,
   headroomSigmas: 3,
   minute: { growthPercent: 5, floor: 10 },
   hour: { growthPercent: 10, floor: 50 },

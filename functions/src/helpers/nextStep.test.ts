@@ -23,9 +23,7 @@ test('the sync step says what is still to request', () => {
 });
 
 test('a finished number with a blocking problem says so; a number without a token must be connected again', () => {
-  const blocked = nextStep(
-    doc({ health: { status: 'blocked', reasons: [{ chip: 'status', cause: 'payment', title: 'Payment method problem', message: 'm', action: 'Fix the payment method.', scope: 'WABA', severity: 'blocked', at: 1 }] } as never }),
-  );
+  const blocked = nextStep(doc({ health: { account: { payment: { send: 'block', title: 'Payment method problem', message: 'Fix the payment method.', at: 1 } } } }));
   assert.match(blocked.instruction, /Payment method problem/);
   const lost = nextStep(doc({ encAccessToken: undefined }));
   assert.deepEqual(lost.tools, ['start_onboarding_link']);

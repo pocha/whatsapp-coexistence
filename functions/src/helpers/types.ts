@@ -19,7 +19,8 @@ export interface UserDoc {
   testRun?: { codes: Record<string, string>; sentAt: number };
 }
 
-import type { RateLimitOverride, RateState } from './rateLimiter';
+import type { Limits, RateState } from './rateLimiter';
+export type { Limits };
 
 /** Counters written by the relay, keyed by day (YYYY-MM-DD), ISO week (YYYY-Www) and month (YYYY-MM). */
 export interface Usage {
@@ -78,8 +79,8 @@ export interface PhoneNumberDoc {
   displayPhoneNumber?: string;
   /** Template-message counts per window, written by the relay (see helpers/rateLimiter.ts). */
   rateState?: RateState;
-  /** Per-number override of the default rate limits. Set by us, never by the customer. */
-  rateLimits?: RateLimitOverride;
+  /** What the number has earned to send per window. Starts at the floors; we can write higher ones for an account moving over. Only grows. */
+  limits?: Limits;
   /** Wizard progress. Written only by the Functions. */
   onboarding: OnboardingState;
   /** The user chose to onboard without a callback URL: nothing of theirs receives incoming messages. */
@@ -119,7 +120,7 @@ export interface NumberView {
   displayPhoneNumber?: string;
   overrideUrl?: string;
   callbackSkipped?: boolean;
-  health?: NumberHealth;
+  health?: HealthView;
   displayName?: DisplayNameState;
   templates?: Record<string, TemplateGate>;
   metaFetchedAt?: number;
@@ -127,7 +128,7 @@ export interface NumberView {
   lastRelayCall?: number;
   usage?: Usage;
   rateState?: RateState;
-  rateLimits?: RateLimitOverride;
+  limits?: Limits;
   onboarding: OnboardingState;
   /** Where the wizard is, worked out from the record (see effectiveStep). */
   step: OnboardingStep;
@@ -146,56 +147,58 @@ export interface ListNumbersResponse extends ApiResponse {
   numbers: NumberView[];
 }
 
+/** Which part of the account an issue is about: the Messaging account, the business, the display name, or the number. */
+export type Scope = 'account' | 'business' | 'display_name' | 'phone';
+
+/** What the issue is. `code_<N>` is a Meta error code we have no wording for. */
+export type Why = 'payment' | 'ban' | 'review' | 'connection' | 'restriction' | 'quality' | 'cooldown' | 'name' | 'business' | 'meta' | `code_${number}`;
+
 /**
- * Something about a number that needs the user's attention, for a chip on the dashboard and for an AI tool.
- * Written by us for the cases we know, in Meta's words for any other.
+ * What an issue does to sending, in order of severity.
+ *   ok       nothing in the way
+ *   limit    few template messages a day (see `cap`)
+ *   block    no template messages; free-form replies still go through
+ *   disable  nothing goes through
  */
-export interface HealthReason {
-  /** Which chip it belongs to: the status, the business (not verified), or the display name. */
-  chip: 'status' | 'business' | 'name';
-  /** A few words, for the top of the popup. */
+export type Send = 'ok' | 'limit' | 'block' | 'disable';
+
+/** One thing that currently restricts sending. It exists only while it does: when it lifts, it is deleted. */
+export interface Issue {
+  send: Exclude<Send, 'ok'>;
   title: string;
-  /** What is wrong and what it means for sending. */
+  /** What is wrong, what it means for sending, and what to do about it. */
   message: string;
-  /** What to do about it. */
-  action: string;
   /** Where to do it, when we know a place. */
   link?: string;
-  /** Which part of the account Meta raised it on (WABA, PHONE_NUMBER, BUSINESS), or MESSAGE for a refusal. */
-  scope: string;
-  code?: number;
-  /**
-   * disabled refuses every send, blocked refuses template (business-initiated) sends, limited caps them at a few
-   * a day, and info is shown only.
-   */
-  severity: 'disabled' | 'blocked' | 'limited' | 'info';
-  /** What raised it. A notification may clear only the cause it is about, so a lifted ban leaves a payment problem. */
-  cause: GateCause;
   /** When this was learned (epoch ms): an older notification never overrides a newer one. */
   at: number;
   /** For a restriction or pause with a known end (epoch ms): it stops counting by itself after that. */
   until?: number;
+  /** The most template messages this allows per window. */
+  cap?: Limits;
+  /** Meta's error code, when it gave one. */
+  code?: number;
 }
 
-export type GateCause = 'ban' | 'review' | 'connection' | 'restriction' | 'payment' | 'name' | 'quality' | 'cooldown' | 'limited' | 'business' | 'meta';
-
 /**
- * Whether a number may send, as of the last time it was read from Meta (the dashboard's refresh, or an
- * AI tool's get_number, or a send Meta refused). It is not re-checked on its own: the user fixes the
- * problem and refreshes.
- *   ok        nothing in the way
- *   limited   the number itself is limited (a display name not approved yet): few template messages a day
- *   blocked   the account or number is blocked: only free-form replies go through
- *   disabled  the account is banned, rejected or disconnected: nothing goes through
- * `status` is worked out from `reasons` (see gates.ts) every time they change.
+ * What currently restricts a number, as of the last time it was read from Meta (the dashboard's refresh, an
+ * AI tool's get_number, or a send Meta refused) or announced by a webhook: the issues of each scope by what
+ * they are, and Meta's daily messaging limit (250 for an unverified business). The status of a scope, and
+ * the ceilings, are worked out from these (see gates.ts), never stored.
  */
-export interface NumberHealth {
-  status: 'ok' | 'limited' | 'blocked' | 'disabled';
-  reasons: HealthReason[];
-  /** Meta's messaging limit tier, e.g. TIER_250, when it was last read or announced. Our daily limit never goes above it. */
-  tier?: string;
-  /** Whether Meta has verified the business. Only explains the tier; it gates nothing itself. */
-  businessVerified?: boolean;
+export type NumberHealth = { [S in Scope]?: Partial<Record<Why, Issue>> } & { tier?: number };
+
+/** A scope as callers see it: its status and its issues. */
+export interface ScopeView {
+  status: Send;
+  issues: (Issue & { why: Why })[];
+}
+
+/** NumberHealth as callers see it, at a moment: each scope's status, the worst of them, and the ceilings now. */
+export interface HealthView {
+  status: Send;
+  scopes: Partial<Record<Scope, ScopeView>>;
+  limits: Limits;
 }
 
 /** A template Meta paused, disabled, rejected or deleted: sends of it are refused. Templates in good standing are not stored. */
@@ -366,7 +369,6 @@ export interface VerifyTestCodesResponse extends ApiResponse {
 export interface RelayLimitsResponse extends ApiResponse {
   /** Only template messages are limited; free-form replies are not. */
   appliesTo: 'template messages';
-  enabled: boolean;
   windows: Record<'minute' | 'hour' | 'day', { accepted: number; attempted: number; previousAccepted: number; limit: number; remaining: number; resetsAt: string; resetsInSeconds: number }>;
 }
 

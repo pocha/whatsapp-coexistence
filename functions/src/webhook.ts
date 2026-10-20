@@ -24,7 +24,7 @@ export async function handleWebhookBody(body: unknown, now = Date.now()): Promis
         // The same event delivered twice has the same id, so it is stored once.
         const id = createHash('sha1').update(`${event.wabaId}|${event.field}|${event.eventAt}|${JSON.stringify(event.value)}`).digest('hex');
         await addNotification(number.phoneNumberId, id, { eventAt: event.eventAt, receivedAt: now, field: event.field, event: event.event, ...event.notification, value: event.value });
-        if (event.effects.length) await updateGates(number.phoneNumberId, (doc) => applyEffects(doc, event.effects, event.eventAt, now));
+        if (event.effects.length) await updateGates(number.phoneNumberId, (doc) => applyEffects(doc, event.effects, event.eventAt));
         handled += 1;
       }
     } catch (err) {

@@ -179,11 +179,8 @@ test('the relay authenticates with the API key, sends with the decrypted Meta to
 
 test('template sends are rate limited per number, and free-form text is not', async () => {
   await seedNumber('556', '667');
-  // A per-number override, so the test needs only a few sends: every window allows 2, with no growth.
-  const tight = { floor: 2, growthPercent: 0 };
-  await db.collection('phoneNumbers').doc('556').update({
-    rateLimits: { headroomSigmas: 0, minute: tight, hour: tight, day: tight },
-  });
+  // A ceiling from the number's health, so the test needs only a few sends: the day allows 2.
+  await db.collection('phoneNumbers').doc('556').update({ health: { phone: { quality: { send: 'limit', title: 't', message: 'm', at: 1, cap: { day: 2 } } } } });
   const send = (message) =>
     fetch(`${FUNCTIONS_BASE}/numbers/556/messages`, {
       method: 'POST',
@@ -567,65 +564,6 @@ test('getNumber adds what Meta says right now when the key is given, part by par
   assert.equal(plain.meta, undefined, 'a read without refresh is always allowed');
 });
 
-test('the daily limit never goes above Meta\'s tier', async () => {
-  await seedNumber('9807', '9817');
-  const day = { current: 0, previous: 1000, currentAttempts: 0, previousAttempts: 1000 };
-  const empty = { current: 0, previous: 0, currentAttempts: 0, previousAttempts: 0 };
-  await db.collection('phoneNumbers').doc('9807').update({ health: { status: 'ok', reasons: [], tier: 'TIER_250' }, rateState: { lastAt: Date.now(), minute: empty, hour: empty, day } });
-  const limits = await (await fetch(`${FUNCTIONS_BASE}/numbers/9807/limits`, { headers: { Authorization: `Bearer ${KEY}` } })).json();
-  assert.equal(limits.windows.day.limit, 250, 'the day would have grown past 1,000 without the tier');
-});
-
-test('a blocked number sends no templates but can reply; refreshing stores the status and a Meta refusal sets it', async () => {
-  const relay = (id, body) =>
-    fetch(`${FUNCTIONS_BASE}/numbers/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` }, body: JSON.stringify(body) });
-  const template = { messaging_product: 'whatsapp', to: '15551234567', type: 'template', template: { name: 'hello', language: { code: 'en_US' } } };
-  const text = { messaging_product: 'whatsapp', to: '15551234567', type: 'text', text: { body: 'hi' } };
-
-  // 9801 sits in an account Meta says is blocked (a payment problem). Nothing is stored until it is read.
-  await seedNumber('9801', '9811');
-  await db.collection('phoneNumbers').doc('9801').update({ health: FieldValueDelete() });
-  assert.equal((await relay('9801', template)).status, 200, 'with no status yet, nothing is held back');
-
-  const refreshed = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9801', refresh: true })).json();
-  assert.equal(refreshed.number.health.status, 'blocked');
-  assert.equal(refreshed.number.health.reasons[0].code, 141006);
-  assert.equal((await db.collection('phoneNumbers').doc('9801').get()).data().health.status, 'blocked', 'the status is stored');
-  assert.equal(refreshed.number.displayName.name, 'Stub Name');
-
-  const refused = await relay('9801', template);
-  assert.equal(refused.status, 403);
-  const refusal = await refused.json();
-  assert.equal(refusal.status, 'blocked');
-  assert.equal(refusal.reasons[0].title, 'Payment method problem');
-  assert.match(refusal.reasons[0].action, /payment method/);
-  assert.equal((await relay('9801', text)).status, 200, 'a free-form reply still goes through');
-
-  // A send Meta itself refuses for a payment problem blocks the number from then on.
-  await seedNumber('9804', '9814');
-  assert.equal((await relay('9804', text)).status, 400);
-  assert.equal((await db.collection('phoneNumbers').doc('9804').get()).data().health.status, 'blocked');
-  assert.equal((await relay('9804', template)).status, 403);
-});
-
-test('a limited number may send only a few templates a day, and a business that is only unverified is not limited', async () => {
-  const template = { messaging_product: 'whatsapp', to: '15551234567', type: 'template', template: { name: 'hello', language: { code: 'en_US' } } };
-  const relay = (id) =>
-    fetch(`${FUNCTIONS_BASE}/numbers/${id}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` }, body: JSON.stringify(template) });
-
-  await seedNumber('9802', '9812');
-  const read = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9802', refresh: true })).json();
-  assert.equal(read.number.health.status, 'limited');
-  assert.ok(read.number.health.reasons.some((r) => r.scope === 'BUSINESS' && r.severity === 'info'), 'the unverified business is only information');
-  const statuses = [];
-  for (let i = 0; i < 7; i++) statuses.push((await relay('9802')).status);
-  assert.deepEqual(statuses, [200, 200, 200, 200, 200, 429, 429], 'five a day, then the limiter refuses');
-
-  await seedNumber('9805', '9815');
-  const fine = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9805', refresh: true })).json();
-  assert.equal(fine.number.health.status, 'ok');
-});
-
 test('a display name change is refused while one is in review, and goes to Meta otherwise', async () => {
   await seedNumber('9803', '9813');
   const waiting = await post('/setDisplayName', { phoneNumberId: '9803', apiKey: KEY, displayName: 'New Shop Name' });
@@ -656,87 +594,6 @@ const aTemplate = (name = 'hello') => ({ messaging_product: 'whatsapp', to: '155
 const aText = { messaging_product: 'whatsapp', to: '15551234567', type: 'text', text: { body: 'hi' } };
 const nowS = () => Math.floor(Date.now() / 1000);
 
-test('a ban from Meta stops every send, is told once however often Meta repeats it, and lifting it lets sends through again', async () => {
-  await seedNumber('9901', '9911');
-  assert.equal((await relayTo('9901', aText)).status, 200);
-
-  const ban = hook('9911', 'account_update', { event: 'DISABLED_UPDATE', ban_info: { waba_ban_state: ['DISABLE'] } }, nowS());
-  assert.equal((await send(ban)).status, 200);
-  assert.equal((await send(ban)).status, 200, 'Meta retries');
-  assert.equal((await db.collection('phoneNumbers').doc('9901').get()).data().health.status, 'disabled');
-  const refused = await relayTo('9901', aText);
-  assert.equal(refused.status, 403, 'not even a reply goes through');
-  assert.equal((await refused.json()).status, 'disabled');
-
-  const list = await notificationsOf('9901');
-  assert.equal(list.notifications.length, 1, 'stored once');
-  assert.equal(list.notifications[0].title, 'Account disabled');
-  assert.equal(list.notifications[0].severity, 'critical');
-  assert.ok((await db.collection('phoneNumbers').doc('9901').collection('notifications').get()).docs[0].data().expireAt, 'with an expiry for the automatic clean-up');
-
-  assert.equal((await send(hook('9911', 'account_update', { event: 'DISABLED_UPDATE', ban_info: { waba_ban_state: 'REINSTATE' } }, nowS() + 5))).status, 200);
-  assert.equal((await relayTo('9901', aText)).status, 200);
-  assert.equal((await notificationsOf('9901')).notifications[0].title, 'Account reinstated', 'newest first');
-});
-
-test('a restriction refuses templates until it ends and never refuses replies; one already over changes nothing', async () => {
-  await seedNumber('9902', '9912');
-  const restriction = (expiration) => hook('9912', 'account_update', { event: 'ACCOUNT_RESTRICTION', restriction_info: [{ restriction_type: 'RESTRICTED_BIZ_INITIATED_MESSAGING', expiration }] });
-  assert.equal((await send(restriction(nowS() + 3600))).status, 200);
-  const refused = await relayTo('9902', aTemplate());
-  assert.equal(refused.status, 429, 'a restriction with an end is a pause');
-  assert.ok(Number(refused.headers.get('retry-after')) > 3000);
-  assert.equal((await relayTo('9902', aText)).status, 200);
-
-  await seedNumber('9903', '9913');
-  assert.equal((await send(restriction(nowS() - 10))).status, 200);
-  assert.equal((await relayTo('9903', aTemplate())).status, 200, 'it has already ended');
-});
-
-test('a messaging limit from Meta caps the daily limit, a name decision lifts a limit, and an event for an account we do not hold is ignored', async () => {
-  await seedNumber('9904', '9914');
-  const day = { current: 0, previous: 1000, currentAttempts: 0, previousAttempts: 1000 };
-  const empty = { current: 0, previous: 0, currentAttempts: 0, previousAttempts: 0 };
-  await db.collection('phoneNumbers').doc('9904').update({ rateState: { lastAt: Date.now(), minute: empty, hour: empty, day } });
-  assert.equal((await send(hook('9914', 'phone_number_quality_update', { display_phone_number: '1', event: 'DOWNGRADE', current_limit: 'TIER_250' }))).status, 200);
-  const limits = () => fetch(`${FUNCTIONS_BASE}/numbers/9904/limits`, { headers: { Authorization: `Bearer ${KEY}` } }).then((r) => r.json());
-  assert.equal((await limits()).windows.day.limit, 250, 'the day would have grown past 1,000, but not past the tier');
-
-  await seedNumber('9905', '9915');
-  await db.collection('phoneNumbers').doc('9905').update({ health: { status: 'limited', reasons: [{ chip: 'name', cause: 'name', severity: 'limited', title: 'Display name not approved yet', message: 'm', action: 'a', scope: 'PHONE_NUMBER', at: 1 }] } });
-  assert.equal((await send(hook('9915', 'phone_number_name_update', { display_phone_number: '1', decision: 'APPROVED', requested_verified_name: 'Shop' }))).status, 200);
-  const doc = (await db.collection('phoneNumbers').doc('9905').get()).data();
-  assert.equal(doc.health.status, 'ok');
-  assert.equal(doc.displayName.status, 'APPROVED');
-
-  assert.equal((await send(hook('999999999', 'account_update', { event: 'ACCOUNT_DELETED' }))).status, 200, 'nothing to attach it to is not an error');
-});
-
-test('a paused template is refused by name while another goes through, and reinstating it lifts that', async () => {
-  await seedNumber('9906', '9916');
-  assert.equal((await send(hook('9916', 'message_template_status_update', { event: 'PAUSED', message_template_id: 1, message_template_name: 'promo', message_template_language: 'en-US', reason: 'NONE' }))).status, 200);
-  const refused = await relayTo('9906', aTemplate('promo'));
-  assert.equal(refused.status, 403);
-  assert.match((await refused.json()).error, /promo/);
-  assert.equal((await relayTo('9906', aTemplate('hello'))).status, 200);
-  assert.equal((await relayTo('9906', aText)).status, 200);
-  assert.equal((await send(hook('9916', 'message_template_status_update', { event: 'REINSTATED', message_template_name: 'promo', message_template_language: 'en_US' }, nowS() + 5))).status, 200);
-  assert.equal((await relayTo('9906', aTemplate('promo'))).status, 200);
-});
-
-test('after Meta says the number sends too much, template sends pause and stop reaching Meta; replies still go', async () => {
-  await seedNumber('9908', '9918');
-  assert.equal((await relayTo('9908', aTemplate())).status, 400, 'Meta refuses with the spam rate limit');
-  const paused = await relayTo('9908', aTemplate());
-  assert.equal(paused.status, 429);
-  assert.ok(Number(paused.headers.get('retry-after')) > 3000, 'an hour');
-  const metaSends = (await metaCalls()).filter((c) => c === 'POST /9908/messages').length;
-  assert.equal(metaSends, 1, 'the second never reached Meta');
-  const doc = (await db.collection('phoneNumbers').doc('9908').get()).data();
-  assert.equal(doc.health.reasons[0].cause, 'cooldown');
-  assert.ok((await notificationsOf('9908')).notifications.some((n) => n.field === 'send'));
-});
-
 test('the notifications come newest first in pages, only to the owner, and never hold a message', async () => {
   await seedNumber('9907', '9917');
   for (let i = 0; i < 5; i++) await send(hook('9917', 'security', { n: i }, nowS() + i));
@@ -754,14 +611,102 @@ test('the notifications come newest first in pages, only to the owner, and never
   assert.equal((await fetch(`${FUNCTIONS_BASE}/numbers/9907/notifications`, { headers: { Authorization: `Bearer ${NEW_KEY}` } })).status, 401);
 });
 
-test('a refresh replaces what notifications set, and says so in the notifications when it disagrees', async () => {
-  await seedNumber('9909', '9919');
-  assert.equal((await send(hook('9919', 'account_update', { event: 'DISABLED_UPDATE', ban_info: { waba_ban_state: 'DISABLE' } }, nowS() - 100))).status, 200);
-  assert.equal((await db.collection('phoneNumbers').doc('9909').get()).data().health.status, 'disabled');
-  const refreshed = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9909', refresh: true })).json();
-  assert.equal(refreshed.number.health.status, 'ok', 'Meta says the number is fine');
-  const notes = (await notificationsOf('9909')).notifications;
-  assert.ok(notes.some((n) => n.field === 'refresh' && /found the number ok/.test(n.title)));
+// ---- sending is gated by what is stored in health, whatever put it there ----
+
+const seedHealth = (id, health, extra = {}) => db.collection('phoneNumbers').doc(id).update({ health, ...extra });
+const issue = (send, extra = {}) => ({ send, title: 'a title', message: 'a message', at: 1, ...extra });
+const healthOf = async (id) => (await post('/getNumber', { apiKey: KEY, phoneNumberId: id })).json().then((r) => r.number.health);
+
+test('stored issues decide sending: disable stops everything, block stops templates, a cap limits the day, a paused template is refused by name', async () => {
+  await seedNumber('9701', '9711');
+  await seedHealth('9701', { account: { ban: issue('disable') } });
+  assert.equal((await relayTo('9701', aText)).status, 403);
+  assert.equal((await relayTo('9701', aTemplate())).status, 403);
+
+  await seedNumber('9702', '9712');
+  await seedHealth('9702', { account: { payment: issue('block') } });
+  const blocked = await relayTo('9702', aTemplate());
+  assert.equal(blocked.status, 403);
+  assert.equal((await blocked.json()).issues[0].title, 'a title', 'it says why');
+  assert.equal((await relayTo('9702', aText)).status, 200, 'a reply still goes');
+
+  await seedNumber('9703', '9713');
+  await seedHealth('9703', { phone: { cooldown: issue('block', { until: Date.now() + 3_600_000 }) } });
+  const paused = await relayTo('9703', aTemplate());
+  assert.equal(paused.status, 429, 'a pause with an end is a wait, not a refusal');
+  assert.ok(Number(paused.headers.get('retry-after')) > 3000);
+
+  await seedNumber('9704', '9714');
+  await seedHealth('9704', { phone: { quality: issue('limit', { cap: { day: 3 } }) }, tier: 250 });
+  assert.equal((await healthOf('9704')).limits.day, 3, 'the lowest ceiling wins over Meta\'s 250');
+  const statuses = [];
+  for (let i = 0; i < 5; i++) statuses.push((await relayTo('9704', aTemplate())).status);
+  assert.deepEqual(statuses, [200, 200, 200, 429, 429]);
+
+  await seedNumber('9705', '9715');
+  await db.collection('phoneNumbers').doc('9705').update({ templates: { 'promo|en_US': { status: 'PAUSED', at: 1 } } });
+  assert.equal((await relayTo('9705', aTemplate('promo'))).status, 403);
+  assert.equal((await relayTo('9705', aTemplate('hello'))).status, 200);
+});
+
+test('Meta\'s webhooks update health: a ban and its lifting leave another issue alone, a flagged number is capped, and a repeat is kept once', async () => {
+  await seedNumber('9721', '9731');
+  await seedHealth('9721', { account: { payment: issue('block') } });
+  const ban = hook('9731', 'account_update', { event: 'DISABLED_UPDATE', ban_info: { waba_ban_state: ['DISABLE'] } }, nowS());
+  assert.equal((await send(ban)).status, 200);
+  assert.equal((await send(ban)).status, 200, 'Meta retries');
+  assert.equal((await healthOf('9721')).status, 'disable');
+  const notes = (await notificationsOf('9721')).notifications;
+  assert.equal(notes.length, 1, 'stored once');
+  assert.ok((await db.collection('phoneNumbers').doc('9721').collection('notifications').get()).docs[0].data().expireAt, 'with an expiry for the clean-up');
+
+  assert.equal((await send(hook('9731', 'account_update', { event: 'DISABLED_UPDATE', ban_info: { waba_ban_state: 'REINSTATE' } }, nowS() + 5))).status, 200);
+  const lifted = await healthOf('9721');
+  assert.equal(lifted.status, 'block', 'the payment problem is still there');
+  assert.deepEqual(Object.keys((await db.collection('phoneNumbers').doc('9721').get()).data().health.account), ['payment']);
+
+  assert.equal((await send(hook('9731', 'phone_number_quality_update', { display_phone_number: '1', event: 'FLAGGED', current_limit: 'TIER_10K' }, nowS() + 10))).status, 200);
+  assert.equal((await healthOf('9721')).limits.day, 5, 'flagged: a few a day, under Meta\'s 10K');
+  assert.equal((await send(hook('999999999', 'account_update', { event: 'ACCOUNT_DELETED' }))).status, 200, 'an account we do not hold is not an error');
+});
+
+test('refreshing from Meta stores what it finds and replaces what a webhook set', async () => {
+  await seedNumber('9801', '9811');
+  const blocked = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9801', refresh: true })).json();
+  assert.equal(blocked.number.health.status, 'block');
+  assert.equal(blocked.number.health.scopes.account.issues[0].title, 'Payment method problem');
+  assert.equal(blocked.number.health.limits.day, 250, 'Meta\'s daily limit');
+  assert.ok((await db.collection('phoneNumbers').doc('9801').get()).data().health.account.payment, 'stored');
+  assert.equal((await relayTo('9801', aTemplate())).status, 403);
+  assert.equal((await relayTo('9801', aText)).status, 200);
+
+  await seedNumber('9802', '9812');
+  const limited = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9802', refresh: true })).json();
+  assert.equal(limited.number.health.status, 'limit');
+  assert.deepEqual(Object.keys(limited.number.health.scopes).sort(), ['business', 'display_name']);
+  assert.equal(limited.number.health.limits.day, 5);
+
+  await seedNumber('9805', '9815');
+  await send(hook('9815', 'account_update', { event: 'DISABLED_UPDATE', ban_info: { waba_ban_state: 'DISABLE' } }, nowS() - 100));
+  assert.equal((await healthOf('9805')).status, 'disable');
+  const fine = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9805', refresh: true })).json();
+  assert.equal(fine.number.health.status, 'ok', 'Meta says the number is fine');
+  assert.ok((await notificationsOf('9805')).notifications.some((n) => n.field === 'refresh'), 'and the disagreement is written down');
+});
+
+test('a send Meta refuses is remembered: a payment problem blocks templates, a spam rate limit pauses them for an hour', async () => {
+  await seedNumber('9804', '9814');
+  assert.equal((await relayTo('9804', aText)).status, 400);
+  assert.ok((await db.collection('phoneNumbers').doc('9804').get()).data().health.account.payment);
+  assert.equal((await relayTo('9804', aTemplate())).status, 403);
+
+  await seedNumber('9908', '9918');
+  assert.equal((await relayTo('9908', aTemplate())).status, 400, 'Meta refuses with the spam rate limit');
+  const paused = await relayTo('9908', aTemplate());
+  assert.equal(paused.status, 429);
+  assert.ok(Number(paused.headers.get('retry-after')) > 3000, 'an hour');
+  assert.equal((await metaCalls()).filter((c) => c === 'POST /9908/messages').length, 1, 'the second never reached Meta');
+  assert.ok((await notificationsOf('9908')).notifications.some((n) => n.field === 'send'));
 });
 
 test('login: a new phone number gets a user, sets a key, and then needs that key to log in', async () => {

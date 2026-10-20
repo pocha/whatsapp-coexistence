@@ -143,8 +143,8 @@ export const setOnboardingStep: Handler = async (req, res) => {
 
 // ---- test data for the user's own endpoint ----
 
-// testRuns/{userId} holds the codes of the last send and when it went out. It has no Firestore
-// rules, so no browser can read it: the codes are only ever checked here.
+// users/{userId}.testRun holds the codes of the last send and when it went out. The browser may
+// not write it (the users rule allows only the key fields); the codes are only ever checked here.
 const TEST_GAP_MS = 30 * 1000;
 const TEST_CODES_VALID_MS = 30 * 60 * 1000;
 

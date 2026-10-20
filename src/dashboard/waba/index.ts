@@ -5,10 +5,11 @@ import { isValidApiKey } from '/assets/api-key.js';
 import '/assets/nav-auth.js';
 import { wireTestEvents } from '/assets/test-events.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { HealthReason, NumberView, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
+import type { NumberView, Scope, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
 import { view } from '../../../functions/src/helpers/rateLimiter';
+import { DEFAULT_RATE_LIMITS as config } from '../../../functions/src/helpers/rateLimitConfig';
 import { fetchNotifications, fetchNumber } from '/assets/account.js';
-import { effectiveConfigFor, LIMITED_DAILY_TEMPLATES, REFRESH_MIN_INTERVAL_MS, tierLimit } from '../../../functions/src/helpers/health';
+import { REFRESH_MIN_INTERVAL_MS } from '../../../functions/src/helpers/health';
 
 // The page for one number, identified by ?id= in the URL (its phone number ID). Signed-in
 // only: signed-out visitors are sent to the Dashboard's sign-in. What it does to the number
@@ -106,8 +107,8 @@ function infoIcon(text: string, align: 'left' | 'right'): HTMLElement {
 }
 
 function renderLimitTable(data: NumberView, nowMs: number) {
-  const config = effectiveConfigFor(data);
-  const windows = view(data.rateState, config, nowMs);
+  const limits = data.health?.limits ?? {};
+  const windows = view(data.rateState, data.limits, limits, nowMs);
   const units = [
     ['minute', 'Minute'],
     ['hour', 'Hour'],
@@ -116,16 +117,11 @@ function renderLimitTable(data: NumberView, nowMs: number) {
 
   // The allowance is what a sender runs into; how it is worked out sits in a note behind an "i",
   // so the table stays at three rows.
-  const unverified = data.health?.reasons.some((r) => r.chip === 'business');
-  const tier = tierLimit(data.health?.tier);
+  const capped = Object.values(data.health?.scopes ?? {}).flatMap((scope) => scope?.issues ?? []).filter((i) => i.cap?.day === limits.day);
   const allowanceNote = (u: (typeof units)[number][0]) => {
     const grows = `Grows with usage: up to ${config[u].growthPercent}% over the previous ${u}, and never below ${config[u].floor}.`;
-    if (u !== 'day' || config.day.max === undefined) return grows;
-    const why =
-      data.health?.status === 'limited'
-        ? `${LIMITED_DAILY_TEMPLATES} a day while the display name is not approved`
-        : `${tier} a day, Meta's messaging limit${unverified ? ', which stays at 250 while your business is unverified' : ''}`;
-    return `${grows} It will not go above ${why}.`;
+    if (u !== 'day' || limits.day === undefined) return grows;
+    return `${grows} It will not go above ${limits.day} a day, ${capped.length ? capped.map((i) => i.title.toLowerCase()).join(' and ') : "Meta's messaging limit"}.`;
   };
 
   const rows: [string, (u: (typeof units)[number][0]) => Node | string, string?][] = [
@@ -169,12 +165,6 @@ function renderLimitTable(data: NumberView, nowMs: number) {
       cell.className = 'py-2 text-right';
       cell.append(cellFor(unit));
     }
-  }
-  if (!config.enabled) {
-    const note = document.createElement('caption');
-    note.className = 'text-left text-on-surface-variant pb-2';
-    note.textContent = 'Rate limiting is switched off for this number.';
-    table.prepend(note);
   }
 }
 
@@ -273,23 +263,25 @@ async function loadRecord(): Promise<boolean> {
 // --- Sending status chips and their popup ------------------------------------------
 
 const STATUS_CHIP = {
-  ok: ['Healthy', 'bg-primary/10 text-primary'],
-  limited: ['Limited', 'bg-amber-100 text-amber-900'],
-  blocked: ['Blocked', 'bg-error/10 text-error'],
+  ok: ['OK', 'bg-primary/10 text-primary'],
+  limit: ['Limited', 'bg-amber-100 text-amber-900'],
+  block: ['Blocked', 'bg-error/10 text-error'],
   // Nothing at all is sent; it reads as Blocked, and the popup says why.
-  disabled: ['Blocked', 'bg-error/10 text-error'],
+  disable: ['Blocked', 'bg-error/10 text-error'],
 } as const;
+const SCOPE_TITLE: Record<Scope, string> = { account: 'Account status', business: 'Business status', display_name: 'Display name', phone: 'Number status' };
+const SCOPES = Object.keys(SCOPE_TITLE) as Scope[];
 const NEUTRAL = 'bg-surface-container text-on-surface-variant';
-const AMBER = 'bg-amber-100 text-amber-900';
 
 const dialog = el<HTMLDialogElement>('health-dialog');
 let shown: NumberView | undefined;
-let openChip: HealthReason['chip'] = 'status';
 
-/** The three chips in the Status section: the sending status, the business and the display name. */
+/** One chip per scope in the Status section: OK, Limited or Blocked, and what it is behind. */
 function renderChips(data: NumberView) {
   shown = data;
-  const add = (chip: HealthReason['chip'], text: string, classes: string) => {
+  for (const scope of SCOPES) {
+    const status = data.health?.scopes[scope]?.status;
+    const [text, classes] = !data.health ? (['Not checked', NEUTRAL] as const) : STATUS_CHIP[status ?? 'ok'];
     const button = document.createElement('button');
     button.type = 'button';
     button.className = `rounded-full px-3 py-1 label-strong inline-flex items-center gap-1 ${classes}`;
@@ -299,18 +291,9 @@ function renderChips(data: NumberView) {
     icon.className = 'material-symbols-outlined text-[16px]';
     icon.textContent = 'info';
     button.append(icon);
-    button.addEventListener('click', () => openDialog(chip));
-    el(`chip-${chip}`).replaceChildren(button);
-  };
-  const health = data.health;
-  const [label, classes] = health ? STATUS_CHIP[health.status] : (['Not checked', NEUTRAL] as const);
-  add('status', label, classes);
-  const reasons = health?.reasons ?? [];
-  if (reasons.some((r) => r.chip === 'business')) add('business', 'Unverified', AMBER);
-  else add('business', health ? 'No issue' : 'Not checked', health ? 'bg-primary/10 text-primary' : NEUTRAL);
-  if (reasons.some((r) => r.chip === 'name')) add('name', 'Needs attention', AMBER);
-  else if (data.displayName?.name) add('name', 'No issue', 'bg-primary/10 text-primary');
-  else add('name', 'Not checked', NEUTRAL);
+    button.addEventListener('click', () => openDialog(scope));
+    el(`chip-${scope}`).replaceChildren(button);
+  }
   renderRefresh(data);
 }
 
@@ -333,28 +316,27 @@ function paragraph(text: string, className = ''): HTMLParagraphElement {
   return p;
 }
 
-function openDialog(chip: HealthReason['chip']) {
+function openDialog(scope: Scope) {
   if (!shown) return;
-  openChip = chip;
   const health = shown.health;
-  const titles = { status: `Sending status: ${health ? STATUS_CHIP[health.status][0] : 'not checked'}`, business: 'Business unverified', name: 'Display name' } as const;
-  el('hd-title').textContent = titles[chip];
+  const status = health?.scopes[scope]?.status ?? 'ok';
+  el('hd-title').textContent = `${SCOPE_TITLE[scope]}: ${health ? STATUS_CHIP[status][0] : 'not checked'}`;
 
   const body = el('hd-body');
   body.replaceChildren();
-  const reasons = (health?.reasons ?? []).filter((r) => r.chip === chip);
+  const issues = health?.scopes[scope]?.issues ?? [];
   if (!health) {
     body.append(paragraph("Meta hasn't been asked about this number yet. Enter your API key and refresh."));
-  } else if (!reasons.length) {
-    body.append(paragraph(chip === 'status' ? 'Nothing needs your attention. Template messages and replies can go out.' : 'Nothing needs your attention.'));
+  } else if (!issues.length) {
+    body.append(paragraph('Nothing needs your attention.'));
   }
-  for (const reason of reasons) {
+  for (const issue of issues) {
     const item = document.createElement('div');
     item.className = 'flex flex-col gap-1';
-    item.append(paragraph(reason.title, 'text-on-surface font-bold'), paragraph(reason.message), paragraph(`What to do: ${reason.action}`, 'text-on-surface'));
-    if (reason.link) {
+    item.append(paragraph(issue.title, 'text-on-surface font-bold'), paragraph(issue.message));
+    if (issue.link) {
       const link = document.createElement('a');
-      link.href = reason.link;
+      link.href = issue.link;
       link.target = '_blank';
       link.rel = 'noopener';
       link.className = 'text-primary font-bold hover:underline w-fit';
@@ -363,12 +345,12 @@ function openDialog(chip: HealthReason['chip']) {
     }
     body.append(item);
   }
-  if (chip === 'name' && shown.displayName?.name) {
+  if (scope === 'display_name' && shown.displayName?.name) {
     body.append(paragraph(`Current display name: ${shown.displayName.name} (${shown.displayName.status ?? 'status unknown'}).`));
   }
   // A new name can be requested unless one is already waiting for Meta's decision.
   const pending = /PENDING/i.test(shown.displayName?.requestedStatus ?? '');
-  el('hd-name').classList.toggle('hidden', chip !== 'name' || pending);
+  el('hd-name').classList.toggle('hidden', scope !== 'display_name' || pending);
 
   el('hd-status').textContent = '';
   dialog.showModal();

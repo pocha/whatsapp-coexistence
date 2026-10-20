@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { deriveHealth, type DerivedHealth } from './health';
-import { mergeRefresh, statusOf } from './gates';
+import { mergeRefresh, presentHealth } from './gates';
 import { readMetaSnapshot } from './metaSnapshot';
 import { addNotification, readNumber, setHealth } from './model';
 import type { MetaSnapshot } from './types';
@@ -19,19 +19,20 @@ export async function refreshHealth(args: { phoneNumberId: string; wabaId: strin
   if (!derived) return { meta, derived };
 
   const before = (await readNumber(args.phoneNumberId))?.health;
-  const merged = mergeRefresh(before, derived.health, startedAt, now);
+  const merged = mergeRefresh(before, derived.health, startedAt);
   await setHealth(args.phoneNumberId, merged, derived.displayName, now);
 
-  const wasStatus = before ? statusOf(before.reasons, now) : undefined;
-  if (before && wasStatus !== merged.status) {
+  const wasStatus = before ? presentHealth(before, now).status : undefined;
+  const nowStatus = presentHealth(merged, now).status;
+  if (before && wasStatus !== nowStatus) {
     const id = createHash('sha1').update(`refresh|${args.phoneNumberId}|${now}`).digest('hex');
     await addNotification(args.phoneNumberId, id, {
       eventAt: now,
       receivedAt: now,
       field: 'refresh',
-      title: `Refresh found the number ${merged.status}`,
-      message: `Asking Meta now shows the number as ${merged.status}; it was stored as ${wasStatus}. What Meta says now replaces what we had.`,
-      severity: merged.status === 'ok' ? 'info' : 'warning',
+      title: `Refresh found the number ${nowStatus}`,
+      message: `Asking Meta now shows the number as ${nowStatus}; it was stored as ${wasStatus}. What Meta says now replaces what we had.`,
+      severity: nowStatus === 'ok' ? 'info' : 'warning',
     }).catch(() => undefined);
   }
   return { meta, derived: { ...derived, health: merged } };

@@ -1,5 +1,5 @@
 import { effectiveStep } from './onboardingSteps';
-import { counts } from './gates';
+import { activeIssues } from './gates';
 import type { NextStep, PhoneNumberDoc } from './types';
 
 const SYNC_TYPES = ['contacts', 'history'] as const;
@@ -70,12 +70,12 @@ export function nextStep(doc: PhoneNumberDoc, now = Date.now()): NextStep {
       };
 
     default: {
-      const problem = doc.health?.reasons.filter((r) => counts(r, now) && r.severity !== 'info')[0];
+      const problem = activeIssues(doc.health, now)[0];
       return {
         step,
         title: 'Set up',
         instruction: problem
-          ? `Onboarding is complete, but sending is held up: ${problem.title}. ${problem.action} Tell the person, and call get_number with refresh after they say it is fixed. Otherwise: send_message to send, get_limits for the room left, list_templates and create_template for templates.`
+          ? `Onboarding is complete, but sending is held up: ${problem.title}. ${problem.message} Tell the person, and call get_number with refresh after they say it is fixed. Otherwise: send_message to send, get_limits for the room left, list_templates and create_template for templates.`
           : 'Onboarding is complete. send_message sends; get_limits shows the room left; list_templates and create_template manage templates.',
         tools: ['send_message', 'get_limits', 'list_templates', 'create_template', 'get_number'],
       };

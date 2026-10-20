@@ -1,15 +1,8 @@
 import { effectiveStep } from './onboardingSteps';
 import { nextStep } from './nextStep';
 import { limitsView, UNITS } from './rateLimiter';
-import { effectiveConfigFor } from './health';
-import { counts, statusOf } from './gates';
+import { capsOf, presentHealth } from './gates';
 import type { NumberView, PhoneNumberDoc, RelayLimitsResponse } from './types';
-
-/** The status as it stands now: a reason with an end time that has passed no longer counts. */
-export function presentHealth(health: NonNullable<PhoneNumberDoc['health']>, now: number) {
-  const reasons = health.reasons.filter((r) => counts(r, now));
-  return { ...health, reasons, status: statusOf(reasons, now) };
-}
 
 /**
  * What a caller may see of a number: listed field by field, so a field added to the record later
@@ -30,7 +23,7 @@ export function numberView(doc: PhoneNumberDoc): NumberView {
     lastRelayCall: doc.lastRelayCall,
     usage: doc.usage,
     rateState: doc.rateState,
-    rateLimits: doc.rateLimits,
+    limits: doc.limits,
     onboarding: doc.onboarding,
     step: effectiveStep(doc),
     next: nextStep(doc),
@@ -44,12 +37,10 @@ export function numberView(doc: PhoneNumberDoc): NumberView {
 
 /** Where the number stands against its template-send limits: per window, what went through and when it resets. */
 export function relayLimits(doc: PhoneNumberDoc, now: number): RelayLimitsResponse {
-  const config = effectiveConfigFor(doc);
-  const windows = limitsView(doc.rateState, config, now);
+  const windows = limitsView(doc.rateState, doc.limits, capsOf(doc.health, now), now);
   return {
     ok: true,
     appliesTo: 'template messages',
-    enabled: config.enabled,
     windows: Object.fromEntries(
       UNITS.map((unit) => [
         unit,
