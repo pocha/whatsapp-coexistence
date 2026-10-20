@@ -3,7 +3,8 @@ import { authenticateKey, requireCaller } from './accounts';
 import { listNotifications, listNumbersForUser, readNumber } from './helpers/model';
 import { numberView, relayLimits } from './helpers/onboarding';
 import { nextRefreshAt, refreshHealth } from './helpers/health';
-import { REFRESH_MIN_INTERVAL_MS, presentHealth } from './helpers/sendGate';
+import { presentHealth } from './helpers/sendGate';
+import { REFRESH_MIN_INTERVAL_MS } from './helpers/rateLimiter';
 import type { GetNumberResponse, ListNumbersResponse, NotificationsResponse } from './helpers/types';
 
 // Reads for the dashboard and the MCP: what numbers an account has and where each stands. They

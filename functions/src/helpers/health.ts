@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { config } from './config';
-import { LINKS, RULES, issueFrom } from './rules';
-import { REFRESH_MIN_INTERVAL_MS, mergeRefresh, presentHealth, tierLimit } from './sendGate';
+import { LINKS, RULES, issueFrom, tierLimit } from './rules';
+import { REFRESH_MIN_INTERVAL_MS } from './rateLimiter';
+import { SCOPES, presentHealth } from './sendGate';
 import { debugToken, graphGet } from './graphApi';
 import { addNotification, readNumber, setHealth } from './model';
 import type { DisplayNameState, Issue, MetaPart, MetaSnapshot, NumberHealth, Scope, TemplateGate, Why } from './types';
@@ -9,6 +10,20 @@ import type { DisplayNameState, Issue, MetaPart, MetaSnapshot, NumberHealth, Sco
 // Turns what Meta says about a number (its health_status and a few fields) into the issues we act on. The
 // wording is in the rows of rules.ts. A known Meta error code, the number's status, the account review and a
 // red quality rating each have a row; any other error Meta gives is stored in Meta's own words.
+
+/**
+ * The result of a refresh replaces the stored issues, since it is Meta's whole picture now, except anything
+ * learned after the read began (a notification that arrived while it ran).
+ */
+export function mergeRefresh(existing: NumberHealth | undefined, derived: NumberHealth, readStartedAt: number): NumberHealth {
+  const merged: NumberHealth = { ...derived, tier: derived.tier ?? existing?.tier };
+  for (const scope of SCOPES) {
+    for (const [why, issue] of Object.entries(existing?.[scope] ?? {}) as [Why, Issue][]) {
+      if (issue.at > readStartedAt && !merged[scope]?.[why]) merged[scope] = { ...merged[scope], [why]: issue };
+    }
+  }
+  return merged;
+}
 
 /** When Meta may be asked again about a number, an epoch time in ms (now, if it never was asked). */
 export const nextRefreshAt = (metaFetchedAt: number | undefined, now: number) => (metaFetchedAt ? Math.max(now, metaFetchedAt + REFRESH_MIN_INTERVAL_MS) : now);

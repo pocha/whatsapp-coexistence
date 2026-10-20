@@ -1,22 +1,14 @@
 import { UNITS } from './rateLimiter';
 import type { HealthView, Issue, Limits, NumberHealth, PhoneNumberDoc, Scope, Send, Why } from './types';
 
-// What decides whether a send goes out, kept as small as possible: a number's `health` (the issues that
-// restrict it, by scope and what they are), its `templates` in trouble, and Meta's daily limit. Everything
-// here is pure, so the relay, the webhook and the dashboard use the same rules.
-
-/** Meta is not asked about a number again within this long of the last read. */
-export const REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000;
+// Reading a number's `health` (the issues that restrict it, by scope and what they are), its `templates` in
+// trouble and Meta's daily limit, to say whether a send goes out. Nothing here changes the health; that is
+// done by the webhook rows (rules.ts) and the refresh (health.ts). Everything here is pure, so the relay and
+// the dashboard use the same rules.
 
 export const SCOPES: Scope[] = ['account', 'business', 'display_name', 'phone'];
 const RANK: Record<Send, number> = { ok: 0, limit: 1, block: 2, disable: 3 };
 const SEND = ['ok', 'limit', 'block', 'disable'] as const;
-/** The daily number of customers a Meta messaging limit tier allows, e.g. TIER_250 -> 250. Undefined if unknown or unlimited. */
-export function tierLimit(tier?: string): number | undefined {
-  const match = /^TIER_(\d+)(K)?$/.exec(tier ?? '');
-  return match ? Number(match[1]) * (match[2] ? 1000 : 1) : undefined;
-}
-
 export type Active = Issue & { scope: Scope; why: Why };
 
 /** An issue with an end time stops counting by itself once that has passed. */
@@ -50,34 +42,6 @@ export function presentHealth(health: NumberHealth, now: number): HealthView {
     if (own.length) scopes[scope] = { status: worst(own), issues: own.map(({ scope: _s, ...rest }) => rest) };
   }
   return { status: worst(issues), scopes, limits: capsOf(health, now) };
-}
-
-/** The health with this issue set, replacing what the same scope and cause said before. Null if what is stored is newer. */
-export function setIssue(health: NumberHealth | undefined, scope: Scope, why: Why, issue: Issue): NumberHealth | null {
-  if ((health?.[scope]?.[why]?.at ?? 0) > issue.at) return null;
-  return { ...health, [scope]: { ...health?.[scope], [why]: issue } };
-}
-
-/** The health without this issue, and only it: a lifted ban leaves a payment problem where it is. Null if there is nothing to clear, or it is newer. */
-export function clearIssue(health: NumberHealth | undefined, scope: Scope, why: Why, at: number): NumberHealth | null {
-  const existing = health?.[scope]?.[why];
-  if (!health || !existing || existing.at > at) return null;
-  const { [why]: _gone, ...rest } = health[scope]!;
-  return { ...health, [scope]: rest };
-}
-
-/**
- * The result of a refresh replaces the stored issues, since it is Meta's whole picture now, except anything
- * learned after the read began (a notification that arrived while it ran).
- */
-export function mergeRefresh(existing: NumberHealth | undefined, derived: NumberHealth, readStartedAt: number): NumberHealth {
-  const merged: NumberHealth = { ...derived, tier: derived.tier ?? existing?.tier };
-  for (const scope of SCOPES) {
-    for (const [why, issue] of Object.entries(existing?.[scope] ?? {}) as [Why, Issue][]) {
-      if (issue.at > readStartedAt && !merged[scope]?.[why]) merged[scope] = { ...merged[scope], [why]: issue };
-    }
-  }
-  return merged;
 }
 
 export type SendDecision =

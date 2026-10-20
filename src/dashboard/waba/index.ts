@@ -8,7 +8,7 @@ import { el, errorMessage } from '/assets/dom.js';
 import type { NumberView, Scope, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
 import { DEFAULT_RATE_LIMITS as config, view } from '../../../functions/src/helpers/rateLimiter';
 import { fetchNotifications, fetchNumber } from '/assets/account.js';
-import { REFRESH_MIN_INTERVAL_MS } from '../../../functions/src/helpers/sendGate';
+import { REFRESH_MIN_INTERVAL_MS } from '../../../functions/src/helpers/rateLimiter';
 
 // The page for one number, identified by ?id= in the URL (its phone number ID). Signed-in
 // only: signed-out visitors are sent to the Dashboard's sign-in. What it does to the number

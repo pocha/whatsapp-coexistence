@@ -5,6 +5,9 @@
 // are at the top, in DEFAULT_RATE_LIMITS.
 
 export type Unit = 'minute' | 'hour' | 'day';
+/** Meta is not asked about a number again within this long of the last read. */
+export const REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000;
+
 export const UNITS: Unit[] = ['minute', 'hour', 'day'];
 
 /** A number per window: what a number has earned, or a ceiling on it. */

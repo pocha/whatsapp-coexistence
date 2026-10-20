@@ -1,5 +1,5 @@
-import { clearIssue, setIssue, templateKeyOf, tierLimit } from './sendGate';
-import type { DisplayNameState, Issue, Limits, NotificationDoc, PhoneNumberDoc, Scope, Send, TemplateGate, Why } from './types';
+import { templateKeyOf } from './sendGate';
+import type { DisplayNameState, Issue, Limits, NotificationDoc, NumberHealth, PhoneNumberDoc, Scope, Send, TemplateGate, Why } from './types';
 
 // What each signal about a number says to the user and does to the gates, as data: Meta's account-level
 // webhooks, what a refresh finds in Meta's health read, and what a refused send tells us.
@@ -212,6 +212,12 @@ export interface Picked {
   severity?: NotificationDoc['severity'];
 }
 
+/** The daily number of customers a Meta messaging limit tier allows, e.g. TIER_250 -> 250. Undefined if unknown or unlimited. */
+export function tierLimit(tier?: string): number | undefined {
+  const match = /^TIER_(\d+)(K)?$/.exec(tier ?? '');
+  return match ? Number(match[1]) * (match[2] ? 1000 : 1) : undefined;
+}
+
 /** Meta's tier names are TIER_250, TIER_2K ...; TIER_NOT_SET and anything else is not a limit. */
 const asTier = (value: unknown) => (typeof value === 'string' && /^TIER_(\d+K?|UNLIMITED)$/.test(value) ? value : undefined);
 /** `tier` is the daily number of customers, or null when there is no limit. */
@@ -386,6 +392,20 @@ export function parseWebhook(body: any): WebhookEvent[] {
     }
   }
   return events;
+}
+
+/** The health with this issue set, replacing what the same scope and cause said before. Null if what is stored is newer. */
+export function setIssue(health: NumberHealth | undefined, scope: Scope, why: Why, issue: Issue): NumberHealth | null {
+  if ((health?.[scope]?.[why]?.at ?? 0) > issue.at) return null;
+  return { ...health, [scope]: { ...health?.[scope], [why]: issue } };
+}
+
+/** The health without this issue, and only it: a lifted ban leaves a payment problem where it is. Null if there is nothing to clear, or it is newer. */
+export function clearIssue(health: NumberHealth | undefined, scope: Scope, why: Why, at: number): NumberHealth | null {
+  const existing = health?.[scope]?.[why];
+  if (!health || !existing || existing.at > at) return null;
+  const { [why]: _gone, ...rest } = health[scope]!;
+  return { ...health, [scope]: rest };
 }
 
 /**
