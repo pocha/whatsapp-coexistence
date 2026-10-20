@@ -433,7 +433,7 @@ test('disconnecting: an API-only number is unsubscribed and de-registered, a coe
 });
 
 test('de-registering a plain number sends it to the register step', async () => {
-  const { effectiveStep } = require('../../lib/helpers/onboardingSteps');
+  const { effectiveStep } = require('../../lib/helpers/numberView');
   await db.collection('phoneNumbers').doc('241').set({
     userId,
     wabaId: '9241',

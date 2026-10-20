@@ -70,21 +70,21 @@ Three kinds of credential:
 | `POST /onboarding/<id>/sync` | Key | Requests the contacts, then the history sync (each once). | `syncType` |
 | `POST /onboarding/<id>/sync/skip` | Key | Skips the contacts and history sync for good (Meta allows each once). Only at the sync step. | |
 
-**Sending status.** What decides whether a send goes out is kept on the number as a list of reasons, each with the cause that raised it (a ban, the account review, a disconnection, a restriction, the payment method, the display name, quality, a pause after Meta's spam-rate-limit refusal), and a status worked out from them. The status is `ok` (shown as Healthy), `limited`, `blocked` or `disabled`. It comes from two places:
+**Sending status.** What decides whether a send goes out is kept on the number as `health`: the issues that currently restrict it, grouped by what they are about (`account`, `business`, `display_name`, `phone`) and by what they are (`payment`, `ban`, `review`, `connection`, `restriction`, `quality`, `cooldown`, `name`, `business`, or `code_<N>` for a Meta error we have no wording for). An issue exists only while it applies; when it lifts it is deleted. It is set by:
 
-- **Meta's notifications to our webhook** (below), applied as they arrive. An event sets or clears only its own cause: a lifted ban leaves a payment problem where it is, and an event older than what is stored for its cause is ignored.
-- **A refresh** (`GET /numbers/<id>?refresh=true`, which is the dashboard's refresh button and an AI tool's `get_number` with `refresh`), at the end of onboarding, and a send Meta refuses. A refresh reads Meta's whole picture and replaces what the notifications set, apart from anything that arrived while it ran. If it disagrees with what was stored, a line says so in the notifications. Meta is asked at most once in ten minutes (`metaFetchedAt`; a refused send does not move it). Nothing is re-checked on its own, and some things never arrive as a notification (the payment method is one), so the user fixes them and refreshes.
+- **Meta's notifications to our webhook** (below), applied as they arrive. An event sets or clears only its own issue: a lifted ban leaves a payment problem where it is, and an event older than what is stored for that issue is ignored.
+- **A refresh** (`GET /numbers/<id>?refresh=true`, which is the dashboard's refresh button and an AI tool's `get_number` with `refresh`), at the end of onboarding, and a send Meta refuses. A refresh reads Meta's whole picture and replaces what the notifications had set, except anything that arrived while it ran. Meta is asked at most once in ten minutes.
+
+Each issue says what it does to sending (`send`): `limit`, `block` or `disable`. A scope's status is the worst of its issues, and the number's is the worst of the scopes:
 
 | Status | When | What the relay does |
 | --- | --- | --- |
-| `disabled` | The account is banned or scheduled to be disabled, deleted, rejected in review, or the number is disconnected | Refuses every send with `403`, free-form messages too |
-| `blocked` | Meta says the account or number is blocked (for example a payment method problem), a restriction on business-initiated messaging, or Meta's spam rate limit (a pause of an hour) | Template messages get `403`, or `429` with `Retry-After` when the block ends by itself. Free-form messages still go through. |
-| `limited` | The number itself is limited (a display name not approved yet), or Meta flags its quality | At most 5 template messages a day (our own cautious figure; Meta's documentation gives none). Beyond that the usual 429. |
-| `ok` | Anything else. A business that is limited only because it is not verified is shown on its own chip and changes nothing | Normal limits. |
+| `disable` | The account is banned or scheduled to be disabled, deleted, rejected in review, or the number is disconnected | Refuses every send with `403`, free-form messages too |
+| `block` | Meta says the account or number is blocked (for example a payment method problem), a restriction on business-initiated messaging, or Meta's spam rate limit (a pause of an hour) | Template messages get `403`, or `429` with `Retry-After` when the block has an end time. Free-form replies still go through. |
+| `limit` | The number itself is limited (a display name not approved yet), flagged or of low quality, or the business is unverified | The issue's ceiling applies: at most 5 template messages a day for a limited number (our own cautious figure), or Meta's cap. |
+| `ok` | No issue | Normal limits. |
 
-Whatever the status, the daily template limit never goes above Meta's messaging limit tier (250 while the business is unverified), which is updated by the same notifications. Meta counts customers and we count template messages, so this is an approximation. A template Meta pauses, disables, rejects or deletes (from its notifications, or a refused send naming it) is refused by name and language; other templates are not affected.
-
-Each reason has a `title`, what is wrong (`message`), `action` and, where we know one, a `link`, written for the cases we know and in Meta's words for any other. The number's page shows them as chips beside the number (Healthy, Limited or Blocked; Business unverified; Display name needs attention). A click opens a popup with the reasons, when Meta was last asked, the refresh button (it needs the key) and, for the display name, the form to request a new name. Below are the notifications themselves.
+An issue may carry a `cap` per window; the lowest of these and Meta's daily messaging limit (250 while the business is unverified) is `health.limits`, which caps what the number has earned (see Rate limits). Each issue has a `title`, a `message` that says what is wrong and what to do, and where we know one a `link`, written for the cases we know and in Meta's words for any other. A refused send returns the blocking `issues`. The number's page shows one chip per scope (OK, Limited or Blocked) and the popup lists the issues. Any other account-level field Meta sends is kept as a notification that gates nothing. The wording for every signal is one table, `functions/src/helpers/rules.ts`.
 
 <!-- docs:omit -->
 ### The account and the rest
@@ -244,7 +244,7 @@ only their own, within the limits in `firestore.rules` (they can never change `u
 |---|---|
 | `users/{randomUserId}` | `phoneNumber`, `apiKeyHash`, `createdAt`, `rotatedAt` |
 | `phoneIndex/{phone}` | `userId` |
-| `phoneNumbers/{phoneNumberId}` | `userId`, `wabaId`, `phoneNumberId`, `displayPhoneNumber`, `encAccessToken`, `overrideUrl`, `activatedAt`, `lastRelayCall`, `usage`, `rateState`, `rateLimits` |
+| `phoneNumbers/{phoneNumberId}` | `userId`, `wabaId`, `phoneNumberId`, `displayPhoneNumber`, `encAccessToken`, `overrideUrl`, `activatedAt`, `lastRelayCall`, `usage`, `rateState`, `limits` |
 
 The Firebase sign-in `uid` is the random user ID, not the phone number.
 
@@ -253,13 +253,16 @@ The Firebase sign-in `uid` is the random user ID, not the phone number.
 Template messages sent through the relay are rate limited per number, to protect the number
 from being flagged. Free-form replies are not limited.
 
-- **The values** are in [`functions/src/helpers/rateLimitConfig.ts`](functions/src/helpers/rateLimitConfig.ts):
+- **The values** are in [`functions/src/helpers/rateLimiter.ts`](functions/src/helpers/rateLimiter.ts):
   per window (minute, hour, day) a `floor` that is always allowed and a `growthPercent` over the
   previous window, plus statistical headroom. A send over any window's limit gets a `429` with
   `Retry-After`.
-- **Per-number override:** set `rateLimits` on that number's `phoneNumbers/{id}` record (Admin SDK or
-  the Firebase console; customers can't write it), with any part of the same shape, for example
-  `{ "minute": { "floor": 40 } }`. Set `{ "enabled": false }` to switch limiting off for one number.
+- **Per-number limits:** `limits` on that number's `phoneNumbers/{id}` record is what it has earned per
+  window, `{ "minute": 10, "hour": 50, "day": 100 }` at the start. To start an account that is moving
+  over in good standing higher, write bigger values with the Admin SDK or the Firebase console
+  (customers can't write it), for example `{ "minute": 100, "hour": 500, "day": 2000 }`. They apply at once
+  and then only grow. The limit in force is the lower of these and the ceilings from the number's health
+  (Meta's daily messaging limit, and a few a day while it is limited).
 - **State** is `rateState` on the same record: per window the accepted count and the attempted
   count (refused requests included), for the current and the previous window. The limit is worked
   out from the *accepted* previous count only, so refused requests can't raise it. The number's page

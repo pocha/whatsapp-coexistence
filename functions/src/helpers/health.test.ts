@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readAllFields, readFieldsSkippingUnknown } from './metaSnapshot';
+import { readAllFields, readFieldsSkippingUnknown } from './health';
 
 const unknownField = (name: string) => new Error(`Graph API error (400): {"error":{"message":"(#100) Tried accessing nonexisting field (${name})"}}`);
 

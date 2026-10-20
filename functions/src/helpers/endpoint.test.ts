@@ -2,7 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { verifyEndpointChallenge } from './endpointCheck';
+import { verifyEndpointChallenge } from './endpoint';
 
 // A stand-in for a customer's endpoint. The integration runner sets ALLOW_HTTP_ENDPOINT for the
 // same reason: the real check only accepts public HTTPS addresses.

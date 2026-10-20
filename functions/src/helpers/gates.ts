@@ -5,6 +5,9 @@ import type { HealthView, Issue, Limits, NumberHealth, PhoneNumberDoc, Scope, Se
 // restrict it, by scope and what they are), its `templates` in trouble, and Meta's daily limit. Everything
 // here is pure, so the relay, the webhook and the dashboard use the same rules.
 
+/** Meta is not asked about a number again within this long of the last read. */
+export const REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000;
+
 export const SCOPES: Scope[] = ['account', 'business', 'display_name', 'phone'];
 const RANK: Record<Send, number> = { ok: 0, limit: 1, block: 2, disable: 3 };
 const SEND = ['ok', 'limit', 'block', 'disable'] as const;

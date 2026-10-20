@@ -1,9 +1,8 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
-import { createHmac, timingSafeEqual } from 'node:crypto';
-import { createHash } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { config } from './helpers/config';
-import { applyEffects, parseWebhook } from './helpers/gateEvents';
+import { applyEffects, parseWebhook } from './helpers/rules';
 import { addNotification, numbersForWaba, updateGates } from './helpers/model';
 
 const digits = (value: unknown) => String(value ?? '').replace(/\D/g, '');
@@ -40,7 +39,7 @@ export async function handleWebhookBody(body: unknown, now = Date.now()): Promis
 // wabaManager.ts), so Meta delivers incoming messages straight to the
 // business's own server. What can't be overridden (template and account-level
 // updates) arrives here. Those are kept as the number's Notifications and, where
-// they bear on whether a send should go out, applied to its gates (helpers/gateEvents.ts).
+// they bear on whether a send should go out, applied to its gates (helpers/rules.ts).
 // Messages, syncs and echoes are never read or kept.
 
 /**

@@ -1,8 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizePhone, sendOtpCore, verifyOtpCore } from './otp';
-import { TEST_LOGIN } from './helpers/testLogin';
-import { OTP_FACTS, otpMessage, pickOtpFact } from './helpers/otpFacts';
+import { normalizePhone, OTP_FACTS, otpMessage, pickOtpFact, sendOtpCore, TEST_LOGIN, verifyOtpCore } from './otp';
 import { hashApiKey } from './helpers/apiKey';
 
 test('normalizePhone strips non-digits and rejects out-of-range lengths', () => {

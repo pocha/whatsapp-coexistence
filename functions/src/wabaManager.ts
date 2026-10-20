@@ -2,31 +2,14 @@ import { createHash } from 'node:crypto';
 import { onRequest } from 'firebase-functions/v2/https';
 import express from 'express';
 import { config } from './helpers/config';
-import {
-  createTemplate,
-  deregisterPhoneNumber,
-  getDisplayPhoneNumber,
-  getPhoneNumberInfo,
-  graphApiBase,
-  graphGet,
-  migrateTemplatesPage,
-  registerPhoneNumber,
-  requestDisplayName,
-  subscribeApp,
-  unsubscribeApp,
-  verifyWabaAccess,
-} from './helpers/graphApi';
-import { newApp, type Handler } from './helpers/http';
-import { relayLimits } from './helpers/numberView';
-import { refreshHealth } from './helpers/healthRefresh';
-import { issuesFromRefusal, templateGateFromRefusal } from './helpers/health';
+import { createTemplate, deregisterPhoneNumber, getDisplayPhoneNumber, getPhoneNumberInfo, graphApiBase, graphGet, migrateTemplatesPage, parseTemplateExport, registerPhoneNumber, requestDisplayName, subscribeApp, unsubscribeApp, verifyWabaAccess } from './helpers/graphApi';
+import { HttpError, failedRequest, logEvent, newApp, type Handler } from './helpers/http';
+import { progressOf, relayLimits } from './helpers/numberView';
+import { issuesFromRefusal, refreshHealth, templateGateFromRefusal } from './helpers/health';
 import { sendDecision, templateKey } from './helpers/gates';
-import { applyEffects, type Effect } from './helpers/gateEvents';
-import { parseTemplateExport } from './helpers/templateImport';
+import { applyEffects, type Effect } from './helpers/rules';
 import { limitsView, UNITS, type Limits, type RateState } from './helpers/rateLimiter';
-import { verifyEndpointChallenge } from './helpers/endpointCheck';
-import { HttpError } from './helpers/auth';
-import { failedRequest, logEvent } from './helpers/log';
+import { verifyEndpointChallenge } from './helpers/endpoint';
 import type {
   DeregisterNumberRequest,
   DisconnectNumberRequest,
@@ -41,7 +24,6 @@ import type {
 } from './helpers/types';
 import { authenticateKey } from './accounts';
 import { advanceAfterOverride } from './onboarding';
-import { progressOf } from './helpers/nextStep';
 import {
   markDeregistered,
   markRegistered,

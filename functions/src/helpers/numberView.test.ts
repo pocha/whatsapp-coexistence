@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { nextStep } from './nextStep';
+import { nextStep } from './numberView';
 import type { PhoneNumberDoc } from './types';
 
 const doc = (over: Partial<PhoneNumberDoc>): PhoneNumberDoc =>

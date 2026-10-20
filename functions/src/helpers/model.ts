@@ -344,7 +344,7 @@ export const setSyncState = (phoneNumberId: string, type: SyncType, status: Sync
 /**
  * Counts one more template message against the number's windows, and says whether it may go. The
  * check and the count happen in one transaction, so sends arriving together cannot all slip under
- * the limit. Limits come from helpers/rateLimitConfig.ts, and a number's own `limits` (what it has earned) start it higher.
+ * the limit. Limits come from helpers/rateLimiter.ts, and a number's own `limits` (what it has earned) start it higher.
  */
 export async function reserveTemplateSend(
   phoneNumberId: string,

@@ -13,7 +13,7 @@ Onboarding a number, in order:
 3. Call get_number (or list_numbers) until the number appears. Every number carries "next": what to do at its current step, and the tools to use. Tell the person that, and follow it. Calls that move a number on (register_number, start_sync, skip_sync, set_onboarding_step) answer with the new "next", so after each one say what is next without asking again.
 
 Sending: send_message through Watobot; template sends are limited per minute, hour and day. Call get_limits to see how much room is left and wait when remaining is 0.
-A send Watobot refuses (403, or 429 with Retry-After) comes with reasons: what is wrong, what the person has to do and where. Tell them, do not retry in a loop, and call get_number with refresh only after they say it is fixed. get_notifications shows what Meta has reported about the number.
+A send Watobot refuses (403, or 429 with Retry-After) comes with issues: what is wrong, what the person has to do and where. Tell them, do not retry in a loop, and call get_number with refresh only after they say it is fixed. get_notifications shows what Meta has reported about the number.
 
 deregister_number, disconnect_number, delete_template and skip_sync cannot be undone. Ask the person before calling them.`;
 
@@ -60,7 +60,7 @@ export function createServer(ctx: Context): McpServer {
   tool('list_numbers', 'Lists your numbers and where each is in onboarding (the "step"), whether it is also on the WhatsApp Business app, and when the syncs were requested.', {}, () => callWithBearer('GET', 'numbers'), { readOnly: true });
   tool(
     'get_number',
-    'One number\'s state, its template-send limits and its sending status (healthy, limited or blocked, with the reasons, what to do about each and where; a disabled number, such as a banned or disconnected one, sends nothing). That is what was stored the last time Meta was asked. With refresh=true it asks Meta again (messaging limit tier, quality rating, display name, account review, ownership, the callback URL override, the token\'s scopes) and updates the status, but only once in ten minutes: ask again only after the person has fixed what the status names.',
+    'One number\'s state, its template-send limits and its sending status (ok, limit, block or disable, per scope: account, business, display_name and phone, with the issues, what to do about each and where; a disabled number, such as a banned or disconnected one, sends nothing). That is what was stored the last time Meta was asked. With refresh=true it asks Meta again (messaging limit tier, quality rating, display name, account review, ownership, the callback URL override, the token\'s scopes) and updates the status, but only once in ten minutes: ask again only after the person has fixed what the status names.',
     { phoneNumberId, refresh: z.boolean().optional() },
     (a) => callWithBearer('GET', `numbers/${a.phoneNumberId}${a.refresh ? '?refresh=true' : ''}`),
     { readOnly: true },

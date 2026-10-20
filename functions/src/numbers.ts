@@ -1,13 +1,10 @@
-import { HttpError } from './helpers/auth';
+import { HttpError, logEvent, post, type Handler } from './helpers/http';
 import { authenticateKey, requireCaller } from './accounts';
-import { post, type Handler } from './helpers/http';
 import { listNotifications, listNumbersForUser, readNumber } from './helpers/model';
 import { numberView, relayLimits } from './helpers/numberView';
-import { refreshHealth } from './helpers/healthRefresh';
-import { presentHealth } from './helpers/gates';
-import { nextRefreshAt, REFRESH_MIN_INTERVAL_MS } from './helpers/health';
+import { nextRefreshAt, refreshHealth } from './helpers/health';
+import { REFRESH_MIN_INTERVAL_MS, presentHealth } from './helpers/gates';
 import type { GetNumberResponse, ListNumbersResponse, NotificationsResponse } from './helpers/types';
-import { logEvent } from './helpers/log';
 
 // Reads for the dashboard and the MCP: what numbers an account has and where each stands. They
 // answer the caller about their own numbers only, and never carry the stored token (numberView).

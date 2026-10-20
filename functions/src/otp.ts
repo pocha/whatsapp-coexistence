@@ -1,13 +1,10 @@
-import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
-import { logger } from 'firebase-functions/v2';
 import { getAuth } from 'firebase-admin/auth';
-import { config } from './helpers/config';
-import { sendWhatsappMessage } from './helpers/watobotApi';
-import { TEST_LOGIN } from './helpers/testLogin';
-import { otpMessage, pickOtpFact } from './helpers/otpFacts';
+import { logger } from 'firebase-functions/v2';
+import { onRequest } from 'firebase-functions/v2/https';
 import { apiKeyMatchesHash, isValidApiKey } from './helpers/apiKey';
-import { countOtpAttempt, deleteOtp, getOrCreateUserByPhone, readOtp, resetApiKey, saveOtp, type UserRecord } from './helpers/model';
+import { config } from './helpers/config';
+import { type UserRecord, countOtpAttempt, deleteOtp, getOrCreateUserByPhone, readOtp, resetApiKey, saveOtp } from './helpers/model';
 
 // Login by phone number and a WhatsApp one-time code: sendOtp sends it, verifyOtp checks it
 // (and the account's API key, once it has one) and mints the Firebase sign-in token.
@@ -48,7 +45,7 @@ export async function sendOtpCore(
   const normalized = normalizePhone(phone);
   if (!normalized) return { ok: false, error: 'Enter a valid WhatsApp number, including country code.' };
 
-  // The reviewers' login: a fixed code and no message (see helpers/testLogin.ts).
+  // The reviewers' login: a fixed code and no message (see TEST_LOGIN below).
   const isTestLogin = normalized === TEST_LOGIN.phone;
 
   const existing = await deps.getOtpDoc(normalized);
@@ -203,3 +200,94 @@ export const verifyOtp = onRequest((req, res) => {
     }
   });
 });
+
+
+// Login codes go out through an API that flags a repeated message to the same
+// recipient as a duplicate. One random fact per message keeps each one different.
+// Three facts per how-to page (and the capabilities page); each restates something
+// that page already says, so the pointer to the how-to section holds up.
+export const OTP_FACTS: string[] = [
+  // create-meta-business-portfolio-add-whatsapp-number
+  'You need a Meta business portfolio to use the WhatsApp API, but it can stay unverified.',
+  'One Facebook account can own several business portfolios.',
+  'Your WhatsApp Business app must be installed and logged in before you link the number to a portfolio.',
+  // get-whatsapp-api-for-free
+  'Meta describes the token from the WhatsApp setup page as a permanent access token.',
+  'Pick the "Connect with customers through WhatsApp" use case when you create the Meta app.',
+  'An API for your own number runs on Standard Access, so no App Review is needed.',
+  // get-whatsapp-api-access-in-5-minutes
+  'Coexistence keeps the WhatsApp Business app and the API working on one number.',
+  'With coexistence, your contacts and chat history sync to the API once, within 24 hours.',
+  'Coexistence needs no verified business.',
+  // move-whatsapp-api-between-providers
+  'Under Meta\'s new account model, templates belong to the Messaging account, not the phone number.',
+  'Disconnecting from a provider does not delete your templates.',
+  'You can only move or share a WhatsApp account that your own business portfolio owns.',
+  // questions-to-ask-whatsapp-api-provider
+  'Meta charges per delivered message, and never for messages your customers send.',
+  'An unverified business starts at 250 customers a day, and messaging limits count customers, not messages.',
+  'Ask whether your provider supports coexistence: the number has to be on the Business app when it connects.',
+  // deregister-whatsapp-number-from-provider
+  'De-registering a number does not delete it or its chat history.',
+  'A coexistence number is disconnected in the Business app: Settings, Account, Business Platform.',
+  'Registering a number for the API needs a six-digit PIN.',
+  // whatsapp-number-registration-and-pin
+  'The six-digit registration PIN is one you choose yourself.',
+  'Meta can pause a template after negative feedback from customers.',
+  'Template review can take up to 24 hours.',
+  // connect-watobot-to-ai-tool
+  'Watobot never stores your messages.',
+  'Your Meta token is encrypted with your Watobot key, and only a hash of that key is kept.',
+  'Your Watobot key is created in your browser and shown once.',
+  // capabilities
+  'A free-form reply is only allowed within 24 hours of the customer\'s last message.',
+  'Messages you type in the Business app reach your API as echoes.',
+  'Watobot shows Meta\'s account alerts and sending limits on your dashboard.',
+];
+
+export function pickOtpFact(random: () => number = Math.random): string {
+  return OTP_FACTS[Math.floor(random() * OTP_FACTS.length)];
+}
+
+export function otpMessage(code: string, fact: string): string {
+  return (
+    `Your Watobot OTP to login is ${code}. It expires in 5 minutes. Don't share this code with anyone.\n\n` +
+    `Fun fact: ${fact}\nFor more such interesting facts, check the how-to section of the Watobot website.`
+  );
+}
+
+
+// A fixed login for reviewers (Meta's App Review needs a way to sign in without receiving a
+// WhatsApp message). For this one number the code is always TEST_LOGIN.code and no message is
+// sent; every other number gets a real one-time code as usual.
+//
+// Treat the account behind it as public: give it only demo data, never a real customer's number.
+// Delete this file's values (or the lines in otp.ts that read them) once review is done.
+// `phone` is digits only, as the login page normalises numbers (+1 234 567 8901).
+export const TEST_LOGIN = { phone: '12345678901', code: '123456' };
+
+
+// Sends the login OTP over WhatsApp via watobot.xyz (mudbot), so login needs
+// no email/Facebook — just a WhatsApp number the business already has.
+// https://github.com/pocha/mudbot
+const WATOBOT_BASE = process.env.WATOBOT_API_BASE || 'https://api.watobot.xyz';
+
+export async function sendWhatsappMessage(apiKey: string, to: string, message: string): Promise<void> {
+  const res = await fetch(`${WATOBOT_BASE}/api/message`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+    },
+    body: JSON.stringify({ to, message }),
+    // watobot queues messages per-account to avoid WhatsApp spam detection
+    // (see mudbot's docs), so a send can genuinely take ~60s — this needs
+    // real headroom above that, not a generic request timeout.
+    signal: AbortSignal.timeout(75_000),
+  });
+
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; reason?: string };
+  if (!res.ok || !body.success) {
+    throw new Error(`watobot send failed: ${res.status} ${body.reason ?? JSON.stringify(body)}`);
+  }
+}
