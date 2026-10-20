@@ -1,32 +1,66 @@
-<!-- The setup for an AI tool, put together in the page from the key the user pasted (src/assets/ai-tool.ts) -->
-<dialog id="ai-dialog" class="bg-white border border-outline-variant rounded-xl shadow-xl p-6 w-[92vw] max-w-2xl m-auto text-left backdrop:bg-black/50">
+<!-- The setup for each AI tool, with the key filled in by the page (src/assets/ai-tool.ts). The steps follow step 3 of the how-to guide. -->
+<dialog id="ai-dialog" class="bg-white border border-outline-variant rounded-xl shadow-xl p-6 w-[92vw] max-w-3xl m-auto text-left backdrop:bg-black/50">
   <div class="flex justify-between items-start gap-4 mb-2">
     <p class="section-title text-on-surface">Connect your AI tool</p>
     <button id="ai-close" type="button" aria-label="Close" class="text-on-surface-variant hover:text-on-surface text-2xl leading-none">&times;</button>
   </div>
   <p class="text-on-surface-variant font-body-md text-sm mb-4">
-    Pick the one for your tool. Meta's sign-up (Facebook login and the code in the WhatsApp Business app) is always
-    done by you, in the browser. The key is only used to put these together here: it isn't sent anywhere.
+    Pick your tool and follow its steps. These hold your key, so treat them like the key. Nothing here was sent anywhere:
+    the page put it together from the key you pasted. Meta's sign-up (Facebook login and the code in the WhatsApp Business
+    app) is always done by you, in the browser.
   </p>
-  <div class="flex flex-col gap-4 max-h-[60vh] overflow-y-auto">
-    <div>
-      <p class="label-strong text-on-surface">Claude.ai or ChatGPT (a connector)</p>
-      <p class="text-on-surface-variant font-body-md text-sm mb-1">Add a custom connector with this address and no authentication. The address holds your key, so treat it like the key.</p>
-      <pre id="ai-url" class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto break-all whitespace-pre-wrap"></pre>
-      <button type="button" data-copy="ai-url" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+  <div class="flex flex-col gap-4 max-h-[62vh] overflow-y-auto pr-1">
+    <div class="rounded-lg border border-outline-variant p-4">
+      <p class="label-strong text-on-surface mb-2">Claude (claude.ai)</p>
+      <ol class="flex flex-col gap-2 list-decimal list-inside text-on-surface-variant font-body-md text-sm">
+        <li>Open <strong>Settings &rarr; Connectors</strong> and add a custom connector.</li>
+        <li>Paste this address, and choose no authentication (leave any OAuth fields empty):</li>
+      </ol>
+        <pre id="ai-url" class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto break-all whitespace-pre-wrap"></pre>
+        <button type="button" data-copy="ai-url" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+      <ol start="3" class="mt-2 list-decimal list-inside text-on-surface-variant font-body-md text-sm">
+        <li>Start a chat and turn the Watobot connector on for it.</li>
+      </ol>
     </div>
-    <div>
-      <p class="label-strong text-on-surface">Claude Code, hosted</p>
-      <pre id="ai-http-cmd" class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto break-all whitespace-pre-wrap"></pre>
-      <button type="button" data-copy="ai-http-cmd" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+
+    <div class="rounded-lg border border-outline-variant p-4">
+      <p class="label-strong text-on-surface mb-2">ChatGPT</p>
+      <ol class="flex flex-col gap-2 list-decimal list-inside text-on-surface-variant font-body-md text-sm">
+        <li>Open <strong>Settings &rarr; Connectors &rarr; Advanced</strong> and turn on <strong>Developer mode</strong>.</li>
+        <li>Create a connector with this address and no authentication:</li>
+      </ol>
+        <pre id="ai-url-2" class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto break-all whitespace-pre-wrap"></pre>
+        <button type="button" data-copy="ai-url-2" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+      <ol start="3" class="mt-2 list-decimal list-inside text-on-surface-variant font-body-md text-sm">
+        <li>Pick it in a chat from the tools menu.</li>
+      </ol>
     </div>
-    <div>
-      <p class="label-strong text-on-surface">Claude Code, running on your computer</p>
-      <pre id="ai-cmd" class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto break-all whitespace-pre-wrap"></pre>
-      <button type="button" data-copy="ai-cmd" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+
+    <div class="rounded-lg border border-outline-variant p-4">
+      <p class="label-strong text-on-surface mb-2">Claude Code</p>
+      <p class="text-on-surface-variant font-body-md text-sm mb-2">Run this, then type <code>/mcp</code> to see that Watobot is connected:</p>
+        <pre id="ai-http-cmd" class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto break-all whitespace-pre-wrap"></pre>
+        <button type="button" data-copy="ai-http-cmd" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+      <p class="text-on-surface-variant font-body-md text-sm mt-3 mb-2">Or run it on your computer instead (needs Node.js 20 or newer):</p>
+        <pre id="ai-cmd" class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto break-all whitespace-pre-wrap"></pre>
+        <button type="button" data-copy="ai-cmd" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
     </div>
+
+    <div class="rounded-lg border border-outline-variant p-4">
+      <p class="label-strong text-on-surface mb-2">Claude Desktop, Cursor and other tools that start a program</p>
+      <p class="text-on-surface-variant font-body-md text-sm mb-2">Add this to the tool's MCP settings (Claude Desktop: <strong>Settings &rarr; Developer &rarr; Edit config</strong>), then restart the tool (needs Node.js 20 or newer):</p>
+        <pre id="ai-json" class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto break-all whitespace-pre-wrap"></pre>
+        <button type="button" data-copy="ai-json" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+    </div>
+
+    <p class="text-on-surface-variant font-body-md text-sm">
+      The menus change from one plan and one release to the next, so the names above may differ a little on yours.
+      Custom connectors need a plan that allows them (on claude.ai the free plan allows one), and on a team plan an
+      owner may have to switch them on first. Claude.ai and ChatGPT connect from their own servers, which is why
+      they use the address and can't use the program that runs on your computer.
+    </p>
   </div>
   <p class="text-on-surface-variant font-body-md text-sm mt-4">
-    Other tools, and what to say once it's added: <a class="text-primary font-bold hover:underline" href="/how-to/connect-watobot-to-ai-tool.html">the step-by-step guide</a>.
+    Once it's added, here is what to say: <a class="text-primary font-bold hover:underline" href="/how-to/connect-watobot-to-ai-tool.html">the step-by-step guide</a>.
   </p>
 </dialog>

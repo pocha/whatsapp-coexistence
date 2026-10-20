@@ -21,9 +21,12 @@ export function wireAiTool(): void {
     const value = key.value.trim();
     if (!isValidApiKey(value)) return;
     const mcp = `${functionsBase()}/mcp`;
-    el('ai-url').textContent = `${mcp}/${value}`;
+    const url = `${mcp}/${value}`;
+    el('ai-url').textContent = url;
+    el('ai-url-2').textContent = url;
     el('ai-http-cmd').textContent = `claude mcp add --transport http watobot ${mcp} --header "Authorization: Bearer ${value}"`;
     el('ai-cmd').textContent = `claude mcp add watobot -e WATOBOT_API_KEY=${value} -- npx -y watobot-mcp`;
+    el('ai-json').textContent = JSON.stringify({ mcpServers: { watobot: { command: 'npx', args: ['-y', 'watobot-mcp'], env: { WATOBOT_API_KEY: value } } } }, null, 2);
     for (const copy of Array.from(dialog.querySelectorAll<HTMLButtonElement>('button[data-copy]'))) copy.textContent = 'Copy';
     dialog.showModal();
   });
@@ -34,7 +37,7 @@ export function wireAiTool(): void {
   });
   dialog.addEventListener('close', () => {
     // The commands hold the key: don't leave them in the page.
-    for (const id of ['ai-url', 'ai-http-cmd', 'ai-cmd']) el(id).textContent = '';
+    for (const id of ['ai-url', 'ai-url-2', 'ai-http-cmd', 'ai-cmd', 'ai-json']) el(id).textContent = '';
   });
   for (const copy of Array.from(dialog.querySelectorAll<HTMLButtonElement>('button[data-copy]'))) {
     copy.addEventListener('click', async () => {
