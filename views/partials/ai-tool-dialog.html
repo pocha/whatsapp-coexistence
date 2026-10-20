@@ -1,0 +1,32 @@
+<!-- The setup for an AI tool, put together in the page from the key the user pasted (src/assets/ai-tool.ts) -->
+<dialog id="ai-dialog" class="bg-white border border-outline-variant rounded-xl shadow-xl p-6 w-[92vw] max-w-2xl m-auto text-left backdrop:bg-black/50">
+  <div class="flex justify-between items-start gap-4 mb-2">
+    <p class="section-title text-on-surface">Connect your AI tool</p>
+    <button id="ai-close" type="button" aria-label="Close" class="text-on-surface-variant hover:text-on-surface text-2xl leading-none">&times;</button>
+  </div>
+  <p class="text-on-surface-variant font-body-md text-sm mb-4">
+    Pick the one for your tool. Meta's sign-up (Facebook login and the code in the WhatsApp Business app) is always
+    done by you, in the browser. The key is only used to put these together here: it isn't sent anywhere.
+  </p>
+  <div class="flex flex-col gap-4 max-h-[60vh] overflow-y-auto">
+    <div>
+      <p class="label-strong text-on-surface">Claude.ai or ChatGPT (a connector)</p>
+      <p class="text-on-surface-variant font-body-md text-sm mb-1">Add a custom connector with this address and no authentication. The address holds your key, so treat it like the key.</p>
+      <pre id="ai-url" class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto break-all whitespace-pre-wrap"></pre>
+      <button type="button" data-copy="ai-url" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+    </div>
+    <div>
+      <p class="label-strong text-on-surface">Claude Code, hosted</p>
+      <pre id="ai-http-cmd" class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto break-all whitespace-pre-wrap"></pre>
+      <button type="button" data-copy="ai-http-cmd" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+    </div>
+    <div>
+      <p class="label-strong text-on-surface">Claude Code, running on your computer</p>
+      <pre id="ai-cmd" class="bg-surface-container rounded-lg p-3 font-mono text-xs overflow-x-auto break-all whitespace-pre-wrap"></pre>
+      <button type="button" data-copy="ai-cmd" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
+    </div>
+  </div>
+  <p class="text-on-surface-variant font-body-md text-sm mt-4">
+    Other tools, and what to say once it's added: <a class="text-primary font-bold hover:underline" href="/how-to/connect-watobot-to-ai-tool.html">the step-by-step guide</a>.
+  </p>
+</dialog>

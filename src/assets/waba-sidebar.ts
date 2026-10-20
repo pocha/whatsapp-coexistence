@@ -1,6 +1,7 @@
-// Fills the shared sidebar (views/partials/waba-sidebar.html) with the signed-in
-// user's onboarded WABAs, wires up its Delete account button, and returns the
-// WABA records. Callers only invoke this when someone is signed in.
+// The shared sidebar (views/partials/waba-sidebar.html) is in the page from the start: its links and the
+// highlight of the current page are static and work at once. fillSidebar adds the signed-in user's
+// onboarded phone numbers, names the key link, and enables Delete account (which needs those numbers to
+// disconnect them first). Callers only invoke it when someone is signed in.
 import { auth, db, functionsBase, signOutUser } from '/assets/firebase-init.js';
 import { deleteAccount, fetchNumbers, keyMatchesAccount } from '/assets/account.js';
 import { isValidApiKey } from '/assets/api-key.js';
@@ -133,18 +134,23 @@ function wireDelete() {
   anywayBtn.addEventListener('click', () => finish(null));
 }
 
+/** Highlights the sidebar link of the page we are on. */
+function markCurrentPage() {
+  const sidebar = document.getElementById('waba-sidebar');
+  if (!sidebar) return;
+  const nav = location.pathname === '/dashboard/waba/create.html' ? 'onboard' : location.pathname.startsWith('/dashboard/key') ? 'key' : undefined;
+  if (nav) markActive(sidebar.querySelector(`[data-nav="${nav}"]`)!);
+}
+
+if (document.getElementById('waba-sidebar')) {
+  markCurrentPage();
+  wireDelete();
+}
+
 export async function fillSidebar(uid: string, currentId?: string | null): Promise<NumberRecord[]> {
   const sidebar = el('waba-sidebar');
   const list = el('waba-sidebar-list');
   const empty = el('waba-sidebar-empty');
-
-  // Highlight Onboard WABA while on its page.
-  if (location.pathname === '/dashboard/waba/create.html') {
-    markActive(sidebar.querySelector('[data-nav="onboard"]')!);
-  }
-  if (location.pathname.startsWith('/dashboard/key')) {
-    markActive(sidebar.querySelector('[data-nav="key"]')!);
-  }
 
   // The key page is where an account creates its key, and later changes it.
   const hasKey = Boolean(((await getDoc(doc(db, 'users', uid))).data() as UserDoc | undefined)?.apiKeyHash);
@@ -185,8 +191,6 @@ export async function fillSidebar(uid: string, currentId?: string | null): Promi
   empty.classList.toggle('lg:block', numbers.length === 0);
 
   currentNumbers = numbers;
-  sidebar.classList.remove('hidden');
-  sidebar.classList.add('flex');
-  wireDelete();
+  el<HTMLButtonElement>('delete-account-btn').disabled = false;
   return numbers;
 }

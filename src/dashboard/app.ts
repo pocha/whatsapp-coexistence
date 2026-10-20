@@ -133,7 +133,7 @@ keyBtn.addEventListener('click', async () => {
 
 lostKeyBtn.addEventListener('click', async () => {
   const ok = confirm(
-    'Your onboarded WABAs will be useless.\n\n' +
+    'Your onboarded phone numbers will be useless.\n\n' +
       'Without your API key we cannot open the access tokens we hold for your numbers, so we have to delete them. ' +
       'Your numbers stay in your list, but each one must be onboarded again before it can send.\n\n' +
       "You'll then get a new API key to note down. Continue?",

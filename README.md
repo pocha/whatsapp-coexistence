@@ -228,7 +228,7 @@ we hold each customer's token and never hand it out.
 - **Rotating** the key needs the old one. The `rotateKey` function re-encrypts every
   token under the new key in one batch, so the plaintext token is only ever in server
   memory, never in the browser. A **lost key can't be recovered**: resetting it (from the
-  sign-in screen, the dashboard or the onboarding page) warns that the onboarded WABAs
+  sign-in screen, the dashboard or the onboarding page) warns that the onboarded phone numbers
   will be useless, deletes the stored tokens, and gives a new key. Each number must
   then be onboarded again.
 - **Users manage their own account from the browser** (`src/assets/account.ts`):
@@ -542,7 +542,7 @@ gives Watobot the token, which it stores encrypted under your key and opens only
 
 1. Sign in at `https://watobot.com/dashboard/` (or `http://localhost:8765/dashboard/` locally, see step 3)
    and create your API key on the **API key** page. Copy it: it is shown once.
-2. **Onboard a number**: click **Onboard WABA** and follow the wizard (or let an AI tool do the checks through
+2. **Onboard a number**: click **Onboard Phone Number** and follow the wizard (or let an AI tool do the checks through
    the MCP server, which hands you a link for Meta's sign-up). The number comes out of Meta's sign-up with its
    own phone number ID, shown on its page in the dashboard (`/dashboard/waba/?id=<phone number ID>`).
 3. **Override incoming message URL**: in the wizard (or on the number's page), enter your Watobot API key and

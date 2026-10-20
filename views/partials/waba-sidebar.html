@@ -1,11 +1,11 @@
-<aside id="waba-sidebar" class="hidden w-16 lg:w-64 flex-shrink-0 border-r border-outline-variant bg-surface-container-lowest flex-col gap-1 py-4 px-2">
-  <p class="hidden lg:block label-muted px-3 mb-1">Your WABAs</p>
+<aside id="waba-sidebar" class="flex w-16 lg:w-64 flex-shrink-0 border-r border-outline-variant bg-surface-container-lowest flex-col gap-1 py-4 px-2">
+  <p class="hidden lg:block label-muted px-3 mb-1">Your phone numbers</p>
   <nav id="waba-sidebar-list" class="flex flex-col gap-1"></nav>
-  <p id="waba-sidebar-empty" class="hidden lg:block text-on-surface-variant font-body-md text-sm px-3">No WABAs onboarded yet.</p>
+  <p id="waba-sidebar-empty" class="hidden lg:block text-on-surface-variant font-body-md text-sm px-3">No phone numbers onboarded yet.</p>
 
-  <a href="/dashboard/waba/create.html" data-nav="onboard" title="Onboard WABA" class="mt-2 flex items-center gap-3 px-2 lg:px-3 py-2.5 rounded-lg font-label-md text-sm font-bold text-primary hover:bg-surface-container transition-colors justify-center lg:justify-start">
+  <a href="/dashboard/waba/create.html" data-nav="onboard" title="Onboard Phone Number" class="mt-2 flex items-center gap-3 px-2 lg:px-3 py-2.5 rounded-lg font-label-md text-sm font-bold text-primary hover:bg-surface-container transition-colors justify-center lg:justify-start">
     <span class="material-symbols-outlined text-[22px] flex-shrink-0">add_circle</span>
-    <span class="hidden lg:inline truncate">Onboard WABA</span>
+    <span class="hidden lg:inline truncate">Onboard Phone Number</span>
   </a>
 
   <a href="/dashboard/key/" data-nav="key" title="API key" class="flex items-center gap-3 px-2 lg:px-3 py-2.5 rounded-lg font-label-md text-sm font-bold text-primary hover:bg-surface-container transition-colors justify-center lg:justify-start">
@@ -13,7 +13,7 @@
     <span id="key-nav-label" class="hidden lg:inline truncate">API key</span>
   </a>
 
-  <button id="delete-account-btn" title="Delete account" class="mt-auto flex items-center gap-3 px-2 lg:px-3 py-2.5 rounded-lg font-label-md text-sm text-error hover:bg-error/10 transition-colors justify-center lg:justify-start">
+  <button id="delete-account-btn" disabled title="Delete account" class="mt-auto flex items-center gap-3 px-2 lg:px-3 py-2.5 rounded-lg font-label-md text-sm text-error hover:bg-error/10 transition-colors justify-center lg:justify-start disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent">
     <span class="material-symbols-outlined text-[22px] flex-shrink-0">delete</span>
     <span class="hidden lg:inline truncate">Delete account</span>
   </button>

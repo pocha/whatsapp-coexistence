@@ -7,6 +7,7 @@ import { callAsUser, fetchNumber, keyMatchesAccount } from '/assets/account.js';
 import { el, errorMessage } from '/assets/dom.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 import { wireTestEvents } from '/assets/test-events.js';
+import { wireAiTool } from '/assets/ai-tool.js';
 import type {
   ExchangeCodeRequest,
   ImportTemplatesResponse,
@@ -188,6 +189,7 @@ const cbUrl = el<HTMLInputElement>('cb-url');
 const cbStatus = el('cb-status');
 const metaBtn = el<HTMLButtonElement>('meta-btn');
 
+wireAiTool();
 wireTestEvents(
   () => cbUrl.value,
   (ok) => {
