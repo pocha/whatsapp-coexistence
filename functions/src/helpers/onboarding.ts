@@ -1,5 +1,5 @@
 import { activeIssues, capsOf, presentHealth } from './sendGate';
-import { UNITS, limitsView } from './rateLimiter';
+import { UNITS, effectiveConfig, limitsView } from './rateLimiter';
 import type { NextStep, NumberView, OnboardingStep, PhoneNumberDoc, RelayLimitsResponse } from './types';
 
 /**
@@ -22,6 +22,7 @@ export function numberView(doc: PhoneNumberDoc): NumberView {
     usage: doc.usage,
     rateState: doc.rateState,
     limits: doc.limits,
+    rateLimits: doc.rateLimits,
     onboarding: doc.onboarding,
     step: effectiveStep(doc),
     next: nextStep(doc),
@@ -35,10 +36,12 @@ export function numberView(doc: PhoneNumberDoc): NumberView {
 
 /** Where the number stands against its template-send limits: per window, what went through and when it resets. */
 export function relayLimits(doc: PhoneNumberDoc, now: number): RelayLimitsResponse {
-  const windows = limitsView(doc.rateState, doc.limits, capsOf(doc.health, now), now);
+  const config = effectiveConfig(doc.rateLimits);
+  const windows = limitsView(doc.rateState, doc.limits, capsOf(doc.health, now), config, now);
   return {
     ok: true,
     appliesTo: 'template messages',
+    enabled: config.enabled,
     windows: Object.fromEntries(
       UNITS.map((unit) => [
         unit,

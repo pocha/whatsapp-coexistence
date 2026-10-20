@@ -19,7 +19,7 @@ export interface UserDoc {
   testRun?: { codes: Record<string, string>; sentAt: number };
 }
 
-import type { Limits, RateState } from './rateLimiter';
+import type { Limits, RateLimitOverride, RateState } from './rateLimiter';
 export type { Limits };
 
 /** Counters written by the relay, keyed by day (YYYY-MM-DD), ISO week (YYYY-Www) and month (YYYY-MM). */
@@ -81,6 +81,8 @@ export interface PhoneNumberDoc {
   rateState?: RateState;
   /** What the number has earned to send per window. Starts at the floors; we can write higher ones for an account moving over. Only grows. */
   limits?: Limits;
+  /** Per-number override of the default rate limits. Set by us, never by the customer. */
+  rateLimits?: RateLimitOverride;
   /** Wizard progress. Written only by the Functions. */
   onboarding: OnboardingState;
   /** The user chose to onboard without a callback URL: nothing of theirs receives incoming messages. */
@@ -129,6 +131,7 @@ export interface NumberView {
   usage?: Usage;
   rateState?: RateState;
   limits?: Limits;
+  rateLimits?: RateLimitOverride;
   onboarding: OnboardingState;
   /** Where the wizard is, worked out from the record (see effectiveStep). */
   step: OnboardingStep;
@@ -369,6 +372,7 @@ export interface VerifyTestCodesResponse extends ApiResponse {
 export interface RelayLimitsResponse extends ApiResponse {
   /** Only template messages are limited; free-form replies are not. */
   appliesTo: 'template messages';
+  enabled: boolean;
   windows: Record<'minute' | 'hour' | 'day', { accepted: number; attempted: number; previousAccepted: number; limit: number; remaining: number; resetsAt: string; resetsInSeconds: number }>;
 }
 

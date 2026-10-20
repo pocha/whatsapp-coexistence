@@ -6,9 +6,8 @@ import '/assets/nav-auth.js';
 import { wireTestEvents } from '/assets/test-events.js';
 import { el, errorMessage } from '/assets/dom.js';
 import type { NumberView, Scope, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
-import { DEFAULT_RATE_LIMITS as config, view } from '../../../functions/src/helpers/rateLimiter';
+import { effectiveConfig, REFRESH_MIN_INTERVAL_MS, view } from '../../../functions/src/helpers/rateLimiter';
 import { fetchNotifications, fetchNumber } from '/assets/account.js';
-import { REFRESH_MIN_INTERVAL_MS } from '../../../functions/src/helpers/rateLimiter';
 
 // The page for one number, identified by ?id= in the URL (its phone number ID). Signed-in
 // only: signed-out visitors are sent to the Dashboard's sign-in. What it does to the number
@@ -107,7 +106,8 @@ function infoIcon(text: string, align: 'left' | 'right'): HTMLElement {
 
 function renderLimitTable(data: NumberView, nowMs: number) {
   const limits = data.health?.limits ?? {};
-  const windows = view(data.rateState, data.limits, limits, nowMs);
+  const config = effectiveConfig(data.rateLimits);
+  const windows = view(data.rateState, data.limits, limits, config, nowMs);
   const units = [
     ['minute', 'Minute'],
     ['hour', 'Hour'],
@@ -164,6 +164,12 @@ function renderLimitTable(data: NumberView, nowMs: number) {
       cell.className = 'py-2 text-right';
       cell.append(cellFor(unit));
     }
+  }
+  if (!config.enabled) {
+    const note = document.createElement('caption');
+    note.className = 'text-left text-on-surface-variant pb-2';
+    note.textContent = 'Rate limiting is switched off for this number.';
+    table.prepend(note);
   }
 }
 

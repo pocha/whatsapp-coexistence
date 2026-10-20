@@ -1,17 +1,73 @@
+// Rate limits for template messages sent through the relay, as pure functions with no Firebase or Node
+// imports, so the Functions use them to decide and the dashboard uses the same code to show where a number
+// stands. Edit DEFAULT_RATE_LIMITS to tune every number.
+//
+// How a window's limit is worked out:
+//
+//   earned = max(stored limit, floor, previous × (1 + growthPercent / 100) + headroomSigmas × √previous)
+//   limit  = min(earned, the ceilings from the number's health)
+//
+// `previous` is the count in the window just before the current one. The floor is what a number may always
+// send, so a quiet or new number can start. `growthPercent` is how much a window may grow over the one
+// before it. The √ term is headroom for ordinary scatter, so steady traffic is not blocked by chance. A send
+// is refused (HTTP 429) when any window would go over its limit. Only messages with `type: "template"` are
+// counted and limited. Free-form replies are not.
+//
+// Two things can differ per number, both set with the Admin SDK or the Firebase console, never by the customer:
+//   limits       (phoneNumbers/{id}.limits = { minute, hour, day }) what it has earned. Write higher values to
+//                start an account that is moving over in good standing: they apply at once and then only grow.
+//   rateLimits   a partial override of the values below, for example { "minute": { "floor": 40 } }, or
+//                { "enabled": false } to switch limiting off for that number.
 
+export interface WindowConfig {
+  /** How much this window may exceed the previous one, in percent. */
+  growthPercent: number;
+  /** The count that is always allowed, whatever the previous window held. */
+  floor: number;
+}
 
-// The rate-limiting logic: pure functions with no Firebase or Node imports, so the Functions use
-// them to decide and the dashboard uses the same code to show where a number stands. The values
-// are at the top, in DEFAULT_RATE_LIMITS.
+export interface RateLimitConfig {
+  /** Set to false to switch limiting off (the counters stop being written too). */
+  enabled: boolean;
+  /** Standard deviations of headroom added to the limit; 3 covers normal scatter. */
+  headroomSigmas: number;
+  minute: WindowConfig;
+  hour: WindowConfig;
+  day: WindowConfig;
+}
+
+export const DEFAULT_RATE_LIMITS: RateLimitConfig = {
+  enabled: true,
+  headroomSigmas: 3,
+  minute: { growthPercent: 5, floor: 10 },
+  hour: { growthPercent: 10, floor: 50 },
+  // Meta's own starting limit for an unverified number is 250 customers a day; this is lower.
+  day: { growthPercent: 20, floor: 100 },
+};
 
 export type Unit = 'minute' | 'hour' | 'day';
-/** Meta is not asked about a number again within this long of the last read. */
-export const REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000;
-
 export const UNITS: Unit[] = ['minute', 'hour', 'day'];
+
+/** The per-number override: any part of the config, merged over the defaults. */
+export type RateLimitOverride = Partial<Omit<RateLimitConfig, Unit>> & { [U in Unit]?: Partial<WindowConfig> };
+
+export function effectiveConfig(override?: RateLimitOverride): RateLimitConfig {
+  const base = DEFAULT_RATE_LIMITS;
+  return {
+    enabled: override?.enabled ?? base.enabled,
+    headroomSigmas: override?.headroomSigmas ?? base.headroomSigmas,
+    minute: { ...base.minute, ...override?.minute },
+    hour: { ...base.hour, ...override?.hour },
+    day: { ...base.day, ...override?.day },
+  };
+}
 
 /** A number per window: what a number has earned, or a ceiling on it. */
 export type Limits = Partial<Record<Unit, number>>;
+
+/** Meta is not asked about a number again within this long of the last read. */
+export const REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000;
+
 // Fixed windows: minutes and hours on the clock, days in UTC.
 const PERIOD_MS: Record<Unit, number> = { minute: 60_000, hour: 3_600_000, day: 86_400_000 };
 
@@ -70,9 +126,9 @@ const grown = (previous: number, window: WindowConfig, sigmas: number) => Math.f
  * What a window allows: what the number has earned so far (the stored limit, the floor, or growth over the
  * previous window, whichever is most), under the ceiling. `earned` is what to store; it only ever rises.
  */
-export function allowance(unit: Unit, previous: number, stored: Limits | undefined, caps: Limits): { earned: number; limit: number } {
-  const window = DEFAULT_RATE_LIMITS[unit];
-  const earned = Math.max(stored?.[unit] ?? 0, window.floor, grown(previous, window, DEFAULT_RATE_LIMITS.headroomSigmas));
+export function allowance(unit: Unit, previous: number, stored: Limits | undefined, caps: Limits, config: RateLimitConfig): { earned: number; limit: number } {
+  const window = config[unit];
+  const earned = Math.max(stored?.[unit] ?? 0, window.floor, grown(previous, window, config.headroomSigmas));
   return { earned, limit: Math.min(earned, caps[unit] ?? Infinity) };
 }
 
@@ -84,11 +140,11 @@ export type Verdict =
  * Decides whether one more template message may go, and returns the state to store. Every request
  * counts as an attempt in every window; only an accepted one raises the accepted count.
  */
-export function reserve(stored: RateState | undefined, limits: Limits | undefined, caps: Limits, now: number): Verdict {
+export function reserve(stored: RateState | undefined, limits: Limits | undefined, caps: Limits, config: RateLimitConfig, now: number): Verdict {
   const state = advance(stored, now);
   const earned: Limits = {};
   for (const unit of UNITS) state[unit].currentAttempts += 1;
-  for (const unit of UNITS) earned[unit] = allowance(unit, state[unit].previous, limits, caps).earned;
+  for (const unit of UNITS) earned[unit] = allowance(unit, state[unit].previous, limits, caps, config).earned;
   for (const unit of UNITS) {
     const limit = Math.min(earned[unit]!, caps[unit] ?? Infinity);
     if (state[unit].current + 1 > limit) {
@@ -108,12 +164,12 @@ export function reserve(stored: RateState | undefined, limits: Limits | undefine
 }
 
 /** Where a number stands right now, for display: each window's count, previous count and limit. */
-export function view(stored: RateState | undefined, limits: Limits | undefined, caps: Limits, now: number) {
+export function view(stored: RateState | undefined, limits: Limits | undefined, caps: Limits, config: RateLimitConfig, now: number) {
   const state = advance(stored, now);
   return Object.fromEntries(
     UNITS.map((unit) => [
       unit,
-      { ...state[unit], limit: allowance(unit, state[unit].previous, limits, caps).limit },
+      { ...state[unit], limit: allowance(unit, state[unit].previous, limits, caps, config).limit },
     ]),
   ) as Record<Unit, WindowCount & { limit: number }>;
 }
@@ -129,8 +185,8 @@ export interface WindowLimits {
   resetsAt: number;
 }
 
-export function limitsView(stored: RateState | undefined, limits: Limits | undefined, caps: Limits, now: number): Record<Unit, WindowLimits> {
-  const windows = view(stored, limits, caps, now);
+export function limitsView(stored: RateState | undefined, limits: Limits | undefined, caps: Limits, config: RateLimitConfig, now: number): Record<Unit, WindowLimits> {
+  const windows = view(stored, limits, caps, config, now);
   return Object.fromEntries(
     UNITS.map((unit) => {
       const w = windows[unit];
@@ -148,44 +204,3 @@ export function limitsView(stored: RateState | undefined, limits: Limits | undef
     }),
   ) as Record<Unit, WindowLimits>;
 }
-
-
-// Rate limits for template messages sent through the relay. Edit the values here to tune them for every number.
-// To start one number higher (an account moving over in good standing), set `limits` on its record
-// (phoneNumbers/{id}.limits = { minute, hour, day }, with the Admin SDK or the Firebase console, never by the
-// customer): it applies at once and then only grows.
-//
-// How a window's limit is worked out (see rateLimiter.ts):
-//
-//   earned = max(stored limit, floor, previous × (1 + growthPercent / 100) + headroomSigmas × √previous)
-//   limit  = min(earned, the ceilings from the number's health)
-//
-// `previous` is the count in the window just before the current one. The floor is what a number
-// may always send, so a quiet or new number can start. `growthPercent` is how much a window may
-// grow over the one before it. The √ term is headroom for ordinary scatter, so steady traffic is
-// not blocked by chance. A send is refused (HTTP 429) when any window would go over its limit.
-//
-// Only messages with `type: "template"` are counted and limited. Free-form replies are not.
-
-export interface WindowConfig {
-  /** How much this window may exceed the previous one, in percent. */
-  growthPercent: number;
-  /** The count that is always allowed, whatever the previous window held. */
-  floor: number;
-}
-
-export interface RateLimitConfig {
-  /** Standard deviations of headroom added to the limit; 3 covers normal scatter. */
-  headroomSigmas: number;
-  minute: WindowConfig;
-  hour: WindowConfig;
-  day: WindowConfig;
-}
-
-export const DEFAULT_RATE_LIMITS: RateLimitConfig = {
-  headroomSigmas: 3,
-  minute: { growthPercent: 5, floor: 10 },
-  hour: { growthPercent: 10, floor: 50 },
-  // Meta's own starting limit for an unverified number is 250 customers a day; this is lower.
-  day: { growthPercent: 20, floor: 100 },
-};

@@ -244,7 +244,7 @@ only their own, within the limits in `firestore.rules` (they can never change `u
 |---|---|
 | `users/{randomUserId}` | `phoneNumber`, `apiKeyHash`, `createdAt`, `rotatedAt` |
 | `phoneIndex/{phone}` | `userId` |
-| `phoneNumbers/{phoneNumberId}` | `userId`, `wabaId`, `phoneNumberId`, `displayPhoneNumber`, `encAccessToken`, `overrideUrl`, `activatedAt`, `lastRelayCall`, `usage`, `rateState`, `limits` |
+| `phoneNumbers/{phoneNumberId}` | `userId`, `wabaId`, `phoneNumberId`, `displayPhoneNumber`, `encAccessToken`, `overrideUrl`, `activatedAt`, `lastRelayCall`, `usage`, `rateState`, `limits`, `rateLimits` |
 
 The Firebase sign-in `uid` is the random user ID, not the phone number.
 
@@ -257,12 +257,14 @@ from being flagged. Free-form replies are not limited.
   per window (minute, hour, day) a `floor` that is always allowed and a `growthPercent` over the
   previous window, plus statistical headroom. A send over any window's limit gets a `429` with
   `Retry-After`.
-- **Per-number limits:** `limits` on that number's `phoneNumbers/{id}` record is what it has earned per
-  window, `{ "minute": 10, "hour": 50, "day": 100 }` at the start. To start an account that is moving
-  over in good standing higher, write bigger values with the Admin SDK or the Firebase console
-  (customers can't write it), for example `{ "minute": 100, "hour": 500, "day": 2000 }`. They apply at once
-  and then only grow. The limit in force is the lower of these and the ceilings from the number's health
-  (Meta's daily messaging limit, and a few a day while it is limited).
+- **Per-number override:** set `rateLimits` on that number's `phoneNumbers/{id}` record (Admin SDK or
+  the Firebase console; customers can't write it), with any part of the same shape, for example
+  `{ "minute": { "floor": 40 } }`. Set `{ "enabled": false }` to switch limiting off for one number.
+- **What a number has earned:** `limits` on the same record, `{ "minute": 10, "hour": 50, "day": 100 }` at
+  the start and growing with use. To start an account that is moving over in good standing higher, write
+  bigger values, for example `{ "minute": 100, "hour": 500, "day": 2000 }`. They apply at once and then only
+  grow. The limit in force is the lower of these and the ceilings from the number's health (Meta's daily
+  messaging limit, and a few a day while it is limited).
 - **State** is `rateState` on the same record: per window the accepted count and the attempted
   count (refused requests included), for the current and the previous window. The limit is worked
   out from the *accepted* previous count only, so refused requests can't raise it. The number's page

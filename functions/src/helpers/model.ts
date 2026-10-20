@@ -1,5 +1,5 @@
 import { FieldValue, getFirestore, Timestamp, type DocumentSnapshot } from 'firebase-admin/firestore';
-import { reserve, type Limits, type Verdict } from './rateLimiter';
+import { effectiveConfig, reserve, type Limits, type RateLimitConfig, type Verdict } from './rateLimiter';
 import { capsOf } from './sendGate';
 import type {
   DisplayNameState,
@@ -344,11 +344,11 @@ export const setSyncState = (phoneNumberId: string, type: SyncType, status: Sync
 /**
  * Counts one more template message against the number's windows, and says whether it may go. The
  * check and the count happen in one transaction, so sends arriving together cannot all slip under
- * the limit. Limits come from helpers/rateLimiter.ts, and a number's own `limits` (what it has earned) start it higher.
+ * the limit. Limits come from helpers/rateLimiter.ts, a number's own `rateLimits` override them, and its `limits` (what it has earned) start it higher.
  */
 export async function reserveTemplateSend(
   phoneNumberId: string,
-): Promise<{ verdict: Verdict; caps: Limits; now: number }> {
+): Promise<{ verdict: Verdict | { allowed: true }; caps: Limits; config: RateLimitConfig; now: number }> {
   const ref = phoneNumberRef(phoneNumberId);
   const now = Date.now();
   return db().runTransaction(async (tx) => {
@@ -356,9 +356,11 @@ export async function reserveTemplateSend(
     // Whether the number may send templates at all was decided before this (sendDecision). Here its ceilings
     // (Meta's daily limit, and what a limited number gets) cap what it has earned.
     const caps = capsOf(data?.health, now);
-    const verdict = reserve(data?.rateState, data?.limits, caps, now);
+    const config = effectiveConfig(data?.rateLimits);
+    if (!config.enabled) return { verdict: { allowed: true as const }, caps, config, now };
+    const verdict = reserve(data?.rateState, data?.limits, caps, config, now);
     tx.update(ref, { rateState: verdict.state, limits: verdict.earned });
-    return { verdict, caps, now };
+    return { verdict, caps, config, now };
   });
 }
 

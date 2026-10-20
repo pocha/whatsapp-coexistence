@@ -8,7 +8,7 @@ import { progressOf, relayLimits } from './helpers/onboarding';
 import { issuesFromRefusal, refreshHealth, templateGateFromRefusal } from './helpers/health';
 import { sendDecision, templateKey } from './helpers/sendGate';
 import { applyEffects, type Effect } from './helpers/rules';
-import { limitsView, UNITS, type Limits, type RateState } from './helpers/rateLimiter';
+import { limitsView, UNITS, type Limits, type RateLimitConfig, type RateState } from './helpers/rateLimiter';
 import { verifyEndpointChallenge } from './helpers/callBackUrlCheck';
 import type {
   DeregisterNumberRequest,
@@ -255,8 +255,8 @@ export function isoWeekKey(d: Date): string {
 
 
 /** What is left in each window and when it resets, as headers on a template send, so a sender can pace itself. */
-function setRateHeaders(res: express.Response, state: RateState, earned: Limits, caps: Limits, now: number) {
-  const windows = limitsView(state, earned, caps, now);
+function setRateHeaders(res: express.Response, state: RateState, earned: Limits, caps: Limits, config: RateLimitConfig, now: number) {
+  const windows = limitsView(state, earned, caps, config, now);
   for (const unit of UNITS) {
     const name = unit[0].toUpperCase() + unit.slice(1);
     res.set(`X-RateLimit-Remaining-${name}`, String(windows[unit].remaining));
@@ -309,8 +309,8 @@ numbersApp.post('/:phoneNumberId/messages', async (req, res) => {
 
   // Only template messages are limited; free-form replies go straight through.
   if (req.body?.type === 'template') {
-    const { verdict, caps, now } = await reserveTemplateSend(phoneNumberId);
-    if ('state' in verdict) setRateHeaders(res, verdict.state, verdict.earned, caps, now);
+    const { verdict, caps, config, now } = await reserveTemplateSend(phoneNumberId);
+    if ('state' in verdict) setRateHeaders(res, verdict.state, verdict.earned, caps, config, now);
     if (!verdict.allowed && 'unit' in verdict) {
       res.set('Retry-After', String(verdict.retryAfterSeconds));
       logEvent('template send limited', { phoneNumberId, window: verdict.unit, limit: verdict.limit });
