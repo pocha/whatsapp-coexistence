@@ -36,3 +36,6 @@ functions/node_modules/
 # Not committed: CI and local installs resolve fresh from package.json
 /package-lock.json
 *.mp4
+
+# The local MCP package is published to npm, which never ships a lockfile.
+/mcp/package-lock.json
