@@ -1,10 +1,8 @@
-import { UNITS } from './rateLimiter';
-import type { HealthView, Issue, Limits, NumberHealth, PhoneNumberDoc, Scope, Send, Why } from './types';
+import type { Issue, NumberHealth, PhoneNumberDoc, Scope, ScopeHealth, Send, Why } from './types';
 
-// Reading a number's `health` (the issues that restrict it, by scope and what they are), its `templates` in
-// trouble and Meta's daily limit, to say whether a send goes out. Nothing here changes the health; that is
-// done by the webhook rows (rules.ts) and the refresh (health.ts). Everything here is pure, so the relay and
-// the dashboard use the same rules.
+// Reading a number's `health` (the issues that restrict it, by scope and what they are) and its `templates` in
+// trouble, to say whether a send goes out. Nothing here changes the health; that is done by the webhook rows
+// (rules.ts) and the refresh (health.ts). Everything here is pure, so the relay and the dashboard use the same rules.
 
 export const SCOPES: Scope[] = ['account', 'business', 'display_name', 'phone'];
 const RANK: Record<Send, number> = { ok: 0, limit: 1, block: 2, disable: 3 };
@@ -14,34 +12,16 @@ export type Active = Issue & { scope: Scope; why: Why };
 /** An issue with an end time stops counting by itself once that has passed. */
 export const counts = (issue: Issue, now: number) => issue.until === undefined || issue.until > now;
 
+/** The worst of some issues. */
+export const worst = (issues: Pick<Issue, 'send'>[]): Send => SEND[Math.max(0, ...issues.map((i) => RANK[i.send]))];
+
+/** A scope's issues, without its status. */
+export const issuesOf = (scope: ScopeHealth | undefined): [Why, Issue][] =>
+  Object.entries(scope ?? {}).filter(([key]) => key !== 'status') as [Why, Issue][];
+
 /** Every issue that counts now. */
 export function activeIssues(health: NumberHealth | undefined, now: number): Active[] {
-  return SCOPES.flatMap((scope) => Object.entries(health?.[scope] ?? {}).map(([why, issue]) => ({ ...(issue as Issue), scope, why: why as Why }))).filter((i) => counts(i, now));
-}
-
-const worst = (issues: Pick<Issue, 'send'>[]): Send => SEND[Math.max(0, ...issues.map((i) => RANK[i.send]))];
-
-/** The lowest ceiling per window across Meta's daily limit and what the issues allow. */
-export function capsOf(health: NumberHealth | undefined, now: number): Limits {
-  const caps: Limits = health?.tier ? { day: health.tier } : {};
-  for (const issue of activeIssues(health, now)) {
-    for (const unit of UNITS) {
-      const cap = issue.cap?.[unit];
-      if (cap !== undefined) caps[unit] = Math.min(caps[unit] ?? Infinity, cap);
-    }
-  }
-  return caps;
-}
-
-/** The health as callers see it now: each scope's status, the worst of them, and the ceilings. */
-export function presentHealth(health: NumberHealth, now: number): HealthView {
-  const issues = activeIssues(health, now);
-  const scopes: HealthView['scopes'] = {};
-  for (const scope of SCOPES) {
-    const own = issues.filter((i) => i.scope === scope);
-    if (own.length) scopes[scope] = { status: worst(own), issues: own.map(({ scope: _s, ...rest }) => rest) };
-  }
-  return { status: worst(issues), scopes, limits: capsOf(health, now) };
+  return SCOPES.flatMap((scope) => issuesOf(health?.[scope]).map(([why, issue]) => ({ ...issue, scope, why }))).filter((i) => counts(i, now));
 }
 
 export type SendDecision =

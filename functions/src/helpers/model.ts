@@ -1,6 +1,5 @@
 import { FieldValue, getFirestore, Timestamp, type DocumentSnapshot } from 'firebase-admin/firestore';
 import { effectiveConfig, reserve, type Limits, type RateLimitConfig, type Verdict } from './rateLimiter';
-import { capsOf } from './sendGate';
 import type {
   DisplayNameState,
   EncryptedToken,
@@ -355,7 +354,7 @@ export async function reserveTemplateSend(
     const data = numberOf(await tx.get(ref));
     // Whether the number may send templates at all was decided before this (sendDecision). Here its ceilings
     // (Meta's daily limit, and what a limited number gets) cap what it has earned.
-    const caps = capsOf(data?.health, now);
+    const caps = data?.health?.limits ?? {};
     const config = effectiveConfig(data?.rateLimits);
     if (!config.enabled) return { verdict: { allowed: true as const }, caps, config, now };
     const verdict = reserve(data?.rateState, data?.limits, caps, config, now);

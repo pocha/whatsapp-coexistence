@@ -180,7 +180,7 @@ test('the relay authenticates with the API key, sends with the decrypted Meta to
 test('template sends are rate limited per number, and free-form text is not', async () => {
   await seedNumber('556', '667');
   // A ceiling from the number's health, so the test needs only a few sends: the day allows 2.
-  await db.collection('phoneNumbers').doc('556').update({ health: { phone: { quality: { send: 'limit', title: 't', message: 'm', at: 1, cap: { day: 2 } } } } });
+  await db.collection('phoneNumbers').doc('556').update({ health: require('../../lib/helpers/rules').settle({ phone: { quality: { send: 'limit', title: 't', message: 'm', at: 1, cap: { day: 2 } } } }, Date.now()) });
   const send = (message) =>
     fetch(`${FUNCTIONS_BASE}/numbers/556/messages`, {
       method: 'POST',
@@ -613,7 +613,9 @@ test('the notifications come newest first in pages, only to the owner, and never
 
 // ---- sending is gated by what is stored in health, whatever put it there ----
 
-const seedHealth = (id, health, extra = {}) => db.collection('phoneNumbers').doc(id).update({ health, ...extra });
+// Issues as they would be stored, with the status and ceilings worked out as every write does.
+const { settle } = require('../../lib/helpers/rules');
+const seedHealth = (id, issues, extra = {}) => db.collection('phoneNumbers').doc(id).update({ health: settle(issues, Date.now()), ...extra });
 const issue = (send, extra = {}) => ({ send, title: 'a title', message: 'a message', at: 1, ...extra });
 const healthOf = async (id) => (await post('/getNumber', { apiKey: KEY, phoneNumberId: id })).json().then((r) => r.number.health);
 
@@ -663,7 +665,7 @@ test('Meta\'s webhooks update health: a ban and its lifting leave another issue 
   assert.equal((await send(hook('9731', 'account_update', { event: 'DISABLED_UPDATE', ban_info: { waba_ban_state: 'REINSTATE' } }, nowS() + 5))).status, 200);
   const lifted = await healthOf('9721');
   assert.equal(lifted.status, 'block', 'the payment problem is still there');
-  assert.deepEqual(Object.keys((await db.collection('phoneNumbers').doc('9721').get()).data().health.account), ['payment']);
+  assert.deepEqual(Object.keys((await db.collection('phoneNumbers').doc('9721').get()).data().health.account).sort(), ['payment', 'status']);
 
   assert.equal((await send(hook('9731', 'phone_number_quality_update', { display_phone_number: '1', event: 'FLAGGED', current_limit: 'TIER_10K' }, nowS() + 10))).status, 200);
   assert.equal((await healthOf('9721')).limits.day, 5, 'flagged: a few a day, under Meta\'s 10K');
@@ -674,7 +676,7 @@ test('refreshing from Meta stores what it finds and replaces what a webhook set'
   await seedNumber('9801', '9811');
   const blocked = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9801', refresh: true })).json();
   assert.equal(blocked.number.health.status, 'block');
-  assert.equal(blocked.number.health.scopes.account.issues[0].title, 'Payment method problem');
+  assert.equal(blocked.number.health.account.payment.title, 'Payment method problem');
   assert.equal(blocked.number.health.limits.day, 250, 'Meta\'s daily limit');
   assert.ok((await db.collection('phoneNumbers').doc('9801').get()).data().health.account.payment, 'stored');
   assert.equal((await relayTo('9801', aTemplate())).status, 403);
@@ -683,7 +685,7 @@ test('refreshing from Meta stores what it finds and replaces what a webhook set'
   await seedNumber('9802', '9812');
   const limited = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9802', refresh: true })).json();
   assert.equal(limited.number.health.status, 'limit');
-  assert.deepEqual(Object.keys(limited.number.health.scopes).sort(), ['business', 'display_name']);
+  assert.deepEqual(Object.keys(limited.number.health).filter((k) => ['account', 'business', 'display_name', 'phone'].includes(k)).sort(), ['business', 'display_name']);
   assert.equal(limited.number.health.limits.day, 5);
 
   await seedNumber('9805', '9815');

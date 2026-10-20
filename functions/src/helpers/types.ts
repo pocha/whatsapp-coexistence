@@ -122,7 +122,7 @@ export interface NumberView {
   displayPhoneNumber?: string;
   overrideUrl?: string;
   callbackSkipped?: boolean;
-  health?: HealthView;
+  health?: NumberHealth;
   displayName?: DisplayNameState;
   templates?: Record<string, TemplateGate>;
   metaFetchedAt?: number;
@@ -183,26 +183,22 @@ export interface Issue {
   code?: number;
 }
 
+/** A scope's status (the worst of its issues) and its issues, by what they are. */
+export type ScopeHealth = { status: Send } & { [K in Why]?: Issue };
+
 /**
  * What currently restricts a number, as of the last time it was read from Meta (the dashboard's refresh, an
- * AI tool's get_number, or a send Meta refused) or announced by a webhook: the issues of each scope by what
- * they are, and Meta's daily messaging limit (250 for an unverified business). The status of a scope, and
- * the ceilings, are worked out from these (see sendGate.ts), never stored.
+ * AI tool's get_number, or a send Meta refused) or announced by a webhook: each scope's issues and status, the
+ * worst status overall, the lowest ceiling per window (from the issues and Meta's daily limit), and that limit.
+ * Every write works the status and ceilings out again (see `settle` in rules.ts), so they are stored with the
+ * issues. An issue with an end time is dropped by the next write after it, and the relay ignores it from then on.
  */
-export type NumberHealth = { [S in Scope]?: Partial<Record<Why, Issue>> } & { tier?: number };
-
-/** A scope as callers see it: its status and its issues. */
-export interface ScopeView {
+export type NumberHealth = { [S in Scope]?: ScopeHealth } & {
   status: Send;
-  issues: (Issue & { why: Why })[];
-}
-
-/** NumberHealth as callers see it, at a moment: each scope's status, the worst of them, and the ceilings now. */
-export interface HealthView {
-  status: Send;
-  scopes: Partial<Record<Scope, ScopeView>>;
   limits: Limits;
-}
+  /** Meta's daily messaging limit (customers a day), e.g. 250 for an unverified business. */
+  tier?: number;
+};
 
 /** A template Meta paused, disabled, rejected or deleted: sends of it are refused. Templates in good standing are not stored. */
 export interface TemplateGate {

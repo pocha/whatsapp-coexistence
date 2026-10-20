@@ -1,5 +1,6 @@
-import { templateKeyOf } from './sendGate';
-import type { DisplayNameState, Issue, Limits, NotificationDoc, NumberHealth, PhoneNumberDoc, Scope, Send, TemplateGate, Why } from './types';
+import { SCOPES, counts, issuesOf, templateKeyOf, worst } from './sendGate';
+import { UNITS } from './rateLimiter';
+import type { DisplayNameState, Issue, Limits, NotificationDoc, NumberHealth, PhoneNumberDoc, Scope, ScopeHealth, Send, TemplateGate, Why } from './types';
 
 // What each signal about a number says to the user and does to the gates, as data: Meta's account-level
 // webhooks, what a refresh finds in Meta's health read, and what a refused send tells us.
@@ -394,18 +395,39 @@ export function parseWebhook(body: any): WebhookEvent[] {
   return events;
 }
 
+/**
+ * The health with expired issues dropped and everything worked out again from what is left: each scope's status,
+ * the worst status, and the lowest ceiling per window across the issues and Meta's daily limit. Every write to
+ * the health ends with this, so the stored values always match the stored issues.
+ */
+export function settle(health: Partial<NumberHealth> | undefined, now: number): NumberHealth {
+  const next = { status: 'ok', limits: health?.tier ? { day: health.tier } : {}, ...(health?.tier ? { tier: health.tier } : {}) } as NumberHealth;
+  const all: Issue[] = [];
+  for (const scope of SCOPES) {
+    const own = issuesOf(health?.[scope] as ScopeHealth | undefined).filter(([, issue]) => counts(issue, now));
+    if (!own.length) continue;
+    next[scope] = { status: worst(own.map(([, issue]) => issue)), ...Object.fromEntries(own) } as ScopeHealth;
+    for (const [, issue] of own) {
+      all.push(issue);
+      for (const unit of UNITS) if (issue.cap?.[unit] !== undefined) next.limits[unit] = Math.min(next.limits[unit] ?? Infinity, issue.cap[unit]!);
+    }
+  }
+  next.status = worst(all);
+  return next;
+}
+
 /** The health with this issue set, replacing what the same scope and cause said before. Null if what is stored is newer. */
-export function setIssue(health: NumberHealth | undefined, scope: Scope, why: Why, issue: Issue): NumberHealth | null {
+export function setIssue(health: NumberHealth | undefined, scope: Scope, why: Why, issue: Issue, now: number): NumberHealth | null {
   if ((health?.[scope]?.[why]?.at ?? 0) > issue.at) return null;
-  return { ...health, [scope]: { ...health?.[scope], [why]: issue } };
+  return settle({ ...health, [scope]: { ...health?.[scope], [why]: issue } }, now);
 }
 
 /** The health without this issue, and only it: a lifted ban leaves a payment problem where it is. Null if there is nothing to clear, or it is newer. */
-export function clearIssue(health: NumberHealth | undefined, scope: Scope, why: Why, at: number): NumberHealth | null {
+export function clearIssue(health: NumberHealth | undefined, scope: Scope, why: Why, at: number, now: number): NumberHealth | null {
   const existing = health?.[scope]?.[why];
   if (!health || !existing || existing.at > at) return null;
   const { [why]: _gone, ...rest } = health[scope]!;
-  return { ...health, [scope]: rest };
+  return settle({ ...health, [scope]: rest }, now);
 }
 
 /**
@@ -413,15 +435,15 @@ export function clearIssue(health: NumberHealth | undefined, scope: Scope, why: 
  * changes nothing (it was about something we already know better, or older). Each issue is only ever touched
  * by what it is about, and an event older than what is stored for that issue is ignored.
  */
-export function applyEffects(doc: Pick<PhoneNumberDoc, 'health' | 'displayName' | 'templates'>, effects: Effect[], eventAt: number): Pick<PhoneNumberDoc, 'health' | 'displayName' | 'templates'> | null {
+export function applyEffects(doc: Pick<PhoneNumberDoc, 'health' | 'displayName' | 'templates'>, effects: Effect[], eventAt: number, now = Date.now()): Pick<PhoneNumberDoc, 'health' | 'displayName' | 'templates'> | null {
   let { health, displayName, templates } = doc;
   const patch: Pick<PhoneNumberDoc, 'health' | 'displayName' | 'templates'> = {};
   for (const effect of effects) {
     if (effect.kind === 'set' || effect.kind === 'clear') {
-      const next = effect.kind === 'set' ? setIssue(health, effect.scope, effect.why, effect.issue) : clearIssue(health, effect.scope, effect.why, eventAt);
+      const next = effect.kind === 'set' ? setIssue(health, effect.scope, effect.why, effect.issue, now) : clearIssue(health, effect.scope, effect.why, eventAt, now);
       if (next) patch.health = health = next;
     } else if (effect.kind === 'tier') {
-      patch.health = health = { ...health, tier: effect.tier ?? undefined };
+      patch.health = health = settle({ ...health, tier: effect.tier ?? undefined }, now);
     } else if (effect.kind === 'name') {
       if ((displayName?.at ?? 0) <= eventAt) patch.displayName = displayName = { ...displayName, ...effect.patch, at: eventAt };
     } else if (effect.kind === 'template') {

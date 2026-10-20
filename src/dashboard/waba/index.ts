@@ -7,6 +7,7 @@ import { wireTestEvents } from '/assets/test-events.js';
 import { el, errorMessage } from '/assets/dom.js';
 import type { NumberView, Scope, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
 import { effectiveConfig, REFRESH_MIN_INTERVAL_MS, view } from '../../../functions/src/helpers/rateLimiter';
+import { issuesOf, SCOPES } from '../../../functions/src/helpers/sendGate';
 import { fetchNotifications, fetchNumber } from '/assets/account.js';
 
 // The page for one number, identified by ?id= in the URL (its phone number ID). Signed-in
@@ -116,7 +117,7 @@ function renderLimitTable(data: NumberView, nowMs: number) {
 
   // The allowance is what a sender runs into; how it is worked out sits in a note behind an "i",
   // so the table stays at three rows.
-  const capped = Object.values(data.health?.scopes ?? {}).flatMap((scope) => scope?.issues ?? []).filter((i) => i.cap?.day === limits.day);
+  const capped = SCOPES.flatMap((scope) => issuesOf(data.health?.[scope]).map(([, issue]) => issue)).filter((i) => i.cap?.day === limits.day);
   const allowanceNote = (u: (typeof units)[number][0]) => {
     const grows = `Grows with usage: up to ${config[u].growthPercent}% over the previous ${u}, and never below ${config[u].floor}.`;
     if (u !== 'day' || limits.day === undefined) return grows;
@@ -275,7 +276,7 @@ const STATUS_CHIP = {
   disable: ['Blocked', 'bg-error/10 text-error'],
 } as const;
 const SCOPE_TITLE: Record<Scope, string> = { account: 'Account status', business: 'Business status', display_name: 'Display name', phone: 'Number status' };
-const SCOPES = Object.keys(SCOPE_TITLE) as Scope[];
+
 const NEUTRAL = 'bg-surface-container text-on-surface-variant';
 
 const dialog = el<HTMLDialogElement>('health-dialog');
@@ -285,7 +286,7 @@ let shown: NumberView | undefined;
 function renderChips(data: NumberView) {
   shown = data;
   for (const scope of SCOPES) {
-    const status = data.health?.scopes[scope]?.status;
+    const status = data.health?.[scope]?.status;
     const [text, classes] = !data.health ? (['Not checked', NEUTRAL] as const) : STATUS_CHIP[status ?? 'ok'];
     const button = document.createElement('button');
     button.type = 'button';
@@ -324,12 +325,12 @@ function paragraph(text: string, className = ''): HTMLParagraphElement {
 function openDialog(scope: Scope) {
   if (!shown) return;
   const health = shown.health;
-  const status = health?.scopes[scope]?.status ?? 'ok';
+  const status = health?.[scope]?.status ?? 'ok';
   el('hd-title').textContent = `${SCOPE_TITLE[scope]}: ${health ? STATUS_CHIP[status][0] : 'not checked'}`;
 
   const body = el('hd-body');
   body.replaceChildren();
-  const issues = health?.scopes[scope]?.issues ?? [];
+  const issues = issuesOf(health?.[scope]).map(([, issue]) => issue);
   if (!health) {
     body.append(paragraph("Meta hasn't been asked about this number yet. Enter your API key and refresh."));
   } else if (!issues.length) {

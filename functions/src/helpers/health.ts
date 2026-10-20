@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import { config } from './config';
-import { LINKS, RULES, issueFrom, tierLimit } from './rules';
+import { LINKS, RULES, issueFrom, settle, tierLimit } from './rules';
 import { REFRESH_MIN_INTERVAL_MS } from './rateLimiter';
-import { SCOPES, presentHealth } from './sendGate';
+import { SCOPES, issuesOf } from './sendGate';
 import { debugToken, graphGet } from './graphApi';
 import { addNotification, readNumber, setHealth } from './model';
-import type { DisplayNameState, Issue, MetaPart, MetaSnapshot, NumberHealth, Scope, TemplateGate, Why } from './types';
+import type { DisplayNameState, Issue, MetaPart, MetaSnapshot, NumberHealth, Scope, ScopeHealth, TemplateGate, Why } from './types';
 
 // Turns what Meta says about a number (its health_status and a few fields) into the issues we act on. The
 // wording is in the rows of rules.ts. A known Meta error code, the number's status, the account review and a
@@ -15,14 +15,14 @@ import type { DisplayNameState, Issue, MetaPart, MetaSnapshot, NumberHealth, Sco
  * The result of a refresh replaces the stored issues, since it is Meta's whole picture now, except anything
  * learned after the read began (a notification that arrived while it ran).
  */
-export function mergeRefresh(existing: NumberHealth | undefined, derived: NumberHealth, readStartedAt: number): NumberHealth {
-  const merged: NumberHealth = { ...derived, tier: derived.tier ?? existing?.tier };
+export function mergeRefresh(existing: NumberHealth | undefined, derived: NumberHealth, readStartedAt: number, now: number): NumberHealth {
+  const merged = { ...derived, tier: derived.tier ?? existing?.tier } as NumberHealth;
   for (const scope of SCOPES) {
-    for (const [why, issue] of Object.entries(existing?.[scope] ?? {}) as [Why, Issue][]) {
-      if (issue.at > readStartedAt && !merged[scope]?.[why]) merged[scope] = { ...merged[scope], [why]: issue };
+    for (const [why, issue] of issuesOf(existing?.[scope])) {
+      if (issue.at > readStartedAt && !merged[scope]?.[why]) merged[scope] = { ...merged[scope], [why]: issue } as ScopeHealth;
     }
   }
-  return merged;
+  return settle(merged, now);
 }
 
 /** When Meta may be asked again about a number, an epoch time in ms (now, if it never was asked). */
@@ -50,9 +50,9 @@ export function deriveHealth(snapshot: Pick<MetaSnapshot, 'phone' | 'messagingLi
   const phone = snapshot.phone.data as Record<string, any>;
   if (!phone.health_status) return null;
 
-  const health: NumberHealth = {};
+  const found: Partial<Record<Scope, Partial<Record<Why, Issue>>>> = {};
   const add = (scope: Scope, why: Why, issue: Issue) => {
-    health[scope] = { ...health[scope], [why]: issue };
+    found[scope] = { ...found[scope], [why]: issue };
   };
   /** Adds the issue a row stands for. False when there is no such row. */
   const fromRow = (key: string, ctx: Record<string, unknown> = {}) => {
@@ -111,7 +111,6 @@ export function deriveHealth(snapshot: Pick<MetaSnapshot, 'phone' | 'messagingLi
   // Meta's daily messaging limit.
   const tierName = snapshot.messagingLimit.ok && typeof snapshot.messagingLimit.data === 'string' ? snapshot.messagingLimit.data : undefined;
   const tier = tierLimit(tierName);
-  if (tier) health.tier = tier;
 
   const displayName: DisplayNameState = {
     at: now,
@@ -120,7 +119,7 @@ export function deriveHealth(snapshot: Pick<MetaSnapshot, 'phone' | 'messagingLi
     requestedName: phone.new_display_name,
     requestedStatus: phone.new_name_status,
   };
-  return { health, displayName };
+  return { health: settle({ ...found, tier } as Partial<NumberHealth>, now), displayName };
 }
 
 /** What a refused send tells us about the number, from Meta's error code. */
@@ -151,11 +150,11 @@ export async function refreshHealth(args: { phoneNumberId: string; wabaId: strin
   if (!derived) return { meta, derived };
 
   const before = (await readNumber(args.phoneNumberId))?.health;
-  const merged = mergeRefresh(before, derived.health, startedAt);
+  const merged = mergeRefresh(before, derived.health, startedAt, now);
   await setHealth(args.phoneNumberId, merged, derived.displayName, now);
 
-  const wasStatus = before ? presentHealth(before, now).status : undefined;
-  const nowStatus = presentHealth(merged, now).status;
+  const wasStatus = before?.status;
+  const nowStatus = merged.status;
   if (before && wasStatus !== nowStatus) {
     const id = createHash('sha1').update(`refresh|${args.phoneNumberId}|${now}`).digest('hex');
     await addNotification(args.phoneNumberId, id, {
