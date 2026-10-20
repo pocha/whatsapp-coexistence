@@ -103,7 +103,7 @@ export interface PhoneNumberDoc {
 
 /**
  * A number as the dashboard and the MCP see it (listNumbers, getNumber). Built from an explicit
- * list of fields (see helpers/numberView.ts), so the stored token can never be in it.
+ * list of fields (see helpers/onboarding.ts), so the stored token can never be in it.
  */
 /** What to do next for a number's onboarding step, in words an AI tool can follow. */
 export interface NextStep {

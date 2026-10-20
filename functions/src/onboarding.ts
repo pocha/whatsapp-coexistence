@@ -1,8 +1,8 @@
 import { HttpError, logEvent } from './helpers/http';
 import { authenticateKey, requireCaller } from './accounts';
 import { getPhoneNumberInfo, requestSmbAppData } from './helpers/graphApi';
-import { TEST_EVENT_TYPES, checkPublicUrl, newCodes, sendTestEvent, verifyEndpointChallenge } from './helpers/endpoint';
-import { progressOf } from './helpers/numberView';
+import { TEST_EVENT_TYPES, checkPublicUrl, newCodes, sendTestEvent, verifyEndpointChallenge } from './helpers/callBackUrlCheck';
+import { progressOf } from './helpers/onboarding';
 import { claimSync, moveStep, movedTo, readNumber, readTestRun, recordOverrideResult, reserveTestSend, setSyncState, skipSync as skipSyncRecord } from './helpers/model';
 import { config } from './helpers/config';
 import { refreshHealth } from './helpers/health';

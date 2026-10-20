@@ -4,12 +4,12 @@ import express from 'express';
 import { config } from './helpers/config';
 import { createTemplate, deregisterPhoneNumber, getDisplayPhoneNumber, getPhoneNumberInfo, graphApiBase, graphGet, migrateTemplatesPage, parseTemplateExport, registerPhoneNumber, requestDisplayName, subscribeApp, unsubscribeApp, verifyWabaAccess } from './helpers/graphApi';
 import { HttpError, failedRequest, logEvent, newApp, type Handler } from './helpers/http';
-import { progressOf, relayLimits } from './helpers/numberView';
+import { progressOf, relayLimits } from './helpers/onboarding';
 import { issuesFromRefusal, refreshHealth, templateGateFromRefusal } from './helpers/health';
 import { sendDecision, templateKey } from './helpers/gates';
 import { applyEffects, type Effect } from './helpers/rules';
 import { limitsView, UNITS, type Limits, type RateState } from './helpers/rateLimiter';
-import { verifyEndpointChallenge } from './helpers/endpoint';
+import { verifyEndpointChallenge } from './helpers/callBackUrlCheck';
 import type {
   DeregisterNumberRequest,
   DisconnectNumberRequest,
