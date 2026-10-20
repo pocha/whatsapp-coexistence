@@ -117,12 +117,12 @@ The request bodies are typed in `functions/src/helpers/types.ts`, and each funct
 
 ## MCP server
 
-An AI tool can use the calls above through MCP: check a callback URL, send test events, get the link for Meta's sign-up, read a number's state, sync, register, send messages, manage templates, de-register and disconnect. `deregister_number`, `disconnect_number` and `delete_template` are marked destructive. The tools are one piece of code, [`functions/src/mcp/tools.ts`](functions/src/mcp/tools.ts), offered two ways:
+An AI tool can use the calls above through MCP: check a callback URL, send test events, get the link for Meta's sign-up, read a number's state, sync, register, send messages, manage templates, de-register and disconnect. `deregister_number`, `disconnect_number` and `delete_template` are marked destructive. The tools are one piece of code, offered two ways:
 
 | | Hosted | Local |
 | --- | --- | --- |
 | For | claude.ai, ChatGPT, and Claude Code or Cursor over http | Claude Code, Claude Desktop, Cursor and others that launch a program |
-| Where it runs | our servers: `POST /mcp` | on the user's computer: the `watobot-mcp` package in [`mcp/`](mcp/), over stdio |
+| Where it runs | our servers: `POST /mcp` | on the user's computer: the [`watobot-mcp`](https://www.npmjs.com/package/watobot-mcp) package, over stdio |
 | The key | `Authorization: Bearer <key>`, or in the address (`/mcp/<key>`) for tools that only take an address | the `WATOBOT_API_KEY` environment variable |
 | Setup | the dashboard's **API key** page builds the address and commands from the key you paste | `claude mcp add watobot -e WATOBOT_API_KEY=<key> -- npx -y watobot-mcp` |
 
@@ -372,7 +372,7 @@ Three environment variables point it at your local setup (without them it talks 
 - **Claude Code**: `claude mcp add watobot -e WATOBOT_API_KEY=<key> -e WATOBOT_API_URL=… -e WATOBOT_SITE_URL=… -- node <full path to>/mcp/dist/index.js`
 
 A test onboarding then goes: the tool checks your callback URL and sends test events (the
-[test chatbot](test-chatbot/README.md) is a callback URL you can use), gives you the link, and you do
+[test chatbot](https://github.com/pocha/watobot-test-chatbot) is a callback URL you can use), gives you the link, and you do
 Meta's sign-up in the browser (Facebook login, then the code or QR in the WhatsApp Business app). The
 emulated functions call the real Meta API, so `functions/.env` needs real `META_APP_ID` and
 `META_APP_SECRET`, and your callback URL must be reachable from the internet. Afterwards ask the tool for
@@ -535,7 +535,7 @@ Meta requires the following before the app can act as a Tech Provider.
 **Review → Testing.** Meta wants an API call made with each permission your use
 case lists. Do both from the page of the test number that came with your app. It
 needs an incoming-message URL; if you don't have an app, use the
-[test chatbot](test-chatbot/README.md) for one.
+[test chatbot](https://github.com/pocha/watobot-test-chatbot) for one.
 
 Everything is done with your **Watobot API key**. You never handle a Meta access token: Embedded Signup
 gives Watobot the token, which it stores encrypted under your key and opens only for the request you make.

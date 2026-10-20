@@ -16,7 +16,6 @@ const ROOT = path.join(__dirname, '..');
 const README = path.join(ROOT, 'README.md');
 const OUT = path.join(ROOT, 'views', 'partials', 'capabilities-body.html');
 const SECTIONS = ['API', 'MCP server'];
-const REPO = 'https://github.com/pocha/whatsapp-coexistence/blob/main/';
 
 /** The lines of one `## <title>` section, up to the next `## `. */
 function section(lines, title) {
@@ -62,10 +61,10 @@ function build() {
   const lines = fs.readFileSync(README, 'utf8').split('\n');
   const markdown = SECTIONS.flatMap((title) => applyMarkers(section(lines, title))).join('\n');
   const renderer = new marked.Renderer();
-  // A link to a file in the repository, written relative to the README, becomes a link to it on GitHub.
+  // A link to a file in the repository, written relative to the README, is left as its text: the site does not link the repository.
   renderer.link = ({ href, title, text }) => {
-    const target = /^(https?:|#|mailto:)/.test(href) ? href : REPO + href.replace(/^\.\//, '');
-    return `<a href="${target}"${title ? ` title="${title}"` : ''}${/^http/.test(target) ? ' target="_blank" rel="noopener"' : ''}>${text}</a>`;
+    if (!/^(https?:|#|mailto:)/.test(href)) return text;
+    return `<a href="${href}"${title ? ` title="${title}"` : ''}${/^http/.test(href) ? ' target="_blank" rel="noopener"' : ''}>${text}</a>`;
   };
   let html = marked.parse(markdown, { gfm: true, renderer });
   // `<code>` inside a `<pre>` keeps its own look.
