@@ -1,4 +1,4 @@
-import { activeIssues, capsOf, presentHealth } from './gates';
+import { activeIssues, capsOf, presentHealth } from './sendGate';
 import { UNITS, limitsView } from './rateLimiter';
 import type { NextStep, NumberView, OnboardingStep, PhoneNumberDoc, RelayLimitsResponse } from './types';
 

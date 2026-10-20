@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { config } from './config';
 import { LINKS, RULES, issueFrom } from './rules';
-import { REFRESH_MIN_INTERVAL_MS, mergeRefresh, presentHealth, tierLimit } from './gates';
+import { REFRESH_MIN_INTERVAL_MS, mergeRefresh, presentHealth, tierLimit } from './sendGate';
 import { debugToken, graphGet } from './graphApi';
 import { addNotification, readNumber, setHealth } from './model';
 import type { DisplayNameState, Issue, MetaPart, MetaSnapshot, NumberHealth, Scope, TemplateGate, Why } from './types';

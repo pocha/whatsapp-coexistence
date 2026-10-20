@@ -1,4 +1,4 @@
-import { clearIssue, setIssue, templateKeyOf, tierLimit } from './gates';
+import { clearIssue, setIssue, templateKeyOf, tierLimit } from './sendGate';
 import type { DisplayNameState, Issue, Limits, NotificationDoc, PhoneNumberDoc, Scope, Send, TemplateGate, Why } from './types';
 
 // What each signal about a number says to the user and does to the gates, as data: Meta's account-level

@@ -6,7 +6,7 @@ import { createTemplate, deregisterPhoneNumber, getDisplayPhoneNumber, getPhoneN
 import { HttpError, failedRequest, logEvent, newApp, type Handler } from './helpers/http';
 import { progressOf, relayLimits } from './helpers/onboarding';
 import { issuesFromRefusal, refreshHealth, templateGateFromRefusal } from './helpers/health';
-import { sendDecision, templateKey } from './helpers/gates';
+import { sendDecision, templateKey } from './helpers/sendGate';
 import { applyEffects, type Effect } from './helpers/rules';
 import { limitsView, UNITS, type Limits, type RateState } from './helpers/rateLimiter';
 import { verifyEndpointChallenge } from './helpers/callBackUrlCheck';

@@ -1,6 +1,6 @@
 import { FieldValue, getFirestore, Timestamp, type DocumentSnapshot } from 'firebase-admin/firestore';
 import { reserve, type Limits, type Verdict } from './rateLimiter';
-import { capsOf } from './gates';
+import { capsOf } from './sendGate';
 import type {
   DisplayNameState,
   EncryptedToken,

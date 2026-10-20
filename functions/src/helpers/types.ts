@@ -184,7 +184,7 @@ export interface Issue {
  * What currently restricts a number, as of the last time it was read from Meta (the dashboard's refresh, an
  * AI tool's get_number, or a send Meta refused) or announced by a webhook: the issues of each scope by what
  * they are, and Meta's daily messaging limit (250 for an unverified business). The status of a scope, and
- * the ceilings, are worked out from these (see gates.ts), never stored.
+ * the ceilings, are worked out from these (see sendGate.ts), never stored.
  */
 export type NumberHealth = { [S in Scope]?: Partial<Record<Why, Issue>> } & { tier?: number };
 
