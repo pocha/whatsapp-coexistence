@@ -39,3 +39,4 @@ functions/node_modules/
 
 # The local MCP package is published to npm, which never ships a lockfile.
 /mcp/package-lock.json
+npm_recovery_codes.txt
