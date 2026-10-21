@@ -1,14 +1,9 @@
 <!-- The setup for each AI tool, with the key filled in by the page (src/assets/ai-tool.ts). The steps follow step 3 of the how-to guide. -->
 <dialog id="ai-dialog" class="bg-white border border-outline-variant rounded-xl shadow-xl p-6 w-[92vw] max-w-3xl m-auto text-left backdrop:bg-black/50">
   <div class="flex justify-between items-start gap-4 mb-2">
-    <p class="section-title text-on-surface">Connect your AI tool</p>
+    <p class="section-title text-on-surface">Show steps to connect</p>
     <button id="ai-close" type="button" aria-label="Close" class="text-on-surface-variant hover:text-on-surface text-2xl leading-none">&times;</button>
   </div>
-  <p class="text-on-surface-variant font-body-md text-sm mb-4">
-    Pick your tool and follow its steps. These hold your key, so treat them like the key. Nothing here was sent anywhere:
-    the page put it together from the key you pasted. Meta's sign-up (Facebook login and the code in the WhatsApp Business
-    app) is always done by you, in the browser.
-  </p>
   <div role="tablist" aria-label="Your AI tool" class="flex gap-1 overflow-x-auto border-b border-outline-variant mb-4">
     <button type="button" role="tab" id="ai-tab-claude" data-tab="claude" aria-selected="true" aria-controls="ai-panel-claude" class="ai-tab rounded-lg px-3 py-2 font-label-md text-sm font-bold whitespace-nowrap bg-primary text-on-primary">Claude.ai</button>
     <button type="button" role="tab" id="ai-tab-chatgpt" data-tab="chatgpt" aria-selected="false" aria-controls="ai-panel-chatgpt" class="ai-tab rounded-lg px-3 py-2 font-label-md text-sm font-bold whitespace-nowrap text-on-surface-variant hover:bg-surface-container">ChatGPT</button>
@@ -52,12 +47,6 @@
       <button type="button" data-copy="ai-json" class="mt-2 rounded-xl border border-outline-variant bg-white px-4 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all">Copy</button>
     </div>
   </div>
-  <p class="text-on-surface-variant font-body-md text-sm mt-4">
-    The menus change from one plan and one release to the next, so the names above may differ a little on yours.
-    Custom connectors need a plan that allows them (on claude.ai the free plan allows one), and on a team plan an
-    owner may have to switch them on first. Claude.ai and ChatGPT connect from their own servers, which is why
-    they use the address and can't use the program that runs on your computer.
-  </p>
   <p class="text-on-surface-variant font-body-md text-sm mt-4">
     Once it's added, here is what to say: <a class="text-primary font-bold hover:underline" href="/how-to/connect-watobot-to-ai-tool.html">the step-by-step guide</a>.
   </p>
