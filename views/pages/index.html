@@ -486,6 +486,73 @@
         <p>We'd like you to stay, but you are never locked in.</p>
           </div>
         </details>
+        <details class="group reveal card p-5">
+          <summary class="flex items-center justify-between gap-4 cursor-pointer list-none font-label-md text-label-md font-bold text-on-surface">
+            What does Meta charge?
+            <span class="material-symbols-outlined flex-shrink-0 transition-transform group-open:rotate-180">expand_more</span>
+          </summary>
+          <div class="mt-3 flex flex-col gap-2 text-on-surface-variant font-body-md">
+        <p>Meta charges for the messages you send, per delivered message. The price depends on the type of message and the country. It never charges for messages your customers send you. Watobot doesn't mark this up: you pay Meta directly, with a payment method on your account.</p>
+        <p>Without a payment method, Meta blocks template messages. Replies within 24 hours of a customer's message still go through. The dashboard tells you if a payment problem is holding your number back.</p>
+          </div>
+        </details>
+        <details class="group reveal card p-5">
+          <summary class="flex items-center justify-between gap-4 cursor-pointer list-none font-label-md text-label-md font-bold text-on-surface">
+            Do I need a verified business?
+            <span class="material-symbols-outlined flex-shrink-0 transition-transform group-open:rotate-180">expand_more</span>
+          </summary>
+          <div class="mt-3 flex flex-col gap-2 text-on-surface-variant font-body-md">
+        <p>No. You need a Meta business portfolio, but it can stay unverified. Meta then limits you to messaging 250 customers a day, and verifying your business raises that. Everything else works. <a class="text-primary font-bold hover:underline" href="/how-to/create-meta-business-portfolio-add-whatsapp-number.html">Here is how to create the portfolio.</a></p>
+          </div>
+        </details>
+        <details class="group reveal card p-5">
+          <summary class="flex items-center justify-between gap-4 cursor-pointer list-none font-label-md text-label-md font-bold text-on-surface">
+            Does the WhatsApp Business app keep working?
+            <span class="material-symbols-outlined flex-shrink-0 transition-transform group-open:rotate-180">expand_more</span>
+          </summary>
+          <div class="mt-3 flex flex-col gap-2 text-on-surface-variant font-body-md">
+        <p>Yes. That is the point of coexistence: your number stays on the WhatsApp Business app and the API at the same time. Your contacts and chat history are sent to your app once, within 24 hours of onboarding. After that, messages you type in the app reach your API too, as echoes.</p>
+        <p>Without a place to receive them (see below), those events are not delivered anywhere.</p>
+          </div>
+        </details>
+        <details class="group reveal card p-5">
+          <summary class="flex items-center justify-between gap-4 cursor-pointer list-none font-label-md text-label-md font-bold text-on-surface">
+            Do you store my messages?
+            <span class="material-symbols-outlined flex-shrink-0 transition-transform group-open:rotate-180">expand_more</span>
+          </summary>
+          <div class="mt-3 flex flex-col gap-2 text-on-surface-variant font-body-md">
+        <p>No. Incoming messages go straight from WhatsApp to your app, and the messages you send through our API pass through without being stored. We keep counts of how many you sent, and the account notifications Meta sends us.</p>
+        <p>Your Meta access token is encrypted with your Watobot API key, and we keep only a hash of that key. We can't use your token without you.</p>
+          </div>
+        </details>
+        <details class="group reveal card p-5">
+          <summary class="flex items-center justify-between gap-4 cursor-pointer list-none font-label-md text-label-md font-bold text-on-surface">
+            What if I lose my API key?
+            <span class="material-symbols-outlined flex-shrink-0 transition-transform group-open:rotate-180">expand_more</span>
+          </summary>
+          <div class="mt-3 flex flex-col gap-2 text-on-surface-variant font-body-md">
+        <p>Reset it on the sign-in screen or the API key page. We then delete the access tokens we hold for your numbers, and each number has to be onboarded again before it can send. Your numbers and templates stay in Meta.</p>
+          </div>
+        </details>
+        <details class="group reveal card p-5">
+          <summary class="flex items-center justify-between gap-4 cursor-pointer list-none font-label-md text-label-md font-bold text-on-surface">
+            Do I need my own server to receive messages?
+            <span class="material-symbols-outlined flex-shrink-0 transition-transform group-open:rotate-180">expand_more</span>
+          </summary>
+          <div class="mt-3 flex flex-col gap-2 text-on-surface-variant font-body-md">
+        <p>Not to send messages. A callback URL is only for receiving what WhatsApp sends: incoming messages, delivery receipts, and the one-time sync of your contacts and chat history. If you only send, and reply in the WhatsApp Business app, you can onboard without one. Be aware that Meta allows the sync only once, so it is skipped for good in that case.</p>
+        <p>If you need a place to receive events while you try things out, our <a class="text-primary font-bold hover:underline" href="https://github.com/pocha/watobot-test-chatbot">test chatbot</a> gives you one in a minute.</p>
+          </div>
+        </details>
+        <details class="group reveal card p-5">
+          <summary class="flex items-center justify-between gap-4 cursor-pointer list-none font-label-md text-label-md font-bold text-on-surface">
+            Which AI tools does it work with?
+            <span class="material-symbols-outlined flex-shrink-0 transition-transform group-open:rotate-180">expand_more</span>
+          </summary>
+          <div class="mt-3 flex flex-col gap-2 text-on-surface-variant font-body-md">
+        <p>Claude.ai, ChatGPT, Claude Code, Claude Desktop and Cursor, through the Watobot MCP server. The AI tool checks your setup, onboards your number and manages templates. Meta's sign-up (Facebook login and the code in the WhatsApp Business app) is always done by you, in the browser. <a class="text-primary font-bold hover:underline" href="/how-to/connect-watobot-to-ai-tool.html">How to connect your tool.</a></p>
+          </div>
+        </details>
       </div>
     </div>
   </section>
