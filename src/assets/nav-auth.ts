@@ -9,7 +9,7 @@ const original = cta ? { html: cta.innerHTML, className: cta.className, href: ct
 async function logout(event: Event) {
   event.preventDefault();
   await signOutUser();
-  location.href = '/dashboard/';
+  location.href = '/dashboard/login.html';
 }
 
 onAuthStateChanged(auth, (user) => {

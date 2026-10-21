@@ -608,7 +608,7 @@ for (const item of accordions) {
 // --- Boot ---------------------------------------------------------------------
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    location.href = '/dashboard/';
+    location.href = '/dashboard/login.html';
     return;
   }
   fillSidebar(user.uid, phoneNumberId);

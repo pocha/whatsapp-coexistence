@@ -53,7 +53,7 @@ el('create-key-btn').addEventListener('click', () =>
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    location.href = '/dashboard/';
+    location.href = '/dashboard/login.html';
     return;
   }
   fillSidebar(user.uid);

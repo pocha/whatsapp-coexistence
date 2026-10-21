@@ -107,7 +107,7 @@ function wireDelete() {
     notes.push('If you shared your Messaging accounts with Watobot, you can remove us under Business Settings > Accounts > Partners.');
     status.textContent = notes.join(' ');
     el('delete-cancel').textContent = 'Close';
-    el('delete-cancel').onclick = () => (location.href = '/dashboard/');
+    el('delete-cancel').onclick = () => (location.href = '/dashboard/login.html');
   }
 
   el('delete-account-btn').addEventListener('click', () => {

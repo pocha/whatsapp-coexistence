@@ -39,6 +39,7 @@ const PAGE_MAP = {
   'tos.html': 'tos.html',
   'data-deletion.html': 'data-deletion.html',
   'dashboard.html': 'dashboard/index.html',
+  'dashboard-login.html': 'dashboard/login.html',
   'dashboard-waba-create.html': 'dashboard/waba/create.html',
   'dashboard-waba.html': 'dashboard/waba/index.html',
   'dashboard-key.html': 'dashboard/key/index.html',

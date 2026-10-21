@@ -351,7 +351,7 @@ backBtn.addEventListener('click', () => goStep(currentStep - 1));
 
 el('wizard-close').addEventListener('click', () => {
   if (numberExists) {
-    location.href = '/dashboard/';
+    location.href = '/dashboard/login.html';
     return;
   }
   wizard.classList.add('hidden');
@@ -726,7 +726,7 @@ function openWizard() {
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    location.href = '/dashboard/';
+    location.href = '/dashboard/login.html';
     return;
   }
   fillSidebar(user.uid, resumeId);
