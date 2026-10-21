@@ -422,6 +422,74 @@
     </div>
   </section>
 
+  <!-- FAQ -->
+  <section class="px-gutter md:px-24 py-16 border-t border-outline-variant" id="faq">
+    <div class="max-w-3xl mx-auto">
+      <h2 class="reveal font-headline-lg text-headline-lg text-on-surface text-center mb-10">Frequently asked questions</h2>
+      <div class="flex flex-col gap-3">
+        <details class="group reveal card p-5">
+          <summary class="flex items-center justify-between gap-4 cursor-pointer list-none font-label-md text-label-md font-bold text-on-surface">
+            Is Watobot really free to try?
+            <span class="material-symbols-outlined flex-shrink-0 transition-transform group-open:rotate-180">expand_more</span>
+          </summary>
+          <div class="mt-3 flex flex-col gap-2 text-on-surface-variant font-body-md">
+        <p>Yes. There is no charge for onboarding your number, and you can send 10 messages a day through the API for free. If you don't want to move your business number yet, onboard a spare number and try it first.</p>
+        <p>Meta's own per-message charges for template messages are separate. You pay Meta directly, with a payment method on your account.</p>
+          </div>
+        </details>
+        <details class="group reveal card p-5">
+          <summary class="flex items-center justify-between gap-4 cursor-pointer list-none font-label-md text-label-md font-bold text-on-surface">
+            If I'm moving from another provider, do I need to disconnect from them?
+            <span class="material-symbols-outlined flex-shrink-0 transition-transform group-open:rotate-180">expand_more</span>
+          </summary>
+          <div class="mt-3 flex flex-col gap-2 text-on-surface-variant font-body-md">
+        <p>It depends on how your number is connected today.</p>
+        <ul class="list-disc list-inside flex flex-col gap-1">
+          <li><strong>Your provider gives you the API only</strong> (Twilio, for example): no. Meta creates a new Messaging account (earlier called a WABA) for you, and your templates are imported from the old one. The old account stays active, so their API key keeps working too.</li>
+          <li><strong>You used your own Meta app:</strong> your key from that app keeps working as well.</li>
+          <li><strong>Your provider uses coexistence:</strong> unfortunately yes. Meta doesn't allow a second account for a coexistence number, so you disconnect from them first, and their API key stops working.</li>
+        </ul>
+        <p>Meta is moving accounts to this model in stages. <a class="text-primary font-bold hover:underline" href="/how-to/move-whatsapp-api-between-providers.html">Our guide to moving providers</a> shows how to check which one you are on.</p>
+          </div>
+        </details>
+        <details class="group reveal card p-5">
+          <summary class="flex items-center justify-between gap-4 cursor-pointer list-none font-label-md text-label-md font-bold text-on-surface">
+            What if something goes wrong and I need to go back to my previous provider? How long is the downtime?
+            <span class="material-symbols-outlined flex-shrink-0 transition-transform group-open:rotate-180">expand_more</span>
+          </summary>
+          <div class="mt-3 flex flex-col gap-2 text-on-surface-variant font-body-md">
+        <ul class="list-disc list-inside flex flex-col gap-1">
+          <li><strong>Your previous provider was API only</strong> (like Twilio), or it was your own Meta app: no downtime. That account was never switched off, so point your app back at their API.</li>
+          <li><strong>It was a coexistence provider:</strong> you had to disconnect from them, so going back means disconnecting from us and onboarding with them again. Allow up to 15 minutes in between. Meta asks you to wait that long.</li>
+        </ul>
+        <p>If you haven't properly disconnected from your previous provider, onboarding with us doesn't complete, and their API keeps working for you meanwhile.</p>
+        <p>Once you are onboarded with us, we import your templates, and Meta may review them again. Meta says reviews finish within 24 hours, and until then those templates may have restrictions.</p>
+          </div>
+        </details>
+        <details class="group reveal card p-5">
+          <summary class="flex items-center justify-between gap-4 cursor-pointer list-none font-label-md text-label-md font-bold text-on-surface">
+            Will you help if something doesn't work during onboarding?
+            <span class="material-symbols-outlined flex-shrink-0 transition-transform group-open:rotate-180">expand_more</span>
+          </summary>
+          <div class="mt-3 flex flex-col gap-2 text-on-surface-variant font-body-md">
+        <p>Yes. If onboarding doesn't go through, for example because you couldn't disconnect from your previous provider, Ashish will personally help you figure it out. <a class="text-primary font-bold hover:underline" href="/#contact">Write to us.</a> The error codes are documented in our <a class="text-primary font-bold hover:underline" href="#how-to">how-to guides</a>, so you can often fix it yourself.</p>
+        <p>After onboarding, the dashboard tells you if there are any restrictions on your account. It also keeps the notifications Meta sends us for a month, such as limits that follow a migration (template reviews), so you see them all in one place.</p>
+          </div>
+        </details>
+        <details class="group reveal card p-5">
+          <summary class="flex items-center justify-between gap-4 cursor-pointer list-none font-label-md text-label-md font-bold text-on-surface">
+            How easy is it to leave Watobot?
+            <span class="material-symbols-outlined flex-shrink-0 transition-transform group-open:rotate-180">expand_more</span>
+          </summary>
+          <div class="mt-3 flex flex-col gap-2 text-on-surface-variant font-body-md">
+        <p>Easy, and it doesn't depend on us. If your number is also on the WhatsApp Business app, open the app and go to <strong>Settings &rarr; Account &rarr; Business Platform</strong>, then disconnect Watobot. That's all it takes, and we can't block it. For an API-only number, our guide to <a class="text-primary font-bold hover:underline" href="/how-to/deregister-whatsapp-number-from-provider.html">de-registering from a provider</a> has the steps, and they apply to Watobot as well.</p>
+        <p>We'd like you to stay, but you are never locked in.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
   <!-- Contact -->
   <section class="px-gutter md:px-24 py-16 bg-surface-container-low" id="contact">
     <div class="max-w-4xl mx-auto">
