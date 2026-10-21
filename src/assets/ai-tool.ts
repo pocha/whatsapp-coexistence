@@ -17,6 +17,29 @@ export function wireAiTool(): void {
     status.textContent = value && !ok ? 'An API key is 64 characters of 0-9 and a-f.' : '';
   });
 
+  // The tools are tabs: one panel shows at a time.
+  const tabs = Array.from(dialog.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+  const select = (name: string) => {
+    for (const tab of tabs) {
+      const on = tab.dataset.tab === name;
+      tab.setAttribute('aria-selected', String(on));
+      tab.classList.toggle('bg-primary', on);
+      tab.classList.toggle('text-on-primary', on);
+      tab.classList.toggle('text-on-surface-variant', !on);
+      tab.classList.toggle('hover:bg-surface-container', !on);
+      el(`ai-panel-${tab.dataset.tab}`).classList.toggle('hidden', !on);
+    }
+  };
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => select(tab.dataset.tab!));
+    tab.addEventListener('keydown', (event) => {
+      const next = event.key === 'ArrowRight' ? tabs[(i + 1) % tabs.length] : event.key === 'ArrowLeft' ? tabs[(i + tabs.length - 1) % tabs.length] : undefined;
+      if (!next) return;
+      select(next.dataset.tab!);
+      next.focus();
+    });
+  });
+
   button.addEventListener('click', () => {
     const value = key.value.trim();
     if (!isValidApiKey(value)) return;
@@ -27,6 +50,7 @@ export function wireAiTool(): void {
     el('ai-http-cmd').textContent = `claude mcp add --transport http watobot ${mcp} --header "Authorization: Bearer ${value}"`;
     el('ai-json').textContent = JSON.stringify({ mcpServers: { watobot: { command: 'npx', args: ['-y', 'watobot-mcp'], env: { WATOBOT_API_KEY: value } } } }, null, 2);
     for (const copy of Array.from(dialog.querySelectorAll<HTMLButtonElement>('button[data-copy]'))) copy.textContent = 'Copy';
+    select(tabs[0].dataset.tab!);
     dialog.showModal();
   });
 
