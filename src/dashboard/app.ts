@@ -1,13 +1,14 @@
 import { auth, onAuthStateChanged } from '/assets/firebase-init.js';
 import { fillSidebar, type NumberRecord } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
-import { el } from '/assets/dom.js';
+import { el, errorMessage } from '/assets/dom.js';
 
 // The dashboard: the signed-in user's phone numbers. Anyone else is sent to the sign-in page.
 // --- The signed-in dashboard --------------------------------------------------------
 function renderCards(numbers: NumberRecord[]) {
   const cards = el('waba-cards');
   cards.replaceChildren();
+  el('waba-loading').classList.add('hidden');
   el('waba-cards-empty').classList.toggle('hidden', numbers.length > 0);
 
   for (const waba of numbers) {
@@ -44,5 +45,9 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
   el('signed-in').classList.remove('hidden');
-  renderCards(await fillSidebar(user.uid));
+  try {
+    renderCards(await fillSidebar(user.uid));
+  } catch (err) {
+    el('waba-loading').textContent = `Could not load your phone numbers: ${errorMessage(err)}. Reload to try again.`;
+  }
 });

@@ -487,7 +487,7 @@ async function forward(
 }
 
 templatesApp.get('/:phoneNumberId', (req, res) =>
-  forward(req, res, 'GET', '?fields=id,name,status,category,language,components&limit=100'),
+  forward(req, res, 'GET', '?fields=id,name,status,category,language,components,quality_score&limit=100'),
 );
 templatesApp.post('/:phoneNumberId', (req, res) => forward(req, res, 'POST', '', req.body));
 // Bring templates across from another Messaging account, or from a list exported elsewhere.

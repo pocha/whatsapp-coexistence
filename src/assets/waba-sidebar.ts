@@ -187,6 +187,8 @@ export async function fillSidebar(uid: string, currentId?: string | null): Promi
     if (id === currentId) markActive(link);
     list.append(link);
   }
+  el('waba-sidebar-loading').classList.remove('lg:block');
+  el('waba-sidebar-loading').classList.add('hidden');
   empty.classList.toggle('hidden', numbers.length > 0);
   empty.classList.toggle('lg:block', numbers.length === 0);
 
