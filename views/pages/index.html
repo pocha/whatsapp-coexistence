@@ -447,7 +447,7 @@
         <ul class="list-disc list-inside flex flex-col gap-1">
           <li><strong>Your provider gives you the API only</strong> (Twilio, for example): no. Meta creates a new Messaging account (earlier called a WABA) for you, and your templates are imported from the old one. The old account stays active, so their API key keeps working too.</li>
           <li><strong>You used your own Meta app:</strong> your key from that app keeps working as well.</li>
-          <li><strong>Your provider uses coexistence:</strong> unfortunately yes. Meta doesn't allow a second account for a coexistence number, so you disconnect from them first, and their API key stops working.</li>
+          <li><strong>Your provider uses coexistence:</strong> unfortunately yes. Meta doesn't let two providers share a coexistence number, so you disconnect from them first, and their API key stops working. Your existing Messaging account is then shared with us, so your templates stay where they are.</li>
         </ul>
         <p>Meta is moving accounts to this model in stages. <a class="text-primary font-bold hover:underline" href="/how-to/move-whatsapp-api-between-providers.html">Our guide to moving providers</a> shows how to check which one you are on.</p>
           </div>
@@ -463,7 +463,7 @@
           <li><strong>It was a coexistence provider:</strong> you had to disconnect from them, so going back means disconnecting from us and onboarding with them again. Allow up to 15 minutes in between. Meta asks you to wait that long.</li>
         </ul>
         <p>If you haven't properly disconnected from your previous provider, onboarding with us doesn't complete, and their API keeps working for you meanwhile.</p>
-        <p>Once you are onboarded with us, we import your templates, and Meta may review them again. Meta says reviews finish within 24 hours, and until then those templates may have restrictions.</p>
+        <p>If your templates are copied into a new Messaging account, Meta resets their quality rating, and says they take roughly 2 to 4 weeks to ramp back up. They may be reviewed again in the meantime, and Meta says reviews finish within 24 hours. The dashboard shows their status and Meta's notifications.</p>
           </div>
         </details>
         <details class="group reveal card p-5">
