@@ -52,7 +52,7 @@ Three kinds of credential:
 
 | Method and path | What it does | Body |
 | --- | --- | --- |
-| `GET /templates/<id>` | Lists the account's templates (id, name, status, category, language, components). The response is what `/templatesBulk/<id>/import` takes. | |
+| `GET /templates/<id>` | Lists the account's templates (id, name, status, category, language, components, quality_score). It returns the first 100 only: there is no paging yet, so an account with more has the rest left out. The response is what `/templatesBulk/<id>/import` takes. | |
 | `POST /templates/<id>` | Creates a template. | Meta's template body |
 | `POST /templates/<id>/<templateId>` | Edits a template. | Meta's template body |
 | `DELETE /templates/<id>?name=<name>` | Deletes every template with that name. | |
