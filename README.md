@@ -81,7 +81,7 @@ Each issue says what it does to sending (`send`): `limit`, `block` or `disable`.
 | --- | --- | --- |
 | `disable` | The account is banned or scheduled to be disabled, deleted, rejected in review, or the number is disconnected | Refuses every send with `403`, free-form messages too |
 | `block` | Meta says the account or number is blocked (for example a payment method problem), a restriction on business-initiated messaging, or Meta's spam rate limit (a pause of an hour) | Template messages get `403`, or `429` with `Retry-After` when the block has an end time. Free-form replies still go through. |
-| `limit` | The number itself is limited (a display name not approved yet), flagged or of low quality, or the business is unverified | The issue's limits apply: at most 5 template messages a day for a limited number (our own cautious figure), or Meta's cap. |
+| `limit` | The number is flagged or of low quality, or the business is unverified | The issue's limits apply: at most 5 template messages a day for a flagged or low-quality number (our own cautious figure; Meta gives none), and always Meta's daily limit. An unverified business changes nothing by itself. |
 | `ok` | No issue | Normal limits. |
 
 An issue may carry `limits` per window; the lowest of these and Meta's daily messaging limit (250 while the business is unverified, stored as `health.tier`) is `health.limits`, which caps what the number has earned (see Rate limits). Each issue has a `title`, a `message` that says what is wrong and what to do, and where we know one a `link`, written for the cases we know and in Meta's words for any other. A refused send returns the blocking `issues`. The number's page shows one chip per scope (OK, Limited or Blocked) and the popup lists the issues. Any other account-level field Meta sends is kept as a notification that gates nothing. The wording for every signal is one table, `functions/src/helpers/rules.ts`.
@@ -485,8 +485,8 @@ locally, where the Auth emulator doesn't check signatures.
 prints the URL of each function, including a line like
 `Function URL (webhook(us-central1)): https://...`. That is your webhook URL.
 Meta requires the app itself to have a webhook before a business's
-incoming-URL override can be set. Without one, **Verify & save** on a WABA's
-page fails with "your app must be subscribed to receive messages for WhatsApp
+incoming-URL override can be set. Without one, the override call (in the wizard, or
+the command under **Raw API Calls** on a number's page) fails with "your app must be subscribed to receive messages for WhatsApp
 Business Account".
 
 1. In the app dashboard, go to **Use cases → Customize → Step 2. Production
@@ -545,9 +545,9 @@ gives Watobot the token, which it stores encrypted under your key and opens only
 2. **Onboard a number**: click **Onboard Phone Number** and follow the wizard (or let an AI tool do the checks through
    the MCP server, which hands you a link for Meta's sign-up). The number comes out of Meta's sign-up with its
    own phone number ID, shown on its page in the dashboard (`/dashboard/waba/?id=<phone number ID>`).
-3. **Override incoming message URL**: in the wizard (or on the number's page), enter your Watobot API key and
-   your app's public HTTPS URL, then click **Verify & save**. This completes the test for
-   `whatsapp_business_management`.
+3. **Override incoming message URL**: in the wizard, enter your Watobot API key and your app's public HTTPS URL,
+   then click **Verify & save** (or, later, run the **Override incoming message URL / webhook** command under
+   **Raw API Calls** on the number's page). This completes the test for `whatsapp_business_management`.
 4. **Send a message**: copy the curl command on the number's page, put in your key and a recipient number,
    and run it in a terminal:
 

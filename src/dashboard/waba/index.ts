@@ -1,11 +1,10 @@
 import { auth, functionsBase, onAuthStateChanged } from '/assets/firebase-init.js';
-import { WEBHOOK_VERIFY_TOKEN } from '/assets/app-config.js';
 import { fillSidebar } from '/assets/waba-sidebar.js';
 import { isValidApiKey } from '/assets/api-key.js';
 import '/assets/nav-auth.js';
-import { wireTestEvents } from '/assets/test-events.js';
+import { fillAiTool, KEY_PLACEHOLDER, wireAiTabs } from '/assets/ai-tool.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { NumberView, Scope, SetWebhookRequest, SyncStatus } from '../../../functions/src/helpers/types';
+import type { NumberView, Scope, SyncStatus } from '../../../functions/src/helpers/types';
 import { effectiveConfig, REFRESH_MIN_INTERVAL_MS, view } from '../../../functions/src/helpers/rateLimiter';
 import { issuesOf, SCOPES } from '../../../functions/src/helpers/sendGate';
 import { fetchNotifications, fetchNumber } from '/assets/account.js';
@@ -16,9 +15,6 @@ import { fetchNotifications, fetchNumber } from '/assets/account.js';
 const phoneNumberId = new URLSearchParams(location.search).get('id') ?? '';
 
 const apiKeyInput = el<HTMLInputElement>('api-key');
-const overrideUrl = el<HTMLInputElement>('ov-url');
-const overrideBtn = el<HTMLButtonElement>('ov-btn');
-const overrideStatus = el('ov-status');
 
 // Same date-key algorithm as functions/src/wabaManager.ts, duplicated here
 // (small and pure) so usage lookups match the keys the relay wrote.
@@ -206,30 +202,31 @@ function renderIds(messagingAccountId: string | undefined) {
 }
 
 
-/** "requested 16 Oct 2026, 10:12", or what went wrong. */
+/** When it was requested ("16 Oct 2026, 10:12"), or what went wrong. */
 function syncText(s: SyncStatus | undefined): string {
   if (!s || s.state === 'none') return 'not requested';
   if (s.state === 'requesting') return 'being requested';
   if (s.state === 'failed') return `failed (${s.error ?? 'unknown error'})`;
   if (s.state === 'skipped') return 'skipped';
-  return `requested ${new Date(s.at ?? 0).toLocaleString()}`;
+  return new Date(s.at ?? 0).toLocaleString();
 }
 
-/** For a coexistence number: when the contacts and history syncs were requested. */
-function renderSyncCard(data: NumberView) {
-  const card = el('onboarding-card');
-  card.replaceChildren();
-  const line = (text: string, className = 'text-on-surface-variant font-body-md text-sm') => {
-    const p = document.createElement('p');
-    p.className = className;
-    p.textContent = text;
-    card.append(p);
-  };
-
+/** For a coexistence number: a chip each for when the contacts and history syncs were requested, beside the number. */
+function renderSyncChips(data: NumberView) {
+  const box = el('sync-chips');
+  box.replaceChildren();
   if (!data.isOnBizApp) return;
-  line(`Contacts sync: ${syncText(data.sync?.contacts)}`);
-  line(`History sync: ${syncText(data.sync?.history)}`);
-  card.classList.remove('hidden');
+  for (const [label, sync] of [['Contacts sync', data.sync?.contacts], ['History sync', data.sync?.history]] as const) {
+    const chip = document.createElement('span');
+    chip.className = `rounded-full px-3 py-1 label-strong ${sync?.state === 'failed' ? 'bg-error/10 text-error' : 'bg-surface-container text-on-surface-variant'}`;
+    chip.textContent = `${label}: ${syncText(sync)}`;
+    box.append(chip);
+  }
+}
+
+/** Where incoming messages go, in the Status card. */
+function renderCallback(data: NumberView) {
+  el('callback-url').textContent = data.overrideUrl ?? (data.callbackSkipped ? 'Nowhere: no callback URL was set' : 'Not set yet');
 }
 
 // Only the owner gets a number's record (getNumber). Returns false if the record
@@ -242,8 +239,6 @@ async function loadRecord(): Promise<boolean> {
     return false;
   }
   if (!data) return false;
-
-  if (data.overrideUrl && !overrideUrl.value) overrideUrl.value = data.overrideUrl;
 
   // The number is the title; whether it also runs on the Business app is a chip beside it.
   if (data.displayPhoneNumber) el('page-title').textContent = data.displayPhoneNumber;
@@ -259,11 +254,21 @@ async function loadRecord(): Promise<boolean> {
     location.replace(`/dashboard/waba/create.html?id=${encodeURIComponent(phoneNumberId)}`);
     return true;
   }
-  renderSyncCard(data);
+  renderSyncChips(data);
+  renderCallback(data);
   renderChips(data);
   void renderNotifications();
   renderStats(data);
   return true;
+}
+
+const hasKey = () => isValidApiKey(apiKeyInput.value.trim());
+
+/** Tells the user to type their API key in the card at the top, which they need for what they just tried. */
+function needKey() {
+  el('key-alert').classList.remove('hidden');
+  el('key-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  apiKeyInput.focus();
 }
 
 // --- Sending status chips and their popup ------------------------------------------
@@ -304,15 +309,26 @@ function renderChips(data: NumberView) {
 }
 
 /** When Meta was last asked, and whether the refresh can be used yet. */
+let lastFetchedAt: number | undefined;
+let nextAllowedAt = 0;
+
 function renderRefresh(data: NumberView) {
-  const fetchedAt = data.metaFetchedAt;
-  el('hd-checked').textContent = fetchedAt ? `Last checked ${new Date(fetchedAt).toLocaleString()}` : 'Never checked';
-  const next = fetchedAt ? fetchedAt + REFRESH_MIN_INTERVAL_MS : 0;
-  const wait = next > Date.now();
-  el<HTMLButtonElement>('refresh-btn').disabled = wait;
-  el('refresh-status').textContent = wait
-    ? `Meta can be asked again at ${new Date(next).toLocaleTimeString()}.`
-    : 'Meta is asked at most once in ten minutes.';
+  lastFetchedAt = data.metaFetchedAt;
+  nextAllowedAt = lastFetchedAt ? lastFetchedAt + REFRESH_MIN_INTERVAL_MS : 0;
+  updateRefresh();
+}
+
+/**
+ * Refresh is usable once the key is typed and ten minutes have passed since Meta was last asked. Without a key it still
+ * looks off but can be clicked, to tell the user where to type it; during the wait it is disabled.
+ */
+function updateRefresh() {
+  const button = el<HTMLButtonElement>('refresh-btn');
+  const waiting = nextAllowedAt > Date.now();
+  button.disabled = waiting;
+  button.setAttribute('aria-disabled', String(waiting || !hasKey()));
+  el('hd-checked').textContent = lastFetchedAt ? `Last refreshed ${new Date(lastFetchedAt).toLocaleString()}` : 'Never refreshed';
+  el('refresh-status').textContent = waiting ? `Meta can be asked again at ${new Date(nextAllowedAt).toLocaleTimeString()}.` : '';
 }
 
 function paragraph(text: string, className = ''): HTMLParagraphElement {
@@ -379,12 +395,11 @@ async function callWithKey(method: 'GET' | 'PUT', path: string, body?: object) {
   return data;
 }
 
-const hasKey = () => isValidApiKey(apiKeyInput.value.trim());
-
 el('refresh-btn').addEventListener('click', async () => {
   const status = el('refresh-status');
+  if (nextAllowedAt > Date.now()) return;
   if (!hasKey()) {
-    status.textContent = 'Enter your API key first.';
+    needKey();
     return;
   }
   el<HTMLButtonElement>('refresh-btn').disabled = true;
@@ -402,8 +417,13 @@ el('refresh-btn').addEventListener('click', async () => {
 el('hd-name-btn').addEventListener('click', async () => {
   const status = el('hd-status');
   const displayName = el<HTMLInputElement>('hd-name-input').value.trim();
-  if (!hasKey() || displayName.length < 3) {
-    status.textContent = 'Enter your API key and a name of at least 3 characters.';
+  if (!hasKey()) {
+    dialog.close();
+    needKey();
+    return;
+  }
+  if (displayName.length < 3) {
+    status.textContent = 'Enter a name of at least 3 characters.';
     return;
   }
   el<HTMLButtonElement>('hd-name-btn').disabled = true;
@@ -449,52 +469,11 @@ async function renderNotifications(more = false) {
 }
 el('notifications-more').addEventListener('click', () => void renderNotifications(true));
 
-// --- Override incoming message URL ------------------------------------------
-el('chatbot-env').textContent =
-  `WEBHOOK_VERIFY_TOKEN=${WEBHOOK_VERIFY_TOKEN}\nRELAY_BASE=${functionsBase()}/numbers\nWATOBOT_API_KEY=`;
-el('copy-env-btn').addEventListener('click', async () => {
-  await navigator.clipboard.writeText(el('chatbot-env').textContent ?? '');
-  el('copy-env-btn').textContent = 'Copied';
-});
-
-wireTestEvents(() => overrideUrl.value);
-
-overrideBtn.addEventListener('click', async () => {
-  const apiKey = apiKeyInput.value.trim();
-  const overrideCallbackUrl = overrideUrl.value.trim();
-  if (!apiKey || !overrideCallbackUrl) {
-    overrideStatus.textContent = 'Fill in your API key (at the top) and your URL.';
-    return;
-  }
-
-  overrideBtn.disabled = true;
-  overrideStatus.textContent = 'Checking your URL and updating WhatsApp…';
-  try {
-    const res = await fetch(`${functionsBase()}/numbers/${encodeURIComponent(phoneNumberId)}/webhook`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ overrideCallbackUrl } satisfies Partial<SetWebhookRequest>),
-    });
-    const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-    if (!res.ok || !body.ok) {
-      overrideStatus.textContent = `Not saved: ${body.error || `HTTP ${res.status}`}`;
-      return;
-    }
-    // The function records the URL itself; just refresh the sidebar.
-    overrideStatus.textContent = 'Done: incoming messages now go to your URL.';
-    fillSidebar(auth.currentUser!.uid, phoneNumberId);
-  } catch (err) {
-    overrideStatus.textContent = `Request failed: ${errorMessage(err)}`;
-  } finally {
-    overrideBtn.disabled = false;
-  }
-});
-
 // --- Commands to copy: sending a message and managing templates -------------
 // The API key typed at the top is filled into the commands, so they can be pasted as they are.
 function renderCommands() {
   const typed = apiKeyInput.value.trim();
-  const key = isValidApiKey(typed) ? typed : 'YOUR_WATOBOT_API_KEY';
+  const key = isValidApiKey(typed) ? typed : KEY_PLACEHOLDER;
   const base = functionsBase();
   const auth = `-H 'Authorization: Bearer ${key}'`;
   const json = `-H 'Content-Type: application/json'`;
@@ -528,6 +507,15 @@ function renderCommands() {
     `  -d '${text}'`,
   ].join('\n');
 
+
+  // The webhook call: the URL goes in the command, and `noCallback` instead of a URL receives nothing.
+  el<HTMLTextAreaElement>('override-command').value = [
+    `curl -X PUT '${base}/numbers/${phoneNumberId}/webhook' \\`,
+    `  ${auth} \\`,
+    `  ${json} \\`,
+    `  -d '${JSON.stringify({ overrideCallbackUrl: 'https://your-app.example.com/webhook' })}'`,
+  ].join('\n');
+  fillAiTool(isValidApiKey(typed) ? typed : KEY_PLACEHOLDER);
 
   el<HTMLTextAreaElement>('deregister-command').value = [
     `curl -X POST '${base}/deregisterNumber' \\`,
@@ -577,9 +565,14 @@ function renderCommands() {
     `  ${auth}`,
   ]);
 }
-apiKeyInput.addEventListener('input', renderCommands);
+apiKeyInput.addEventListener('input', () => {
+  renderCommands();
+  updateRefresh();
+  if (hasKey()) el('key-alert').classList.add('hidden');
+});
 
 for (const [button, box] of [
+  ['copy-override-btn', 'override-command'],
   ['copy-send-btn', 'send-command'],
   ['copy-send-text-btn', 'send-text-command'],
   ['copy-deregister-btn', 'deregister-command'],
@@ -596,12 +589,15 @@ for (const [button, box] of [
   });
 }
 
-// --- Accordions: opening one closes the others ---------------------------------
+wireAiTabs(el('ai-tabs'))();
+
+// --- Accordions: opening one closes the others, and each needs the API key typed at the top ---
 const accordions = Array.from(document.querySelectorAll<HTMLDetailsElement>('details[data-accordion]'));
 for (const item of accordions) {
   item.addEventListener('toggle', () => {
     if (!item.open) return;
     for (const other of accordions) if (other !== item) other.open = false;
+    if (item.hasAttribute('data-needs-key') && !hasKey()) needKey();
   });
 }
 
@@ -617,6 +613,7 @@ onAuthStateChanged(auth, async (user) => {
   // the sections show either way.
   renderCommands();
   el('key-card').classList.remove('hidden');
+  el('status-card').classList.remove('hidden');
   el('sections').classList.remove('hidden');
   if (!(await loadRecord())) el('not-found').classList.remove('hidden');
 });

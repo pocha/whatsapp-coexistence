@@ -684,9 +684,10 @@ test('refreshing from Meta stores what it finds and replaces what a webhook set'
 
   await seedNumber('9802', '9812');
   const limited = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9802', refresh: true })).json();
-  assert.equal(limited.number.health.status, 'limit');
-  assert.deepEqual(Object.keys(limited.number.health).filter((k) => ['account', 'business', 'display_name', 'phone'].includes(k)).sort(), ['business', 'display_name']);
-  assert.equal(limited.number.health.limits.day, 5);
+  // Meta's note that the display name is not approved yet restricts nothing here: only the unverified business shows,
+  // and the day is capped by Meta's tier alone.
+  assert.deepEqual(Object.keys(limited.number.health).filter((k) => ['account', 'business', 'display_name', 'phone'].includes(k)).sort(), ['business']);
+  assert.equal(limited.number.health.limits.day, 250);
 
   await seedNumber('9805', '9815');
   await send(hook('9815', 'account_update', { event: 'DISABLED_UPDATE', ban_info: { waba_ban_state: 'DISABLE' } }, nowS() - 100));

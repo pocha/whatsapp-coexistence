@@ -86,7 +86,9 @@ export function deriveHealth(snapshot: Pick<MetaSnapshot, 'phone' | 'messagingLi
         explained = true;
       }
     }
-    for (const note of entity.additional_info ?? []) if (/display name/i.test(note) && fromRow('phone_note:display_name', { note })) explained = true;
+    // Meta's note that the display name is not approved yet names no limit, and a name that is available without review
+    // sends normally, so it restricts nothing here. It explains why Meta calls the number limited.
+    for (const note of entity.additional_info ?? []) if (/display name/i.test(note)) explained = true;
 
     // Blocked or limited with no reason Meta gave: say so, so the status is never unexplained.
     if (send && !explained) {

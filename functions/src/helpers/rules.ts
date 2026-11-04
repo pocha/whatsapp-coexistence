@@ -144,11 +144,6 @@ export const RULES: Record<string, Rule> = {
     message: `Your business hasn't passed Meta's business verification. Until it does, Meta caps you at 250 customers a day, and Watobot's daily limit stays under that. Everything else works. Optional: to raise the cap, start business verification in Business Settings, under Security Center. ${REFRESH}`,
     scope: 'business', why: 'business', send: 'limit', link: 'business',
   },
-  'phone_note:display_name': {
-    title: 'Display name not approved yet',
-    message: `{{note}} Until it is approved the number can send only a few template messages a day (Watobot allows ${LIMITED_DAILY_TEMPLATES}). Replies in a chat are not limited. Wait for Meta's decision. If you haven't requested a name, or it was declined, request one that follows the guidelines.`,
-    scope: 'display_name', why: 'name', send: 'limit', limits: LIMITED, link: 'names',
-  },
   'phone_status:BANNED': { title: 'Number banned', message: `Meta has banned this number, so nothing can be sent from it. ${ASK}`, scope: 'phone', why: 'ban', send: 'disable', link: 'manager' },
   'phone_status:DELETED': { title: 'Number deleted', message: 'This number has been deleted from the account. Onboard it again if you still need it.', scope: 'phone', why: 'ban', send: 'disable', link: 'manager' },
   'phone_status:DISCONNECTED': { title: 'Number disconnected', message: 'The number is disconnected from the Cloud API, so nothing can be sent. Register it again, or onboard it again.', scope: 'phone', why: 'connection', send: 'disable', link: 'manager' },
