@@ -4,7 +4,7 @@ import { isValidApiKey } from '/assets/api-key.js';
 import '/assets/nav-auth.js';
 import { fillAiTool, KEY_PLACEHOLDER, wireAiTabs } from '/assets/ai-tool.js';
 import { el, errorMessage } from '/assets/dom.js';
-import type { NumberView, Scope, SyncStatus } from '../../../functions/src/helpers/types';
+import type { GetNumberResponse, NumberView, Scope, SyncStatus } from '../../../functions/src/helpers/types';
 import { effectiveConfig, REFRESH_MIN_INTERVAL_MS, view } from '../../../functions/src/helpers/rateLimiter';
 import { issuesOf, SCOPES } from '../../../functions/src/helpers/sendGate';
 import { fetchNotifications, fetchNumber } from '/assets/account.js';
@@ -254,12 +254,17 @@ async function loadRecord(): Promise<boolean> {
     location.replace(`/dashboard/waba/create.html?id=${encodeURIComponent(phoneNumberId)}`);
     return true;
   }
+  showRecord(data);
+  return true;
+}
+
+/** Everything on the page that comes from the number's record. Used when the page loads and again after a refresh. */
+function showRecord(data: NumberView) {
   renderSyncChips(data);
   renderCallback(data);
   renderChips(data);
   void renderNotifications();
   renderStats(data);
-  return true;
 }
 
 const hasKey = () => isValidApiKey(apiKeyInput.value.trim());
@@ -314,6 +319,9 @@ function renderChips(data: NumberView) {
 /** When Meta was last asked, and whether the refresh can be used yet. */
 let lastFetchedAt: number | undefined;
 let nextAllowedAt = 0;
+/** Set by a refresh done on this page: the note under the button then says when the next one can be done. */
+let refreshedHere = false;
+let refreshError = '';
 
 function renderRefresh(data: NumberView) {
   lastFetchedAt = data.metaFetchedAt;
@@ -330,8 +338,15 @@ function updateRefresh() {
   const waiting = nextAllowedAt > Date.now();
   button.disabled = waiting;
   button.setAttribute('aria-disabled', String(waiting || !hasKey()));
-  el('hd-checked').textContent = lastFetchedAt ? `Last refreshed ${new Date(lastFetchedAt).toLocaleString()}` : 'Never refreshed';
-  el('refresh-status').textContent = waiting ? `Meta can be asked again at ${new Date(nextAllowedAt).toLocaleTimeString()}.` : '';
+  const note = el('hd-checked');
+  note.classList.toggle('text-error', Boolean(refreshError));
+  note.textContent =
+    refreshError ||
+    (refreshedHere && waiting
+      ? `Next refresh can be done at ${new Date(nextAllowedAt).toLocaleTimeString()}`
+      : lastFetchedAt
+        ? `Last refreshed ${new Date(lastFetchedAt).toLocaleString()}`
+        : 'Never refreshed');
 }
 
 function paragraph(text: string, className = ''): HTMLParagraphElement {
@@ -399,21 +414,31 @@ async function callWithKey(method: 'GET' | 'PUT', path: string, body?: object) {
 }
 
 el('refresh-btn').addEventListener('click', async () => {
-  const status = el('refresh-status');
   if (nextAllowedAt > Date.now()) return;
   if (!hasKey()) {
     needKey();
     return;
   }
-  el<HTMLButtonElement>('refresh-btn').disabled = true;
-  status.textContent = 'Asking Meta…';
+  const button = el<HTMLButtonElement>('refresh-btn');
+  const label = button.textContent;
+  const spinner = document.createElement('span');
+  spinner.className = 'inline-block h-4 w-4 animate-spin rounded-full border-2 border-outline-variant border-t-primary align-middle';
+  spinner.setAttribute('role', 'status');
+  spinner.setAttribute('aria-label', 'Fetching');
+  button.disabled = true;
+  button.replaceChildren(spinner);
+  refreshError = '';
   try {
-    const result = await callWithKey('GET', '?refresh=true');
+    const result = (await callWithKey('GET', '?refresh=true')) as GetNumberResponse;
     if (result.metaError) throw new Error(result.metaError);
-    location.reload();
+    refreshedHere = true;
+    if (dialog.open) dialog.close();
+    showRecord(result.number);
   } catch (err) {
-    status.textContent = errorMessage(err);
-    el<HTMLButtonElement>('refresh-btn').disabled = false;
+    refreshError = errorMessage(err);
+  } finally {
+    button.textContent = label;
+    updateRefresh();
   }
 });
 

@@ -37,11 +37,10 @@
           <div class="flex items-start justify-between gap-4">
             <p class="section-title text-on-surface">Status</p>
             <div class="flex flex-col items-end gap-1">
-              <button id="refresh-btn" type="button" class="rounded-xl border border-outline-variant bg-white px-5 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all aria-disabled:opacity-50 aria-disabled:cursor-not-allowed disabled:opacity-50 disabled:cursor-not-allowed">Refresh from Meta</button>
+              <button id="refresh-btn" type="button" class="rounded-xl border border-outline-variant bg-white px-5 py-2 font-label-md text-label-md font-bold text-on-surface hover:bg-surface-container transition-all aria-disabled:opacity-50 aria-disabled:cursor-not-allowed disabled:opacity-50 disabled:cursor-not-allowed">Fetch latest status</button>
               <p id="hd-checked" class="label-muted text-right"></p>
             </div>
           </div>
-          <p id="refresh-status" class="text-on-surface-variant font-body-md text-sm mt-2"></p>
           <div class="flex flex-col divide-y divide-outline-variant mt-3">
             <div class="flex items-center justify-between gap-3 py-2"><span class="label-strong text-on-surface-variant">Account status</span><span id="chip-account"></span></div>
             <div class="flex items-center justify-between gap-3 py-2"><span class="label-strong text-on-surface-variant">Business status</span><span id="chip-business"></span></div>
@@ -238,7 +237,7 @@
       </div>
     </div>
     <p class="text-on-surface-variant font-body-md text-sm mt-4 border-t border-outline-variant pt-4">
-      This is the latest Meta told us. Once you have fixed what it names, enter your API key in the Status section and press Refresh from Meta.
+      This is the latest Meta told us. Once you have fixed what it names, enter your API key in the Status section and press Fetch latest status.
     </p>
     <p id="hd-status" class="text-on-surface-variant font-body-md text-sm mt-2"></p>
   </dialog>
