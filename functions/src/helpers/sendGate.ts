@@ -4,7 +4,7 @@ import type { Issue, NumberHealth, PhoneNumberDoc, Scope, ScopeHealth, Send, Why
 // trouble, to say whether a send goes out. Nothing here changes the health; that is done by the webhook rows
 // (rules.ts) and the refresh (health.ts). Everything here is pure, so the relay and the dashboard use the same rules.
 
-export const SCOPES: Scope[] = ['account', 'business', 'display_name', 'phone'];
+export const SCOPES: Scope[] = ['account', 'business', 'number'];
 const RANK: Record<Send, number> = { ok: 0, limit: 1, block: 2, disable: 3 };
 const SEND = ['ok', 'limit', 'block', 'disable'] as const;
 export type Active = Issue & { scope: Scope; why: Why };

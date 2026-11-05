@@ -12,7 +12,7 @@ export function numberView(doc: PhoneNumberDoc): NumberView {
     wabaId: doc.wabaId,
     displayPhoneNumber: doc.displayPhoneNumber,
     overrideUrl: doc.overrideUrl,
-    callbackSkipped: doc.callbackSkipped,
+    callbackSkipped: doc.onboarding.callbackSkipped,
     health: doc.health,
     displayName: doc.displayName,
     templates: doc.templates,
@@ -28,7 +28,6 @@ export function numberView(doc: PhoneNumberDoc): NumberView {
     next: nextStep(doc),
     hasToken: Boolean(doc.encAccessToken),
     isOnBizApp: doc.isOnBizApp,
-    platformType: doc.platformType,
     metaStatus: doc.metaStatus,
     sync: doc.sync,
   };
@@ -147,7 +146,7 @@ export const progressOf = (doc: PhoneNumberDoc) => ({ step: effectiveStep(doc), 
  */
 export function effectiveStep(doc: PhoneNumberDoc): OnboardingStep {
   const stored = doc.onboarding.step;
-  if (!doc.overrideUrl && !doc.callbackSkipped) return 'override';
+  if (!doc.overrideUrl && !doc.onboarding.callbackSkipped) return 'override';
 
   // An API-only number that Meta no longer shows as connected has to be registered again.
   if (doc.isOnBizApp === false && doc.metaStatus && doc.metaStatus !== 'CONNECTED' && stored !== 'not_on_app') return 'register';

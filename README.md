@@ -70,7 +70,7 @@ Three kinds of credential:
 | `POST /onboarding/<id>/sync` | Key | Requests the contacts, then the history sync (each once). | `syncType` |
 | `POST /onboarding/<id>/sync/skip` | Key | Skips the contacts and history sync for good (Meta allows each once). Only at the sync step. | |
 
-**Sending status.** What decides whether a send goes out is kept on the number as `health`: the issues that currently restrict it, grouped by what they are about (`account`, `business`, `display_name`, `phone`) and by what they are (`payment`, `ban`, `review`, `connection`, `restriction`, `quality`, `cooldown`, `name`, `business`, or `code_<N>` for a Meta error we have no wording for). An issue exists only while it applies; when it lifts it is deleted. Every write also stores each scope's `status`, the number's overall `status` and `limits` (the lowest ceiling per window), so the stored `health` is what the dashboard and API show. An issue with an end time is dropped by the next write after it ends, and the relay ignores it from then on, so the dashboard can show it for a few minutes longer until the next refresh. It is set by:
+**Sending status.** What decides whether a send goes out is kept on the number as `health`: the issues that currently restrict it, grouped by what they are about (`account`, `business`, `number`: the three parts Meta reports on) and by what they are (`payment`, `ban`, `review`, `connection`, `restriction`, `quality`, `cooldown`, `name` (the display name is not approved yet), `business`, or `code_<N>` for a Meta error we have no wording for). An issue exists only while it applies; when it lifts it is deleted. Every write also stores each scope's `status`, the number's overall `status` and `limits` (the lowest ceiling per window), so the stored `health` is what the dashboard and API show. An issue with an end time is dropped by the next write after it ends, and the relay ignores it from then on, so the dashboard can show it for a few minutes longer until the next refresh. It is set by:
 
 - **Meta's notifications to our webhook** (below), applied as they arrive. An event sets or clears only its own issue: a lifted ban leaves a payment problem where it is, and an event older than what is stored for that issue is ignored.
 - **A refresh** (`GET /numbers/<id>?refresh=true`, which is the dashboard's refresh button and an AI tool's `get_number` with `refresh`), at the end of onboarding, and a send Meta refuses. A refresh reads Meta's whole picture and replaces what the notifications had set, except anything that arrived while it ran. Meta is asked at most once in ten minutes.
@@ -81,7 +81,7 @@ Each issue says what it does to sending (`send`): `limit`, `block` or `disable`.
 | --- | --- | --- |
 | `disable` | The account is banned or scheduled to be disabled, deleted, rejected in review, or the number is disconnected | Refuses every send with `403`, free-form messages too |
 | `block` | Meta says the account or number is blocked (for example a payment method problem), a restriction on business-initiated messaging, or Meta's spam rate limit (a pause of an hour) | Template messages get `403`, or `429` with `Retry-After` when the block has an end time. Free-form replies still go through. |
-| `limit` | The number itself is limited (a display name not approved yet), flagged or of low quality, or the business is unverified | The issue's limits apply: at most 5 template messages a day for a limited number (our own cautious figure), or Meta's cap. |
+| `limit` | The number is flagged or of low quality, or the business is unverified | The issue's limits apply: at most 5 template messages a day for a flagged or low-quality number (our own cautious figure; Meta gives none), and always Meta's daily limit. An unverified business changes nothing by itself. |
 | `ok` | No issue | Normal limits. |
 
 An issue may carry `limits` per window; the lowest of these and Meta's daily messaging limit (250 while the business is unverified, stored as `health.tier`) is `health.limits`, which caps what the number has earned (see Rate limits). Each issue has a `title`, a `message` that says what is wrong and what to do, and where we know one a `link`, written for the cases we know and in Meta's words for any other. A refused send returns the blocking `issues`. The number's page shows one chip per scope (OK, Limited or Blocked) and the popup lists the issues. Any other account-level field Meta sends is kept as a notification that gates nothing. The wording for every signal is one table, `functions/src/helpers/rules.ts`.
@@ -242,9 +242,9 @@ only their own, within the limits in `firestore.rules` (they can never change `u
 
 | Document | Fields |
 |---|---|
-| `users/{randomUserId}` | `phoneNumber`, `apiKeyHash`, `createdAt`, `rotatedAt` |
+| `users/{randomUserId}` | `phoneNumber`, `apiKeyHash`, `createdAt`, `rotatedAt`, `phoneNumbers` (the ids of their numbers, written in the same transaction that creates each number; listing a user's numbers reads these ids) |
 | `phoneIndex/{phone}` | `userId` |
-| `phoneNumbers/{phoneNumberId}` | `userId`, `wabaId`, `phoneNumberId`, `displayPhoneNumber`, `encAccessToken`, `overrideUrl`, `activatedAt`, `lastRelayCall`, `usage`, `rateState`, `limits`, `rateLimits` |
+| `phoneNumbers/{phoneNumberId}` | `userId`, `wabaId`, `displayPhoneNumber`, `encAccessToken`, `overrideUrl`, `activatedAt`, `lastRelayCall`, `usage`, `rateState`, `limits`, `rateLimits` |
 
 The Firebase sign-in `uid` is the random user ID, not the phone number.
 
@@ -489,8 +489,8 @@ locally, where the Auth emulator doesn't check signatures.
 prints the URL of each function, including a line like
 `Function URL (webhook(us-central1)): https://...`. That is your webhook URL.
 Meta requires the app itself to have a webhook before a business's
-incoming-URL override can be set. Without one, **Verify & save** on a WABA's
-page fails with "your app must be subscribed to receive messages for WhatsApp
+incoming-URL override can be set. Without one, the override call (in the wizard, or
+the command under **Raw API Calls** on a number's page) fails with "your app must be subscribed to receive messages for WhatsApp
 Business Account".
 
 1. In the app dashboard, go to **Use cases → Customize → Step 2. Production
@@ -549,9 +549,9 @@ gives Watobot the token, which it stores encrypted under your key and opens only
 2. **Onboard a number**: click **Onboard Phone Number** and follow the wizard (or let an AI tool do the checks through
    the MCP server, which hands you a link for Meta's sign-up). The number comes out of Meta's sign-up with its
    own phone number ID, shown on its page in the dashboard (`/dashboard/waba/?id=<phone number ID>`).
-3. **Override incoming message URL**: in the wizard (or on the number's page), enter your Watobot API key and
-   your app's public HTTPS URL, then click **Verify & save**. This completes the test for
-   `whatsapp_business_management`.
+3. **Override incoming message URL**: in the wizard, enter your Watobot API key and your app's public HTTPS URL,
+   then click **Verify & save** (or, later, run the **Override incoming message URL / webhook** command under
+   **Raw API Calls** on the number's page). This completes the test for `whatsapp_business_management`.
 4. **Send a message**: copy the curl command on the number's page, put in your key and a recipient number,
    and run it in a terminal:
 

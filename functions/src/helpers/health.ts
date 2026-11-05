@@ -37,8 +37,8 @@ interface HealthEntity {
 
 const isCalling = (code?: number, text?: string) => code === 138024 || code === 138025 || /\bSIP\b/.test(text ?? '');
 
-const SCOPE_OF: Record<string, Scope> = { WABA: 'account', PHONE_NUMBER: 'phone', BUSINESS: 'business' };
-const SCOPE_NAME: Record<Scope, string> = { account: 'account', phone: 'number', business: 'business', display_name: 'display name' };
+const SCOPE_OF: Record<string, Scope> = { WABA: 'account', PHONE_NUMBER: 'number', BUSINESS: 'business' };
+const SCOPE_NAME: Record<Scope, string> = { account: 'account', number: 'number', business: 'business' };
 
 export interface DerivedHealth {
   health: NumberHealth;
@@ -67,7 +67,7 @@ export function deriveHealth(snapshot: Pick<MetaSnapshot, 'phone' | 'messagingLi
     const scope = SCOPE_OF[entity.entity_type ?? ''];
     if (!state || state === 'AVAILABLE' || !scope) continue;
     // Only these restrict sending; a business that is LIMITED only because it is unverified is normal (its own row).
-    const send = state === 'BLOCKED' && scope !== 'business' ? 'block' : state === 'LIMITED' && scope === 'phone' ? 'limit' : undefined;
+    const send = state === 'BLOCKED' && scope !== 'business' ? 'block' : state === 'LIMITED' && scope === 'number' ? 'limit' : undefined;
     let explained = false;
 
     for (const error of entity.errors ?? []) {
@@ -86,7 +86,12 @@ export function deriveHealth(snapshot: Pick<MetaSnapshot, 'phone' | 'messagingLi
         explained = true;
       }
     }
-    for (const note of entity.additional_info ?? []) if (/display name/i.test(note) && fromRow('phone_note:display_name', { note })) explained = true;
+    // Meta's note that the display name is not approved yet explains why it calls the number limited.
+    for (const note of entity.additional_info ?? []) {
+      if (!/display name/i.test(note)) continue;
+      if (send === 'limit' && scope === 'number') fromRow('phone_note:display_name');
+      explained = true;
+    }
 
     // Blocked or limited with no reason Meta gave: say so, so the status is never unexplained.
     if (send && !explained) {

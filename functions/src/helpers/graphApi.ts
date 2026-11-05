@@ -129,7 +129,6 @@ export interface PhoneNumberInfo {
   status?: string;
   codeVerificationStatus?: string;
   isOnBizApp?: boolean;
-  platformType?: string;
 }
 
 /**
@@ -145,7 +144,6 @@ export async function getPhoneNumberInfo(phoneNumberId: string, accessToken: str
     status: body.status,
     codeVerificationStatus: body.code_verification_status,
     isOnBizApp: typeof body.is_on_biz_app === 'boolean' ? body.is_on_biz_app : undefined,
-    platformType: body.platform_type,
   };
 }
 

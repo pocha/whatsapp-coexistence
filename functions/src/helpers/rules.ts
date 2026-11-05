@@ -95,7 +95,7 @@ export const RULES: Record<string, Rule> = {
   'phone_number_name_update:APPROVED': {
     title: 'Display name approved', message: 'Meta approved the display name "{{requested_verified_name}}".',
     name: { name: '{{requested_verified_name}}', status: 'APPROVED', requestedName: null, requestedStatus: 'NONE' },
-    scope: 'display_name', why: 'name',
+    scope: 'number', why: 'name',
   },
   'phone_number_name_update:REJECTED': {
     title: 'Display name declined', message: 'Meta declined the display name "{{requested_verified_name}}"[ ({{rejection_reason|label}})]. Request a different name that follows the guidelines.', name: { requestedName: '{{requested_verified_name}}', requestedStatus: 'DECLINED' },
@@ -108,9 +108,9 @@ export const RULES: Record<string, Rule> = {
   'phone_number_quality_update:FLAGGED': {
     title: 'Number flagged',
     message: `Meta flagged this number because of how its messages are received. Watobot allows only ${LIMITED_DAILY_TEMPLATES} template messages a day until it clears. Pause campaigns, send only to people who asked for them, and review your templates. ${REFRESH}`,
-    scope: 'phone', why: 'quality', send: 'limit', limits: LIMITED, link: 'manager',
+    scope: 'number', why: 'quality', send: 'limit', limits: LIMITED, link: 'manager',
   },
-  'phone_number_quality_update:UNFLAGGED': { title: 'Number unflagged', message: 'Meta reported unflagged[; the messaging limit is now {{tierName}}].', scope: 'phone', why: 'quality' },
+  'phone_number_quality_update:UNFLAGGED': { title: 'Number unflagged', message: 'Meta reported unflagged[; the messaging limit is now {{tierName}}].', scope: 'number', why: 'quality' },
   phone_number_quality_update: { title: 'Number update: {{event|label}}', message: 'Meta reported {{event|label}}[; the messaging limit is now {{tierName}}].' },
 
   business_capability_update: { title: 'Account capabilities changed', message: 'Meta changed the limits on the number of phone numbers.' },
@@ -144,23 +144,25 @@ export const RULES: Record<string, Rule> = {
     message: `Your business hasn't passed Meta's business verification. Until it does, Meta caps you at 250 customers a day, and Watobot's daily limit stays under that. Everything else works. Optional: to raise the cap, start business verification in Business Settings, under Security Center. ${REFRESH}`,
     scope: 'business', why: 'business', send: 'limit', link: 'business',
   },
+  // Meta calls the number limited while its display name is not approved. It names no limit, and a name that is
+  // available without review sends normally, so this shows the note and holds nothing back.
   'phone_note:display_name': {
     title: 'Display name not approved yet',
-    message: `{{note}} Until it is approved the number can send only a few template messages a day (Watobot allows ${LIMITED_DAILY_TEMPLATES}). Replies in a chat are not limited. Wait for Meta's decision. If you haven't requested a name, or it was declined, request one that follows the guidelines.`,
-    scope: 'display_name', why: 'name', send: 'limit', limits: LIMITED, link: 'names',
+    message: "Meta lists this number as limited because its display name is not approved yet. Watobot adds no limit for that: template messages go out as normal. Meta reviews the name by itself once the number's messaging limit rises, so right after onboarding you usually do not need to ask for approval.",
+    scope: 'number', why: 'name', send: 'limit', link: 'names',
   },
-  'phone_status:BANNED': { title: 'Number banned', message: `Meta has banned this number, so nothing can be sent from it. ${ASK}`, scope: 'phone', why: 'ban', send: 'disable', link: 'manager' },
-  'phone_status:DELETED': { title: 'Number deleted', message: 'This number has been deleted from the account. Onboard it again if you still need it.', scope: 'phone', why: 'ban', send: 'disable', link: 'manager' },
-  'phone_status:DISCONNECTED': { title: 'Number disconnected', message: 'The number is disconnected from the Cloud API, so nothing can be sent. Register it again, or onboard it again.', scope: 'phone', why: 'connection', send: 'disable', link: 'manager' },
-  'phone_status:MIGRATED': { title: 'Number moved', message: 'This number has been moved to another account. Onboard it again here if you want it back.', scope: 'phone', why: 'connection', send: 'disable', link: 'manager' },
-  'phone_status:RESTRICTED': { title: 'Number restricted', message: 'Meta restricts this number, so template messages are refused. Open WhatsApp Manager to see the restriction and what lifts it.', scope: 'phone', why: 'restriction', send: 'block', link: 'manager' },
+  'phone_status:BANNED': { title: 'Number banned', message: `Meta has banned this number, so nothing can be sent from it. ${ASK}`, scope: 'number', why: 'ban', send: 'disable', link: 'manager' },
+  'phone_status:DELETED': { title: 'Number deleted', message: 'This number has been deleted from the account. Onboard it again if you still need it.', scope: 'number', why: 'ban', send: 'disable', link: 'manager' },
+  'phone_status:DISCONNECTED': { title: 'Number disconnected', message: 'The number is disconnected from the Cloud API, so nothing can be sent. Register it again, or onboard it again.', scope: 'number', why: 'connection', send: 'disable', link: 'manager' },
+  'phone_status:MIGRATED': { title: 'Number moved', message: 'This number has been moved to another account. Onboard it again here if you want it back.', scope: 'number', why: 'connection', send: 'disable', link: 'manager' },
+  'phone_status:RESTRICTED': { title: 'Number restricted', message: 'Meta restricts this number, so template messages are refused. Open WhatsApp Manager to see the restriction and what lifts it.', scope: 'number', why: 'restriction', send: 'block', link: 'manager' },
   'phone_status:FLAGGED': {
     title: 'Number flagged', message: 'Meta has flagged this number because of how its messages are received, and may lower its limits. Pause campaigns and review your templates and who you message.',
-    scope: 'phone', why: 'quality', send: 'limit', limits: LIMITED, link: 'manager',
+    scope: 'number', why: 'quality', send: 'limit', limits: LIMITED, link: 'manager',
   },
   'phone_status:RATE_LIMITED': {
     title: 'Number rate limited', message: 'Meta is limiting how much this number can send. Slow down and wait before sending more.',
-    scope: 'phone', why: 'quality', send: 'limit', limits: LIMITED, link: 'manager',
+    scope: 'number', why: 'quality', send: 'limit', limits: LIMITED, link: 'manager',
   },
   review: {
     title: 'Account review: {{status|label}}',
@@ -170,7 +172,7 @@ export const RULES: Record<string, Rule> = {
   'quality:RED': {
     title: 'Message quality is low',
     message: `Customers are blocking or reporting your messages more than Meta likes. If it stays low, Meta lowers your limit or blocks the number. Pause campaigns, send only to people who asked to hear from you, and review your templates. ${REFRESH}`,
-    scope: 'phone', why: 'quality', send: 'limit', limits: LIMITED, link: 'manager',
+    scope: 'number', why: 'quality', send: 'limit', limits: LIMITED, link: 'manager',
   },
 
   // ---- what a refused send tells us ----
@@ -186,7 +188,7 @@ export const RULES: Record<string, Rule> = {
   'refusal:131048': {
     title: 'Template messages paused',
     message: 'Meta says this number is sending more than recipients want (a spam rate limit, {{detail}}). Watobot pauses its template messages for an hour so that more sends do not make it worse. Replies still go through. Cut how many template messages you send, send only to people who asked for them, and review your templates.',
-    scope: 'phone', why: 'cooldown', send: 'block', forMs: HOUR, link: 'manager',
+    scope: 'number', why: 'cooldown', send: 'block', forMs: HOUR, link: 'manager',
   },
 };
 

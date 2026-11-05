@@ -15,6 +15,8 @@ export interface UserDoc {
   apiKeyHash?: string;
   createdAt: number;
   rotatedAt?: number;
+  /** The ids of the user's numbers (phoneNumbers/{id}), written with each number when it is created. */
+  phoneNumbers?: string[];
   /** The codes of the last "send test data" and when it went out (see onboarding.ts). */
   testRun?: { codes: Record<string, string>; sentAt: number };
 }
@@ -61,6 +63,8 @@ export interface OnboardingState {
   updatedAt: number;
   /** The last thing that went wrong in this step, shown with a way to try again. */
   error?: string;
+  /** The user chose to onboard without a callback URL: nothing of theirs receives incoming messages. */
+  callbackSkipped?: boolean;
   /** The previous provider's Messaging account, when the user said they own it. Not a secret. */
   templateSourceWabaId?: string;
 }
@@ -85,8 +89,6 @@ export interface PhoneNumberDoc {
   rateLimits?: RateLimitOverride;
   /** Wizard progress. Written only by the Functions. */
   onboarding: OnboardingState;
-  /** The user chose to onboard without a callback URL: nothing of theirs receives incoming messages. */
-  callbackSkipped?: boolean;
   /** Whether the number may send, as of the last read from Meta. See NumberHealth. */
   health?: NumberHealth;
   displayName?: DisplayNameState;
@@ -96,7 +98,6 @@ export interface PhoneNumberDoc {
   metaFetchedAt?: number;
   /** From Meta, after onboarding: whether the number is also on the WhatsApp Business app. */
   isOnBizApp?: boolean;
-  platformType?: string;
   /** Meta's status for the number as last seen (CONNECTED, ...), or DEREGISTERED after deregisterNumber. */
   metaStatus?: string;
   /** When each Meta data sync was requested. The data itself goes to the customer's URL and is never kept here. */
@@ -140,7 +141,6 @@ export interface NumberView {
   /** Whether a Meta token is stored, so the number can send. False after a lost-key reset. */
   hasToken: boolean;
   isOnBizApp?: boolean;
-  platformType?: string;
   metaStatus?: string;
   sync?: Partial<Record<SyncType, SyncStatus>>;
 }
@@ -150,8 +150,8 @@ export interface ListNumbersResponse extends ApiResponse {
   numbers: NumberView[];
 }
 
-/** Which part of the account an issue is about: the Messaging account, the business, the display name, or the number. */
-export type Scope = 'account' | 'business' | 'display_name' | 'phone';
+/** Which part of the account an issue is about, as Meta's health read names them: the Messaging account, the business, or the number. */
+export type Scope = 'account' | 'business' | 'number';
 
 /** What the issue is. `code_<N>` is a Meta error code we have no wording for. */
 export type Why = 'payment' | 'ban' | 'review' | 'connection' | 'restriction' | 'quality' | 'cooldown' | 'name' | 'business' | 'meta' | `code_${number}`;
