@@ -113,7 +113,7 @@ const dialog = el<HTMLDialogElement>('join-dialog');
 const COUNTED_KEY = 'watobot_waitlist_counted';
 
 // The dashboard sends visitors here with ?join-waitlist=true while the app
-// waits for Meta's approval.
+// is in waitlist mode.
 if (new URLSearchParams(location.search).get('join-waitlist') === 'true') {
   el('waitlist-alert').classList.remove('hidden');
   el('waitlist-alert-close').addEventListener('click', () => {

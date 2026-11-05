@@ -1,6 +1,19 @@
 <!--#var title="Sign in | Watobot"-->
 <!--#var description="Sign in to the Watobot dashboard with your WhatsApp number."-->
 <!--#include partial="head"-->
+  <script>
+    // While the app is in waitlist mode, nobody signs in: visitors go to the landing page, which says so. The sign-in
+    // page stays reachable on localhost, and anywhere after opening /dashboard/?preview=1 once (remembered in this
+    // browser). To let people sign in again, delete this script.
+    (function () {
+      var open = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      try {
+        if (new URLSearchParams(location.search).get('preview') === '1') localStorage.setItem('watobot_preview', '1');
+        open = open || localStorage.getItem('watobot_preview') === '1';
+      } catch (e) {}
+      if (!open) location.replace('/?join-waitlist=true');
+    })();
+  </script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@29.5/dist/css/intlTelInput.css"/>
 <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@29.5/dist/js/intlTelInput.min.js"></script>
 <!--#include partial="header"-->

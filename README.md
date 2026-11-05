@@ -379,11 +379,15 @@ emulated functions call the real Meta API, so `functions/.env` needs real `META_
 the number's state: it reports the step (`sync` or `register`, then `done`). The key sits in the tool's
 config file (or, for a connector, in its address) in plain text, so don't use a production key where it could be shared or screen-recorded.
 
-**Waitlist.** The dashboard (`/dashboard/` and its pages) is open to anyone, so Meta's reviewers can
-sign in and test the app. The landing page's **Join Waitlist** button reveals the Google Group link,
-and a count of people who clicked it is kept in `meta/waitlist`, incremented by the `joinWaitlist`
-function once per browser. The nav button on the landing page still says **Join Waitlist**; point it
-at `/dashboard/` (in `views/partials/header.html`) when you want the site itself to lead there.
+**Waitlist mode.** While the app is in waitlist mode, nobody can sign in: `/dashboard/login.html` sends every
+visitor to the landing page (`/?join-waitlist=true`), which shows a notice, and `/dashboard/` does the same for
+anyone who is not signed in. People who are already signed in carry on as usual, and the other dashboard pages
+(`key/`, `waba/`, `waba/create.html`) are not gated. The landing page's **Join Waitlist** button reveals the Google
+Group link, and a count of people who clicked it is kept in `meta/waitlist`, incremented by the `joinWaitlist`
+function once per browser. A visitor on `localhost`, or on any other host after opening `/dashboard/?preview=1`
+once (remembered in that browser), can sign in. To open the dashboard to everyone, delete the script at the top of
+`views/pages/dashboard-login.html`, make the signed-out branch of `src/dashboard/app.ts` go to
+`/dashboard/login.html` always, and point the nav button (`views/partials/header.html`) at `/dashboard/`.
 
 ### 4. Production deployment
 

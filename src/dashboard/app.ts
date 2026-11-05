@@ -3,7 +3,7 @@ import { fillSidebar, type NumberRecord } from '/assets/waba-sidebar.js';
 import '/assets/nav-auth.js';
 import { el, errorMessage } from '/assets/dom.js';
 
-// The dashboard: the signed-in user's phone numbers. Anyone else is sent to the sign-in page.
+// The dashboard: the signed-in user's phone numbers. Anyone else is sent to the sign-in page, or in waitlist mode to the landing page.
 // --- The signed-in dashboard --------------------------------------------------------
 function renderCards(numbers: NumberRecord[]) {
   const cards = el('waba-cards');
@@ -39,9 +39,22 @@ function renderCards(numbers: NumberRecord[]) {
   }
 }
 
+// While the app is in waitlist mode, someone who is not signed in is sent to the landing page, which says so. Anyone
+// already signed in carries on as usual. The dashboard stays open to a visitor on localhost, and anywhere after opening
+// /dashboard/?preview=1 once (remembered in this browser), so the owner can still sign in.
+function openToVisitors(): boolean {
+  const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  try {
+    if (new URLSearchParams(location.search).get('preview') === '1') localStorage.setItem('watobot_preview', '1');
+    return local || localStorage.getItem('watobot_preview') === '1';
+  } catch {
+    return local;
+  }
+}
+
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    location.replace('/dashboard/login.html');
+    location.replace(openToVisitors() ? '/dashboard/login.html' : '/?join-waitlist=true');
     return;
   }
   el('signed-in').classList.remove('hidden');
