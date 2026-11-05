@@ -36,13 +36,12 @@ export async function advanceAfterOverride(phoneNumberId: string, accessToken: s
   const info = await getPhoneNumberInfo(phoneNumberId, accessToken);
   const coexistence = doc.onboarding.event === 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING' || info.isOnBizApp === true;
   // With no callback URL there is nowhere to send the syncs, and Meta allows each once, so they are skipped.
-  const noSync = coexistence && doc.callbackSkipped === true;
+  const noSync = coexistence && doc.onboarding.callbackSkipped === true;
   const step: OnboardingStep = coexistence ? (noSync ? 'templates' : 'sync') : 'not_on_app';
   await recordOverrideResult(phoneNumberId, {
     onboarding: movedTo(doc.onboarding, step),
     isOnBizApp: info.isOnBizApp ?? false,
     metaStatus: info.status,
-    platformType: info.platformType,
     startSync: coexistence && !noSync,
     skipSync: noSync,
   });

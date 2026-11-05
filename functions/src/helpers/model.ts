@@ -1,4 +1,4 @@
-import { FieldValue, getFirestore, Timestamp, type DocumentSnapshot } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore, Timestamp, type DocumentSnapshot, type Transaction } from 'firebase-admin/firestore';
 import { effectiveConfig, reserve, type Limits, type RateLimitConfig, type Verdict } from './rateLimiter';
 import type {
   DisplayNameState,
@@ -20,7 +20,7 @@ import type {
 // Firestore, so the data model can be read, and changed, here. Server only (the browser reads
 // Firestore through its own SDK and shares just the types).
 //
-//   users/{userId}                phoneNumber, apiKeyHash, createdAt, rotatedAt
+//   users/{userId}                phoneNumber, apiKeyHash, createdAt, rotatedAt, phoneNumbers (the ids of their numbers)
 //   phoneIndex/{phone}            userId (makes phone -> user creation race-free)
 //   phoneNumbers/{phoneNumberId}  one per onboarded number: see PhoneNumberDoc in types.ts
 //   otps/{phone}                  sign-in codes (no browser can read them)
@@ -41,7 +41,8 @@ const phoneIndexRef = (phone: string) => db().collection('phoneIndex').doc(phone
 const otpRef = (phone: string) => db().collection('otps').doc(phone);
 const waitlistRef = () => db().collection('meta').doc('waitlist');
 
-const numberOf = (snap: DocumentSnapshot) => snap.data() as PhoneNumberDoc | undefined;
+// The number's id is the document's id; it is not stored in the document.
+const numberOf = (snap: DocumentSnapshot) => (snap.exists ? ({ ...snap.data(), phoneNumberId: snap.id } as PhoneNumberDoc) : undefined);
 const userOf = (snap: DocumentSnapshot) => snap.data() as UserDoc | undefined;
 
 // ---- users ----
@@ -133,10 +134,34 @@ export async function readNumber(phoneNumberId: string): Promise<PhoneNumberDoc 
 }
 
 export async function listNumbersForUser(userId: string): Promise<PhoneNumberDoc[]> {
-  return (await numbersOf(userId)).docs.map((snap) => numberOf(snap)!);
+  return (await numbersOf(userId)).map((snap) => numberOf(snap)!);
 }
 
-const numbersOf = (userId: string) => phoneNumbers().where('userId', '==', userId).get();
+/** The user's number documents, found through the ids on their user document. A document that is gone, or is not theirs, is left out. */
+async function numbersOf(userId: string): Promise<DocumentSnapshot[]> {
+  const ids = await numberIdsOf(userId);
+  if (!ids.length) return [];
+  return (await db().getAll(...ids.map(phoneNumberRef))).filter((snap) => snap.exists && snap.data()!.userId === userId);
+}
+
+/**
+ * The ids on the user document. A user from before the list existed has none stored: it is built once, from the
+ * numbers that name them as owner, and kept from then on.
+ */
+async function numberIdsOf(userId: string): Promise<string[]> {
+  const stored = userOf(await userRef(userId).get());
+  if (!stored) return [];
+  if (stored.phoneNumbers) return stored.phoneNumbers;
+  return db().runTransaction(async (tx) => {
+    const ids = await idsInTransaction(tx, userId);
+    tx.update(userRef(userId), { phoneNumbers: ids });
+    return ids;
+  });
+}
+
+const idsInTransaction = async (tx: Transaction, userId: string): Promise<string[]> =>
+  userOf(await tx.get(userRef(userId)))?.phoneNumbers ??
+  (await tx.get(phoneNumbers().where('userId', '==', userId))).docs.map((snap) => snap.id);
 
 /**
  * Saves a number's sealed Meta token. The number starts (or restarts) the onboarding wizard at the
@@ -155,17 +180,18 @@ export async function saveNumberToken(args: {
     const existing = numberOf(await tx.get(ref));
     // A number that belongs to another Watobot account is never taken over by a sign-up.
     if (existing && existing.userId !== args.userId) return 'owned_by_other' as const;
+    const owned = await idsInTransaction(tx, args.userId);
+    // The user's list of numbers is written with the number, so the two cannot disagree.
+    tx.update(userRef(args.userId), { phoneNumbers: [...new Set([...owned, args.phoneNumberId])] });
     tx.set(
       ref,
       {
         userId: args.userId,
         wabaId: args.wabaId,
-        phoneNumberId: args.phoneNumberId,
         encAccessToken: args.encAccessToken,
         onboarding: { step: 'override', event: args.event, updatedAt: Date.now() },
         sync: FieldValue.delete(),
         isOnBizApp: FieldValue.delete(),
-        platformType: FieldValue.delete(),
         metaStatus: FieldValue.delete(),
       },
       { merge: true },
@@ -233,8 +259,8 @@ export const setDisplayPhoneNumber = (phoneNumberId: string, displayPhoneNumber:
 export const setCallback = (phoneNumberId: string, overrideUrl?: string) =>
   phoneNumberRef(phoneNumberId).update(
     overrideUrl
-      ? { overrideUrl, callbackSkipped: FieldValue.delete(), activatedAt: Date.now() }
-      : { overrideUrl: FieldValue.delete(), callbackSkipped: true, activatedAt: Date.now() },
+      ? { overrideUrl, 'onboarding.callbackSkipped': FieldValue.delete(), activatedAt: Date.now() }
+      : { overrideUrl: FieldValue.delete(), 'onboarding.callbackSkipped': true, activatedAt: Date.now() },
   );
 
 /** The wizard state moved to a new step, with the previous failure cleared. */
@@ -254,12 +280,11 @@ export async function noteOnboardingError(phoneNumberId: string, step: Onboardin
 /** What Meta said about the number once the callback URL was subscribed, and where the wizard goes next. */
 export async function recordOverrideResult(
   phoneNumberId: string,
-  result: { onboarding: OnboardingState; isOnBizApp: boolean; metaStatus?: string; platformType?: string; startSync: boolean; skipSync?: boolean },
+  result: { onboarding: OnboardingState; isOnBizApp: boolean; metaStatus?: string; startSync: boolean; skipSync?: boolean },
 ): Promise<void> {
   await phoneNumberRef(phoneNumberId).update({
     isOnBizApp: result.isOnBizApp,
     ...(result.metaStatus ? { metaStatus: result.metaStatus } : {}),
-    platformType: result.platformType ?? FieldValue.delete(),
     ...(result.startSync ? { sync: { contacts: { state: 'none' }, history: { state: 'none' } } } : {}),
     ...(result.skipSync ? { sync: { contacts: { state: 'skipped', at: Date.now() }, history: { state: 'skipped', at: Date.now() } } } : {}),
     onboarding: result.onboarding,

@@ -152,13 +152,14 @@ export async function fillSidebar(uid: string, currentId?: string | null): Promi
   const list = el('waba-sidebar-list');
   const empty = el('waba-sidebar-empty');
 
-  // The key page is where an account creates its key, and later changes it.
-  const hasKey = Boolean(((await getDoc(doc(db, 'users', uid))).data() as UserDoc | undefined)?.apiKeyHash);
+  // The two reads do not depend on each other, so they go out together. The key page is where an account creates its key, and later changes it.
+  const [userSnap, listed] = await Promise.all([getDoc(doc(db, 'users', uid)), fetchNumbers()]);
+  const hasKey = Boolean((userSnap.data() as UserDoc | undefined)?.apiKeyHash);
   const keyLabel = hasKey ? 'Modify API key' : 'Create API key';
   el('key-nav-label').textContent = keyLabel;
   sidebar.querySelector('[data-nav="key"]')!.setAttribute('title', keyLabel);
 
-  const numbers: NumberRecord[] = (await fetchNumbers()).map((n) => ({ id: n.phoneNumberId, ...n }));
+  const numbers: NumberRecord[] = listed.map((n) => ({ id: n.phoneNumberId, ...n }));
   list.replaceChildren();
   for (const waba of numbers) {
     const id = waba.id;

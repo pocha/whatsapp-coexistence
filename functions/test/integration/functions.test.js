@@ -61,11 +61,14 @@ async function seedNumber(phoneNumberId, wabaId, key = KEY) {
   await db.collection('phoneNumbers').doc(phoneNumberId).set({
     userId,
     wabaId,
-    phoneNumberId,
     encAccessToken: encryptToken(META_TOKEN, key),
     onboarding: { step: 'done', event: 'FINISH', updatedAt: 1 },
   });
+  await ownNumber(phoneNumberId);
 }
+
+/** Puts a number on the signed-in user's list of numbers, as saving it through exchangeCode does. */
+const ownNumber = (phoneNumberId) => db.collection('users').doc(userId).set({ phoneNumbers: admin.firestore.FieldValue.arrayUnion(phoneNumberId) }, { merge: true });
 
 before(async () => {
   // A signed-in user, via the Auth emulator's REST API.
@@ -112,6 +115,8 @@ test('exchangeCode stores the Meta token encrypted under the API key and never r
   const stored = (await db.collection('phoneNumbers').doc('222').get()).data();
   assert.equal(stored.userId, userId);
   assert.equal(stored.wabaId, '111');
+  assert.equal('phoneNumberId' in stored, false, 'the id is the document id, not a field');
+  assert.ok((await db.collection('users').doc(userId).get()).data().phoneNumbers.includes('222'), 'the number is on the user\'s list, written with it');
   assert.equal(JSON.stringify(stored).includes(META_TOKEN), false, 'the token must not be stored in the clear');
   assert.equal(decryptToken(stored.encAccessToken, KEY), META_TOKEN);
   assert.throws(() => decryptToken(stored.encAccessToken, NEW_KEY));
@@ -180,7 +185,7 @@ test('the relay authenticates with the API key, sends with the decrypted Meta to
 test('template sends are rate limited per number, and free-form text is not', async () => {
   await seedNumber('556', '667');
   // A ceiling from the number's health, so the test needs only a few sends: the day allows 2.
-  await db.collection('phoneNumbers').doc('556').update({ health: require('../../lib/helpers/rules').settle({ phone: { quality: { send: 'limit', title: 't', message: 'm', at: 1, limits: { day: 2 } } } }, Date.now()) });
+  await db.collection('phoneNumbers').doc('556').update({ health: require('../../lib/helpers/rules').settle({ number: { quality: { send: 'limit', title: 't', message: 'm', at: 1, limits: { day: 2 } } } }, Date.now()) });
   const send = (message) =>
     fetch(`${FUNCTIONS_BASE}/numbers/556/messages`, {
       method: 'POST',
@@ -280,7 +285,7 @@ test('onboarding with no callback URL subscribes without an override, skips the 
   assert.equal(none.status, 200, JSON.stringify(body));
   assert.equal(body.step, 'templates', 'there is nowhere to send the syncs, so the sync step is passed');
   const saved = await numberDoc('2280');
-  assert.equal(saved.callbackSkipped, true);
+  assert.equal(saved.onboarding.callbackSkipped, true);
   assert.equal(saved.overrideUrl, undefined);
   assert.equal(saved.sync.contacts.state, 'skipped');
   assert.equal(saved.sync.history.state, 'skipped');
@@ -347,7 +352,7 @@ test('register refuses a number on the Business app, moves a plain number on, an
 
   // Registering straight from the "not on the app" choice screen moves on as well.
   await seedNumber('238', '9238');
-  await db.collection('phoneNumbers').doc('238').update({ callbackSkipped: true, onboarding: { step: 'not_on_app', event: 'FINISH', updatedAt: 1 } });
+  await db.collection('phoneNumbers').doc('238').update({ onboarding: { step: 'not_on_app', event: 'FINISH', updatedAt: 1, callbackSkipped: true } });
   assert.equal((await (await register('238')).json()).step, 'templates');
   assert.equal((await numberDoc('238')).onboarding.step, 'templates');
 
@@ -437,13 +442,13 @@ test('de-registering a plain number sends it to the register step', async () => 
   await db.collection('phoneNumbers').doc('241').set({
     userId,
     wabaId: '9241',
-    phoneNumberId: '241',
     overrideUrl: BUSINESS_ENDPOINT,
     isOnBizApp: false,
     metaStatus: 'CONNECTED',
     encAccessToken: encryptToken(META_TOKEN, KEY),
     onboarding: { step: 'done', event: 'FINISH', updatedAt: 1 },
   });
+  await ownNumber('241');
   assert.equal(effectiveStep(await numberDoc('241')), 'done');
 
   const res = await post('/deregisterNumber', { phoneNumberId: '241', apiKey: KEY });
@@ -500,6 +505,21 @@ test('listNumbers and getNumber answer with the key or a sign-in, only for the c
   assert.equal((await post('/getNumber', { apiKey: KEY, phoneNumberId: '9502' })).status, 404, 'someone else\'s number looks like it does not exist');
   assert.equal((await post('/listNumbers', { apiKey: NEW_KEY })).status, 401);
   assert.equal((await post('/listNumbers', {})).status, 401);
+});
+
+test('a user\'s numbers are found through the ids on their user document; a user from before the list is filled in once', async () => {
+  const LEGACY_KEY = 'abcdef0123456789'.repeat(4);
+  await db.collection('users').doc('legacy-user').set({ phoneNumber: '919000000099', apiKeyHash: hashApiKey(LEGACY_KEY), createdAt: 1 });
+  await db.collection('phoneNumbers').doc('9701').set({ userId: 'legacy-user', wabaId: '9711', encAccessToken: encryptToken(META_TOKEN, LEGACY_KEY), onboarding: { step: 'done', event: 'FINISH', updatedAt: 1 } });
+
+  const ids = async () => (await (await post('/listNumbers', { apiKey: LEGACY_KEY })).json()).numbers.map((n) => n.phoneNumberId);
+  assert.deepEqual(await ids(), ['9701'], 'no list yet: the numbers that name the user are found and the list is kept');
+  assert.deepEqual((await db.collection('users').doc('legacy-user').get()).data().phoneNumbers, ['9701']);
+
+  // From then on the list decides: a number added without it is not listed, and a number on the list that is not theirs, or is gone, is left out.
+  await db.collection('phoneNumbers').doc('9702').set({ userId: 'legacy-user', wabaId: '9712', onboarding: { step: 'done', event: 'FINISH', updatedAt: 1 } });
+  await db.collection('users').doc('legacy-user').update({ phoneNumbers: ['9701', '9502', '9799'] });
+  assert.deepEqual(await ids(), ['9701']);
 });
 
 test('the hosted MCP server takes the key as a bearer token or in the path, refuses anything else, and its tools work', async () => {
@@ -633,13 +653,13 @@ test('stored issues decide sending: disable stops everything, block stops templa
   assert.equal((await relayTo('9702', aText)).status, 200, 'a reply still goes');
 
   await seedNumber('9703', '9713');
-  await seedHealth('9703', { phone: { cooldown: issue('block', { until: Date.now() + 3_600_000 }) } });
+  await seedHealth('9703', { number: { cooldown: issue('block', { until: Date.now() + 3_600_000 }) } });
   const paused = await relayTo('9703', aTemplate());
   assert.equal(paused.status, 429, 'a pause with an end is a wait, not a refusal');
   assert.ok(Number(paused.headers.get('retry-after')) > 3000);
 
   await seedNumber('9704', '9714');
-  await seedHealth('9704', { phone: { quality: issue('limit', { limits: { day: 3 } }) }, tier: 250 });
+  await seedHealth('9704', { number: { quality: issue('limit', { limits: { day: 3 } }) }, tier: 250 });
   assert.equal((await healthOf('9704')).limits.day, 3, 'the lowest ceiling wins over Meta\'s 250');
   const statuses = [];
   for (let i = 0; i < 5; i++) statuses.push((await relayTo('9704', aTemplate())).status);
@@ -684,10 +704,13 @@ test('refreshing from Meta stores what it finds and replaces what a webhook set'
 
   await seedNumber('9802', '9812');
   const limited = await (await post('/getNumber', { apiKey: KEY, phoneNumberId: '9802', refresh: true })).json();
-  // Meta's note that the display name is not approved yet restricts nothing here: only the unverified business shows,
-  // and the day is capped by Meta's tier alone.
-  assert.deepEqual(Object.keys(limited.number.health).filter((k) => ['account', 'business', 'display_name', 'phone'].includes(k)).sort(), ['business']);
+  // Meta's note that the display name is not approved yet shows on the Number status, as a limit that names no ceiling,
+  // next to the unverified business; the day is capped by Meta's tier alone.
+  assert.deepEqual(Object.keys(limited.number.health).filter((k) => ['account', 'business', 'number'].includes(k)).sort(), ['business', 'number']);
+  assert.deepEqual(Object.keys(limited.number.health.number).sort(), ['name', 'status']);
+  assert.equal(limited.number.health.number.name.limits, undefined, 'the note adds no ceiling');
   assert.equal(limited.number.health.limits.day, 250);
+  assert.equal((await relayTo('9802', aTemplate())).status, 200, 'and a limit with no ceiling still sends');
 
   await seedNumber('9805', '9815');
   await send(hook('9815', 'account_update', { event: 'DISABLED_UPDATE', ban_info: { waba_ban_state: 'DISABLE' } }, nowS() - 100));

@@ -280,7 +280,7 @@ const STATUS_CHIP = {
   // Nothing at all is sent; it reads as Blocked, and the popup says why.
   disable: ['Blocked', 'bg-error/10 text-error'],
 } as const;
-const SCOPE_TITLE: Record<Scope, string> = { account: 'Account status', business: 'Business status', display_name: 'Display name', phone: 'Number status' };
+const SCOPE_TITLE: Record<Scope, string> = { account: 'Account status', business: 'Business status', number: 'Number status' };
 
 const NEUTRAL = 'bg-surface-container text-on-surface-variant';
 
@@ -305,6 +305,9 @@ function renderChips(data: NumberView) {
     button.addEventListener('click', () => openDialog(scope));
     el(`chip-${scope}`).replaceChildren(button);
   }
+  // Meta's messaging limit belongs to the business portfolio, so a second number starts under the same one.
+  const tier = data.health?.tier;
+  el('messaging-limit').textContent = !data.health ? 'Not checked' : tier ? `${tier.toLocaleString()} customers a day` : 'Not reported by Meta';
   renderRefresh(data);
 }
 
@@ -367,12 +370,12 @@ function openDialog(scope: Scope) {
     }
     body.append(item);
   }
-  if (scope === 'display_name' && shown.displayName?.name) {
+  if (scope === 'number' && shown.displayName?.name) {
     body.append(paragraph(`Current display name: ${shown.displayName.name} (${shown.displayName.status ?? 'status unknown'}).`));
   }
   // A new name can be requested unless one is already waiting for Meta's decision.
   const pending = /PENDING/i.test(shown.displayName?.requestedStatus ?? '');
-  el('hd-name').classList.toggle('hidden', scope !== 'display_name' || pending);
+  el('hd-name').classList.toggle('hidden', scope !== 'number' || pending);
 
   el('hd-status').textContent = '';
   dialog.showModal();

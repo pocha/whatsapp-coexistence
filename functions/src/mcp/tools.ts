@@ -60,7 +60,7 @@ export function createServer(ctx: Context): McpServer {
   tool('list_numbers', 'Lists your numbers and where each is in onboarding (the "step"), whether it is also on the WhatsApp Business app, and when the syncs were requested.', {}, () => callWithBearer('GET', 'numbers'), { readOnly: true });
   tool(
     'get_number',
-    'One number\'s state, its template-send limits and its sending status (ok, limit, block or disable, per scope: account, business, display_name and phone, with the issues, what to do about each and where; a disabled number, such as a banned or disconnected one, sends nothing). That is what was stored the last time Meta was asked. With refresh=true it asks Meta again (messaging limit tier, quality rating, display name, account review, ownership, the callback URL override, the token\'s scopes) and updates the status, but only once in ten minutes: ask again only after the person has fixed what the status names.',
+    'One number\'s state, its template-send limits and its sending status (ok, limit, block or disable, per scope: account, business and number, with the issues, what to do about each and where; a disabled number, such as a banned or disconnected one, sends nothing). That is what was stored the last time Meta was asked. With refresh=true it asks Meta again (messaging limit tier, quality rating, display name, account review, ownership, the callback URL override, the token\'s scopes) and updates the status, but only once in ten minutes: ask again only after the person has fixed what the status names.',
     { phoneNumberId, refresh: z.boolean().optional() },
     (a) => callWithBearer('GET', `numbers/${a.phoneNumberId}${a.refresh ? '?refresh=true' : ''}`),
     { readOnly: true },

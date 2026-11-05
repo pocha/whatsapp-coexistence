@@ -70,7 +70,7 @@ Three kinds of credential:
 | `POST /onboarding/<id>/sync` | Key | Requests the contacts, then the history sync (each once). | `syncType` |
 | `POST /onboarding/<id>/sync/skip` | Key | Skips the contacts and history sync for good (Meta allows each once). Only at the sync step. | |
 
-**Sending status.** What decides whether a send goes out is kept on the number as `health`: the issues that currently restrict it, grouped by what they are about (`account`, `business`, `display_name`, `phone`) and by what they are (`payment`, `ban`, `review`, `connection`, `restriction`, `quality`, `cooldown`, `name`, `business`, or `code_<N>` for a Meta error we have no wording for). An issue exists only while it applies; when it lifts it is deleted. Every write also stores each scope's `status`, the number's overall `status` and `limits` (the lowest ceiling per window), so the stored `health` is what the dashboard and API show. An issue with an end time is dropped by the next write after it ends, and the relay ignores it from then on, so the dashboard can show it for a few minutes longer until the next refresh. It is set by:
+**Sending status.** What decides whether a send goes out is kept on the number as `health`: the issues that currently restrict it, grouped by what they are about (`account`, `business`, `number`: the three parts Meta reports on) and by what they are (`payment`, `ban`, `review`, `connection`, `restriction`, `quality`, `cooldown`, `name` (the display name is not approved yet), `business`, or `code_<N>` for a Meta error we have no wording for). An issue exists only while it applies; when it lifts it is deleted. Every write also stores each scope's `status`, the number's overall `status` and `limits` (the lowest ceiling per window), so the stored `health` is what the dashboard and API show. An issue with an end time is dropped by the next write after it ends, and the relay ignores it from then on, so the dashboard can show it for a few minutes longer until the next refresh. It is set by:
 
 - **Meta's notifications to our webhook** (below), applied as they arrive. An event sets or clears only its own issue: a lifted ban leaves a payment problem where it is, and an event older than what is stored for that issue is ignored.
 - **A refresh** (`GET /numbers/<id>?refresh=true`, which is the dashboard's refresh button and an AI tool's `get_number` with `refresh`), at the end of onboarding, and a send Meta refuses. A refresh reads Meta's whole picture and replaces what the notifications had set, except anything that arrived while it ran. Meta is asked at most once in ten minutes.
@@ -242,9 +242,9 @@ only their own, within the limits in `firestore.rules` (they can never change `u
 
 | Document | Fields |
 |---|---|
-| `users/{randomUserId}` | `phoneNumber`, `apiKeyHash`, `createdAt`, `rotatedAt` |
+| `users/{randomUserId}` | `phoneNumber`, `apiKeyHash`, `createdAt`, `rotatedAt`, `phoneNumbers` (the ids of their numbers, written in the same transaction that creates each number; listing a user's numbers reads these ids) |
 | `phoneIndex/{phone}` | `userId` |
-| `phoneNumbers/{phoneNumberId}` | `userId`, `wabaId`, `phoneNumberId`, `displayPhoneNumber`, `encAccessToken`, `overrideUrl`, `activatedAt`, `lastRelayCall`, `usage`, `rateState`, `limits`, `rateLimits` |
+| `phoneNumbers/{phoneNumberId}` | `userId`, `wabaId`, `displayPhoneNumber`, `encAccessToken`, `overrideUrl`, `activatedAt`, `lastRelayCall`, `usage`, `rateState`, `limits`, `rateLimits` |
 
 The Firebase sign-in `uid` is the random user ID, not the phone number.
 
